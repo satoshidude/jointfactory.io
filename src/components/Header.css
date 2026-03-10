@@ -1,0 +1,227 @@
+/* Wallet widget */
+.wallet-widget {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+}
+
+.wallet-icon {
+  color: var(--warning);
+}
+
+.wallet-sats {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--warning);
+  font-variant-numeric: tabular-nums;
+}
+
+.wallet-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.joints-widget {
+  padding: 4px 10px;
+  border: none !important;
+  background: none !important;
+}
+
+/* Lottery in header */
+.lottery-header-widget {
+  gap: 5px !important;
+}
+
+.header-lottery-gold {
+  color: var(--neon-gold);
+}
+
+.header-lottery-muted {
+  color: var(--text-secondary);
+}
+
+.header-lottery-countdown {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--neon-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.header-lottery-pot {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--neon-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.header-lottery-tickets {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.header-lottery-mine {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--neon-green);
+  font-variant-numeric: tabular-nums;
+}
+
+.header-lottery-buy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--neon-green);
+  background: rgba(57, 255, 20, 0.1);
+  color: var(--neon-green);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.header-lottery-buy-btn:hover:not(:disabled) {
+  background: rgba(57, 255, 20, 0.25);
+}
+.header-lottery-buy-btn.can-buy {
+  background: var(--neon-green);
+  color: #000;
+  border-color: var(--neon-green);
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.5);
+}
+.header-lottery-buy-btn.can-buy:hover {
+  background: #4dff33;
+  box-shadow: 0 0 16px rgba(57, 255, 20, 0.7);
+}
+.header-lottery-buy-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.wallet-joints-icon {
+  color: var(--neon-green);
+}
+
+.wallet-joints {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--neon-green);
+  font-variant-numeric: tabular-nums;
+}
+
+.wallet-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.wallet-btn.deposit {
+  color: var(--success);
+}
+.wallet-btn.deposit:hover {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: var(--success);
+}
+
+.wallet-btn.withdraw {
+  color: var(--warning);
+}
+.wallet-btn.withdraw:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--warning);
+}
+
+/* Header user button */
+.header-user-btn {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  font-weight: 500;
+  background: rgba(255,255,255,.03);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.header-user-btn:hover {
+  border-color: var(--text-secondary);
+  background: var(--bg-hover);
+  color: var(--neon-green);
+}
+
+.header-noname {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.flamingo-icon {
+  color: #f472b6;
+}
+
+/* Resource value colors (used in header) */
+.resource-value.text-purple {
+  color: var(--neon-green) !important;
+  text-shadow: 0 0 12px rgba(57,255,20,.4) !important;
+}
+.resource-value.text-factory-purple {
+  color: var(--neon-purple) !important;
+  text-shadow: 0 0 12px rgba(204,68,255,.4) !important;
+}
+.resource-value.text-cannabis {
+  color: #2e7d32 !important;
+  text-shadow: 0 0 10px rgba(46,125,50,.4) !important;
+}
+.resource-value.text-gold {
+  color: #ffd700 !important;
+  text-shadow: 0 0 12px rgba(255,215,0,.4) !important;
+}
+
+/* Invite button */
+.overview-wallet-btn.invite-btn {
+  color: var(--neon-green);
+}
+.overview-wallet-btn.invite-btn:hover {
+  background: rgba(57, 255, 20, 0.1);
+}
+
+/* Theme toggle */
+.theme-toggle {
+  color: var(--warning) !important;
+  border-color: transparent !important;
+}
+.theme-toggle:hover {
+  background: var(--bg-hover) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Login button */
+.login-btn {
+  color: var(--neon-green) !important;
+  border-color: rgba(57,255,20,.35) !important;
+  width: auto !important;
+  padding: 5px 12px !important;
+  box-shadow: 0 0 8px rgba(57,255,20,.15);
+}
+.login-btn:hover {
+  background: rgba(57,255,20,.1) !important;
+  box-shadow: 0 0 12px rgba(57,255,20,.25);
+}

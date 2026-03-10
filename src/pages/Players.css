@@ -1,0 +1,233 @@
+.players-page {
+  max-width: none;
+}
+
+.players-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.players-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.players-loading,
+.players-empty {
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.players-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.players-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.players-table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.players-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.players-table tbody tr.player-online {
+  background: rgba(74, 222, 128, 0.04);
+}
+
+.players-rank {
+  color: var(--text-secondary);
+  width: 32px;
+}
+
+.rank-gold { color: #fbbf24; }
+.rank-silver { color: #94a3b8; }
+.rank-bronze { color: #d97706; }
+
+.players-table tbody tr.rank-1 {
+  background: rgba(251,191,36,.08);
+  border-left: 3px solid #fbbf24;
+}
+.players-table tbody tr.rank-2 {
+  background: rgba(148,163,184,.06);
+  border-left: 3px solid #94a3b8;
+}
+.players-table tbody tr.rank-3 {
+  background: rgba(217,119,6,.06);
+  border-left: 3px solid #d97706;
+}
+
+.players-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.players-name-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.players-name-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.players-name-link:hover {
+  color: var(--neon-green);
+}
+
+.online-dot {
+  color: #4ade80;
+  fill: #4ade80;
+  flex-shrink: 0;
+}
+
+.players-noname {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.players-npub {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: color 0.15s;
+}
+.players-npub:hover {
+  color: var(--accent);
+}
+.players-npub code {
+  font-size: 11px;
+}
+
+.players-joints {
+  font-variant-numeric: tabular-nums;
+}
+
+.players-joints-value {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.players-total-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.players-rate {
+  font-variant-numeric: tabular-nums;
+}
+
+.players-rate-value {
+  color: #60a5fa;
+  font-size: 12px;
+}
+
+.players-none {
+  color: var(--text-secondary);
+  opacity: 0.4;
+}
+
+.players-zap-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.players-zap-link:hover {
+  text-decoration: underline;
+}
+
+.players-zap-total {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.players-win-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #fbbf24;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.players-win-icon {
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+
+.players-winnings {
+  font-variant-numeric: tabular-nums;
+}
+
+.players-winnings-value {
+  color: #fbbf24;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.players-seen {
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.online-text {
+  color: #4ade80;
+  font-weight: 500;
+}
+
+.players-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 0 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.players-pagination button {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+
+.players-pagination button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.players-pagination button:not(:disabled):hover {
+  background: var(--bg-hover);
+}

@@ -1,0 +1,227 @@
+.deposit-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--success);
+  border-radius: 12px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 0 40px rgba(34, 197, 94, 0.15);
+}
+
+.deposit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+}
+
+.deposit-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  color: var(--success);
+}
+
+.deposit-body {
+  padding: 8px 20px 20px;
+}
+
+.deposit-hint {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+
+/* Pack grid */
+.pack-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pack-card {
+  flex: 1 1 calc(33% - 10px);
+  min-width: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pack-card:hover:not(:disabled) {
+  border-color: var(--success);
+  background: rgba(34, 197, 94, 0.05);
+}
+.pack-card.selected {
+  border-color: var(--success);
+  background: rgba(34, 197, 94, 0.1);
+}
+.pack-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pack-label {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.pack-amount {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--warning);
+}
+
+/* Alby / WebLN pay button */
+.alby-pay-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 14px;
+  border: 1px solid #f5a623;
+  border-radius: 10px;
+  background: rgba(245, 166, 35, 0.1);
+  color: #f5a623;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.alby-pay-btn:hover:not(:disabled) {
+  background: rgba(245, 166, 35, 0.2);
+}
+.alby-pay-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* Invoice view */
+.invoice-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qr-wrapper {
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 14px;
+}
+
+.bolt11-row {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.bolt11-input {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bolt11-input:focus {
+  outline: none;
+}
+
+.bolt11-copy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bolt11-copy:hover {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+/* Loading */
+.deposit-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-top: 10px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Success */
+.deposit-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.success-icon {
+  color: var(--success);
+  margin-bottom: 12px;
+}
+
+.deposit-success h3 {
+  font-size: 18px;
+  color: var(--success);
+  margin-bottom: 6px;
+}
+
+.deposit-success p {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.deposit-done {
+  padding: 8px 24px;
+  border: 1px solid var(--success);
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.deposit-done:hover {
+  background: var(--success);
+  color: #000;
+}
+
+.deposit-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}

@@ -1,0 +1,213 @@
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.login-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--success);
+  border-radius: 12px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 0 40px rgba(34, 197, 94, 0.15);
+}
+
+.login-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+}
+
+.login-modal-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  color: var(--success);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.modal-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* Tabs */
+.login-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 20px;
+}
+
+.login-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.login-tab:first-child { border-radius: 8px 0 0 8px; }
+.login-tab:last-child { border-radius: 0 8px 8px 0; }
+.login-tab:not(:first-child) { border-left: none; }
+
+.login-tab.active {
+  background: var(--success);
+  color: #000;
+  border-color: var(--success);
+  font-weight: 600;
+}
+.login-tab:hover:not(.active) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Body */
+.login-body {
+  padding: 16px 20px;
+}
+
+.login-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.login-hint .warning-icon {
+  color: var(--warning);
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+
+.login-warning {
+  font-size: 13px;
+  color: var(--warning);
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.login-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  margin-top: 8px;
+}
+
+.login-input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: monospace;
+  margin-bottom: 14px;
+}
+.login-input:focus {
+  outline: none;
+  border-color: var(--success);
+}
+.login-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.login-action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--success);
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+.login-action:hover:not(:disabled) {
+  background: var(--success);
+  color: #000;
+}
+.login-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.generated-key {
+  font-family: monospace;
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  word-break: break-all;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  user-select: all;
+}
+.generated-key.nsec {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+.generated-key.npub {
+  color: var(--success);
+}
+
+.login-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.login-footer {
+  padding: 0 20px 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.login-cancel {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.login-cancel:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
