@@ -362,6 +362,7 @@ export function useGameLoop(
       satsRef.current = 0
       totalEarnedRef.current = 0
       localStorage.removeItem(SAVE_KEY)
+      localStorage.removeItem('jf_guest_data')
       readyRef.current = true
       setDisplay(makeDisplay(gsRef.current, 0, 0, 0))
 
@@ -391,6 +392,7 @@ export function useGameLoop(
         onJointsChange(Math.floor(guestJoints))
         onSatsChange?.(authSats)
         saveLocal(guestGs)
+        localStorage.removeItem('jf_guest_data')
         // Immediately save guest progress to server so it persists
         saveToServer(guestGs, guestJoints, authSats, guestTotal)
         inTransitionRef.current = false
@@ -463,11 +465,37 @@ export function useGameLoop(
         onSatsChange?.(result.sats)
         canSaveRef.current = true
       } else {
-        // Guest mode: no server data, start fresh (no local load = clean slate after logout)
-        gsRef.current = initialState()
-        jointsRef.current = 0
-        satsRef.current = 0
-        totalEarnedRef.current = 0
+        // Guest mode: load from localStorage if available
+        const saved = localStorage.getItem(SAVE_KEY)
+        if (saved) {
+          try {
+            const gs = JSON.parse(saved) as GameState
+            migrateSpeedLevels(gs)
+            gsRef.current = gs
+            // Offline catch-up for guests too
+            const elapsed = gs._ts ? (Date.now() - gs._ts) / 1000 : 0
+            if (elapsed > 2) {
+              const earned = simulateOffline(gsRef.current, elapsed)
+              jointsRef.current += earned
+              totalEarnedRef.current += earned
+            }
+          } catch {
+            gsRef.current = initialState()
+          }
+        } else {
+          gsRef.current = initialState()
+        }
+        // Also load guest joints/sats from localStorage
+        const guestData = localStorage.getItem('jf_guest_data')
+        if (guestData) {
+          try {
+            const d = JSON.parse(guestData)
+            jointsRef.current = d.joints ?? 0
+            satsRef.current = d.sats ?? 0
+            totalEarnedRef.current = d.totalEarned ?? 0
+          } catch { /* ignore */ }
+        }
+        canSaveRef.current = true
       }
       readyRef.current = true
       setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current))
@@ -583,6 +611,14 @@ export function useGameLoop(
       if (canSaveRef.current && Date.now() - lastLocalSave > 5000) {
         saveLocal(g)
         onJointsChangeRef.current?.(Math.floor(jointsRef.current))
+        // Save guest data (joints/sats) to localStorage for non-logged-in users
+        if (!loggedInRef.current) {
+          localStorage.setItem('jf_guest_data', JSON.stringify({
+            joints: jointsRef.current,
+            sats: satsRef.current,
+            totalEarned: totalEarnedRef.current,
+          }))
+        }
         lastLocalSave = Date.now()
       }
 
@@ -601,6 +637,14 @@ export function useGameLoop(
     const handleBeforeUnload = () => {
       if (!canSaveRef.current || loggedOutRef.current) return
       saveLocal(gsRef.current)
+      // Save guest data on page close
+      if (!loggedInRef.current) {
+        localStorage.setItem('jf_guest_data', JSON.stringify({
+          joints: jointsRef.current,
+          sats: satsRef.current,
+          totalEarned: totalEarnedRef.current,
+        }))
+      }
       try {
         const auth = JSON.parse(localStorage.getItem('jf_auth') || '{}')
         if (auth.token) {
