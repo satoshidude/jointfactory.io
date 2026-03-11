@@ -1,5 +1,5 @@
 import { useAuth } from '../../stores/authStore'
-import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, UserPlus, AlertTriangle, Mail, Github } from 'lucide-react'
+import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, UserPlus, AlertTriangle, MessageSquare, Github } from 'lucide-react'
 import './MobileInfo.css'
 import './MobileLottery.css'
 
@@ -127,26 +127,26 @@ export default function MobileInfo() {
         <h2 className="mi-card-title">Links</h2>
 
         <div className="mi-contact">
-          <Cannabis size={16} style={{ color: 'var(--neon-green)' }} />
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--neon-purple)" style={{ flexShrink: 0 }}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15.5c-2.49 0-4.5-2.01-4.5-4.5S8.51 8.5 11 8.5c1.73 0 3.23.98 3.98 2.41l-1.73 1c-.47-.89-1.39-1.41-2.25-1.41-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5c.87 0 1.65-.44 2.11-1.11l1.78.89C14.17 16.64 12.72 17.5 11 17.5zm5.5-3h-1.5v-1.5H13V11.5h1.5V10H16v1.5h1.5V13H16v1.5z"/></svg>
           <span>
-            <a href="https://nostr.nsnip.io/#/p/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="mi-link green">
+            <a href="https://nostr.nsnip.io/#/p/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="mi-link purple">
               Joint Factory on Nostr</a>
           </span>
         </div>
 
         <div className="mi-contact">
-          <Github size={16} style={{ color: 'var(--text-primary)' }} />
+          <Github size={16} style={{ color: '#f0f6fc' }} />
           <span>
-            <a href="https://github.com/satoshidude/jointfactory.io" target="_blank" rel="noopener noreferrer" className="mi-link">
+            <a href="https://github.com/satoshidude/jointfactory.io" target="_blank" rel="noopener noreferrer" className="mi-link" style={{ color: '#f0f6fc' }}>
               GitHub Repository</a>
           </span>
         </div>
 
         <div className="mi-contact">
-          <Mail size={16} style={{ color: 'var(--text-secondary)' }} />
-          <span>Contact:{' '}
-            <a href="https://nostr.nsnip.io/#/p/satoshidude@nsnip.io" target="_blank" rel="noopener noreferrer" className="mi-link gold">
-              satoshidude@nsnip.io</a>
+          <MessageSquare size={16} style={{ color: 'var(--neon-gold)' }} />
+          <span>
+            <a href="https://satoshidude.npub.pro/author/npub1vc2pn7853vd5jm3zfxhwj7n2m82ma2g8zjwu00e7kare727w240qrt8lpw/" target="_blank" rel="noopener noreferrer" className="mi-link gold">
+              satoshidude</a>
           </span>
         </div>
       </div>
