@@ -19,14 +19,23 @@
 
 /* Title */
 .compact-header-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   font-family: var(--font-heading);
   font-size: 16px;
   color: var(--neon-green);
   text-shadow: 0 0 12px rgba(57, 255, 20, .5);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  text-align: center;
   letter-spacing: 2px;
+}
+
+.compact-header-logo-icon {
+  color: var(--neon-green);
+  filter: drop-shadow(0 0 8px rgba(57, 255, 20, .5));
+  flex-shrink: 0;
 }
 
 /* Second row: stats + login/user */
