@@ -31,14 +31,6 @@
   background-size: 36px 36px;
 }
 
-/* Constrain more overlay to max-width */
-.more-overlay {
-  max-width: 1200px;
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
-}
-
 /* ── Version tag ───────────────────────────────────────────────────────────── */
 
 .mobile-version {
