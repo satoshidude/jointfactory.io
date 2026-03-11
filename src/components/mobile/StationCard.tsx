@@ -86,7 +86,9 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
 }) {
   // Summary stats
   let totalRate = 0
+  let totalOutput = 0
   for (const p of plantagen) {
+    totalOutput += plantOutput(p)
     if (p.managerLevel > 0) totalRate += plantRate(p)
   }
 
@@ -105,13 +107,13 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
           speed={plantagen.length > 0 ? plantagen[0].speed : 1}
           color="rgba(57, 255, 20, .9)"
           trackColor="rgba(57, 255, 20, .15)"
-          value={fmtNum(cannabis)}
+          value={fmtNum(totalOutput)}
         />
         <div className="station-info">
           <div className="station-stats">
             <div className="station-stat-row">
               <span className="station-stat-label">Stock</span>
-              <span className="station-stat-value">{fmtNum(cannabis)}</span>
+              <span className="station-stat-value" style={{ color: 'var(--neon-green)' }}>{fmtNum(cannabis)}</span>
             </div>
             <div className="station-stat-row">
               <span className="station-stat-label">Production</span>
@@ -141,8 +143,8 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
                 speed={p.speed}
                 color="rgba(57, 255, 20, .9)"
                 trackColor="rgba(57, 255, 20, .15)"
-                size={58}
-                stroke={3}
+                size={88}
+                stroke={4}
                 value={fmtNum(output)}
                 label={isAuto ? undefined : (p.timer < p.cycleTime ? '...' : 'Grow')}
                 onClick={isAuto ? undefined : () => onGrow(i)}
@@ -231,7 +233,8 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
 }) {
   const tripTime = courierTripTime(courier)
   const isMoving = courier.state !== 'idle'
-  const progress = isMoving ? 1 - (courier.tripTimer / tripTime) : 0
+  const rawProgress = isMoving ? 1 - (courier.tripTimer / tripTime) : 0
+  const progress = courier.state === 'toPlant' ? 1 - rawProgress : rawProgress
   const speedUpg = getSpeedUpgrade(courier.speedLevel)
   const isAuto = courier.mgrLevel > 0
   const stateLabel = courier.state === 'toFactory' ? 'To Factory' : courier.state === 'toPlant' ? 'Returning' : 'Idle'
@@ -242,7 +245,6 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
       <div className="station-header">
         <Footprints size={24} className="station-header-icon" />
         <span className="station-name">Courier</span>
-        <span className="station-level">{stateLabel}</span>
       </div>
 
       <div className="station-card-top">
@@ -251,7 +253,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
           speed={courier.speed}
           color="rgba(255, 105, 180, .9)"
           trackColor="rgba(255, 105, 180, .15)"
-          value={isMoving ? fmtNum(courier.carrying) : fmtNum(courier.capacity)}
+          value={courier.state === 'toPlant' ? 'rest' : isMoving ? fmtNum(courier.carrying) : fmtNum(courier.capacity)}
           label={isAuto ? undefined : (isMoving ? 'En route...' : 'Send')}
           onClick={isAuto ? undefined : onSend}
           disabled={isAuto ? undefined : !canSend}
@@ -261,11 +263,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
           <div className="station-stats">
             <div className="station-stat-row">
               <span className="station-stat-label">Capacity</span>
-              <span className="station-stat-value">{fmtNum(courier.capacity)}</span>
-            </div>
-            <div className="station-stat-row">
-              <span className="station-stat-label">Carrying</span>
-              <span className="station-stat-value">{fmtNum(courier.carrying)}</span>
+              <span className="station-stat-value" style={{ color: '#ff69b4' }}>{fmtNum(courier.capacity)}</span>
             </div>
             <div className="station-stat-row">
               <span className="station-stat-label">Trip</span>
@@ -273,7 +271,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
             </div>
             <div className="station-stat-row">
               <span className="station-stat-label">Waiting</span>
-              <span className="station-stat-value">{fmtNum(cannabis)}</span>
+              <span className="station-stat-value" style={{ color: 'var(--neon-green)' }}>{fmtNum(cannabis)}</span>
             </div>
           </div>
         </div>
@@ -334,7 +332,6 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
       <div className="station-header">
         <Factory size={24} className="station-header-icon" />
         <span className="station-name">Factory</span>
-        <span className="station-level">{fabrik.processing ? 'Rolling...' : 'Idle'}</span>
       </div>
 
       <div className="station-card-top">
@@ -352,12 +349,8 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
         <div className="station-info">
           <div className="station-stats">
             <div className="station-stat-row">
-              <span className="station-stat-label">Capacity</span>
-              <span className="station-stat-value">{fmtNum(fabrik.capacity)}</span>
-            </div>
-            <div className="station-stat-row">
               <span className="station-stat-label">Processing</span>
-              <span className="station-stat-value">{fmtNum(fabrik._currentCharge)}</span>
+              <span className="station-stat-value" style={{ color: 'var(--neon-purple)' }}>{fmtNum(fabrik._currentCharge)}</span>
             </div>
             <div className="station-stat-row">
               <span className="station-stat-label">Cycle</span>
@@ -365,11 +358,11 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
             </div>
             <div className="station-stat-row">
               <span className="station-stat-label">Waiting</span>
-              <span className="station-stat-value">{fmtNum(cannabisAtFactory)}</span>
+              <span className="station-stat-value" style={{ color: 'var(--neon-green)' }}>{fmtNum(cannabisAtFactory)}</span>
             </div>
             <div className="station-stat-row">
               <span className="station-stat-label">Total</span>
-              <span className="station-stat-value">{fmtNum(fabrik.total)}</span>
+              <span className="station-stat-value" style={{ color: 'var(--neon-green)' }}>{fmtNum(fabrik.total)}</span>
             </div>
           </div>
         </div>

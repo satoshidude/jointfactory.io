@@ -17,9 +17,9 @@
   justify-content: center;
   gap: 8px;
   font-family: var(--font-heading);
-  font-size: 21px;
+  font-size: 18px;
   color: var(--neon-green);
-  text-shadow: 0 0 12px rgba(57, 255, 20, .5);
+  text-shadow: 0 0 12px rgba(57, 255, 20, .5), 0 0 24px rgba(57, 255, 20, .3);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   letter-spacing: 2px;
@@ -36,7 +36,7 @@
 
 .compact-header-logo-icon {
   color: var(--neon-green);
-  filter: drop-shadow(0 0 8px rgba(57, 255, 20, .5));
+  filter: drop-shadow(0 0 8px rgba(57, 255, 20, .5)) drop-shadow(0 0 16px rgba(57, 255, 20, .3));
   flex-shrink: 0;
 }
 

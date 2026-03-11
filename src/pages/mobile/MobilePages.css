@@ -11,22 +11,29 @@
   gap: 12px;
 }
 
-/* Lottery widget always full width */
-.mobile-game-page > .lottery-widget {
-  grid-column: 1 / -1;
-}
-
-/* 2 columns on tablets / small laptops */
-@media (min-width: 600px) {
-  .mobile-game-page {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* 3 columns on notebooks / desktops */
+/* 3-col: Factory+Courier left column, Plantations spans 2 cols right */
 @media (min-width: 1024px) {
   .mobile-game-page {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr 2fr;
+    grid-template-rows: auto auto;
+  }
+
+  /* Factory: top-left */
+  .mobile-game-page > .station-factory {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* Courier: bottom-left */
+  .mobile-game-page > .station-courier {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* Plantations: spans right side, both rows */
+  .mobile-game-page > .station-plant {
+    grid-column: 2;
+    grid-row: 1 / 3;
   }
 }
 

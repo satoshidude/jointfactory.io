@@ -2,7 +2,6 @@ import { useEffect, useMemo } from 'react'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { useGameLoop } from '../../game/useGameLoop'
-import LotteryWidget from '../../components/mobile/LotteryWidget'
 import { PlantationsCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
 import './MobilePages.css'
 
@@ -52,20 +51,17 @@ export default function MobileGame() {
 
   return (
     <div className="mobile-page mobile-game-page">
-      <LotteryWidget />
-
-      <PlantationsCard
-        plantagen={state.plantagen}
-        cannabis={state.cannabis}
+      <FactoryCard
+        fabrik={state.fabrik}
+        cannabisAtFactory={state.cannabisAtFactory}
         joints={state.joints}
         managerCount={state.managerCount}
         isLoggedIn={auth.isLoggedIn}
         totalDeposited={auth.totalDeposited}
-        onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
-        onUpgradeSpeed={(i) => actions.upgradePlantSpeed(i)}
-        onBuyManager={(i) => actions.buyPlantManager(i)}
-        onGrow={(i) => actions.grow(i)}
-        onUnlock={actions.unlockPlantation}
+        onUpgradeCap={actions.upgradeFabrikCap}
+        onUpgradeSpeed={actions.upgradeFabrikSpeed}
+        onBuyManager={actions.buyFabrikManager}
+        onRoll={actions.rollJoints}
       />
 
       <CourierCard
@@ -81,17 +77,18 @@ export default function MobileGame() {
         onSend={actions.sendCourier}
       />
 
-      <FactoryCard
-        fabrik={state.fabrik}
-        cannabisAtFactory={state.cannabisAtFactory}
+      <PlantationsCard
+        plantagen={state.plantagen}
+        cannabis={state.cannabis}
         joints={state.joints}
         managerCount={state.managerCount}
         isLoggedIn={auth.isLoggedIn}
         totalDeposited={auth.totalDeposited}
-        onUpgradeCap={actions.upgradeFabrikCap}
-        onUpgradeSpeed={actions.upgradeFabrikSpeed}
-        onBuyManager={actions.buyFabrikManager}
-        onRoll={actions.rollJoints}
+        onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
+        onUpgradeSpeed={(i) => actions.upgradePlantSpeed(i)}
+        onBuyManager={(i) => actions.buyPlantManager(i)}
+        onGrow={(i) => actions.grow(i)}
+        onUnlock={actions.unlockPlantation}
       />
     </div>
   )

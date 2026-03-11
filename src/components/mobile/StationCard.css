@@ -147,7 +147,7 @@
   display: flex;
   justify-content: space-between;
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .station-stat-label {
@@ -250,6 +250,10 @@
 
 .plant-row:first-child {
   border-top: none;
+}
+
+.plant-row .station-ring-value {
+  font-size: 10px;
 }
 
 .plant-row-info {
