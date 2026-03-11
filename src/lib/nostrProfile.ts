@@ -50,7 +50,7 @@ export async function fetchNostrProfile(pubkeyHex: string): Promise<NostrProfile
           } catch {}
         }
         ws.onerror = () => { clearTimeout(wsTimeout); responded++; if (responded >= total) { clearTimeout(timeout); resolve(best?.profile || {}) } }
-      } catch { responded++; if (responded >= total) { clearTimeout(timeout); resolve(best?.profile || {}) } }
+      } catch { responded++; if (responded >= total) { clearTimeout(timeout); resolve((best as { created_at: number; profile: NostrProfile } | null)?.profile || {}) } }
     }
   })
 }
