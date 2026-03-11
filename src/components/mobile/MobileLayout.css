@@ -18,9 +18,15 @@
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: 52px 0 calc(56px + env(safe-area-inset-bottom, 0px));
+  padding: 72px 0 calc(56px + env(safe-area-inset-bottom, 0px));
   background-image: var(--grid-bg);
   background-size: 36px 36px;
+}
+
+@media (min-width: 600px) {
+  .mobile-content {
+    padding-top: calc(56px + env(safe-area-inset-top, 0px));
+  }
 }
 
 /* Constrain fixed elements to the same max-width container */
@@ -38,6 +44,19 @@
   left: 50%;
   right: auto;
   transform: translateX(-50%);
+}
+
+/* ── Version tag ───────────────────────────────────────────────────────────── */
+
+.mobile-version {
+  position: fixed;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  right: 8px;
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: rgba(255, 255, 255, .4);
+  pointer-events: none;
+  z-index: 50;
 }
 
 /* ── Desktop: larger font, hide bottom nav label clutter ───────────────────── */

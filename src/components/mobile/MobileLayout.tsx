@@ -11,6 +11,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
         {children}
       </main>
       <BottomNav />
+      <span className="mobile-version">v0.2</span>
     </div>
   )
 }

@@ -115,6 +115,33 @@
   color: var(--text-secondary);
 }
 
+/* Mobile Wallet */
+.mobile-wallet {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobile-wallet-login-btn {
+  margin-top: 20px;
+  padding: 12px 32px;
+  background: rgba(57, 255, 20, .1);
+  border: 2px solid rgba(57, 255, 20, .4);
+  border-radius: 8px;
+  color: var(--neon-green);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-wallet-login-btn:active {
+  background: rgba(57, 255, 20, .2);
+  transform: scale(0.97);
+}
+
 /* Page-specific accent colors */
 .mobile-page-stats .mobile-placeholder h2 { color: var(--neon-gold); text-shadow: 0 0 10px rgba(255, 215, 0, .4); }
 .mobile-page-lottery .mobile-placeholder h2 { color: var(--neon-purple); text-shadow: 0 0 10px rgba(204, 68, 255, .4); }

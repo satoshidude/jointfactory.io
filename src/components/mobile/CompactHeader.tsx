@@ -25,34 +25,35 @@ export default function CompactHeader() {
   return (
     <>
       <header className="compact-header">
-        <div className="compact-header-logo" onClick={() => navigate('/')}>
-          <Cannabis size={20} />
-          <span>JOINTFACTORY.io</span>
+        <div className="compact-header-title" onClick={() => navigate('/')}>
+          JOINT FACTORY
         </div>
 
-        <div className="compact-header-stats">
-          <div className="compact-stat joints">
-            <Cannabis size={12} />
-            <span>{fmtNum(joints)}</span>
+        <div className="compact-header-row">
+          <div className="compact-header-stats">
+            <div className="compact-stat joints">
+              <Cannabis size={12} />
+              <span>{fmtNum(joints)}</span>
+            </div>
+            <div className="compact-stat sats">
+              <Zap size={12} />
+              <span>{fmtNum(sats)}</span>
+            </div>
           </div>
-          <div className="compact-stat sats">
-            <Zap size={12} />
-            <span>{fmtNum(sats)}</span>
-          </div>
+
+          {!auth.isLoggedIn && (
+            <button className="compact-login-btn" onClick={() => setShowLogin(true)}>
+              <LogIn size={16} />
+              <span>Login</span>
+            </button>
+          )}
+
+          {auth.isLoggedIn && auth.displayName && (
+            <div className="compact-user" onClick={() => navigate('/wallet')}>
+              {auth.displayName}
+            </div>
+          )}
         </div>
-
-        {!auth.isLoggedIn && (
-          <button className="compact-login-btn" onClick={() => setShowLogin(true)}>
-            <LogIn size={16} />
-            <span>Login</span>
-          </button>
-        )}
-
-        {auth.isLoggedIn && auth.displayName && (
-          <div className="compact-user" onClick={() => navigate('/wallet')}>
-            {auth.displayName.slice(0, 8)}
-          </div>
-        )}
       </header>
 
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}

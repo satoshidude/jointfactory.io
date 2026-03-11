@@ -5,49 +5,43 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 44px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  padding-top: env(safe-area-inset-top, 0px);
+  flex-direction: column;
+  padding: 8px 12px;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
   background: var(--bg-card);
   background-image: var(--paper-noise);
   border-bottom: 1px solid var(--border-color);
   box-shadow: var(--shadow-card);
   z-index: 100;
-  gap: 8px;
+  gap: 6px;
 }
 
-/* Logo */
-.compact-header-logo {
+/* Title */
+.compact-header-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  color: var(--neon-green);
+  text-shadow: 0 0 12px rgba(57, 255, 20, .5);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  text-align: center;
+  letter-spacing: 2px;
+}
+
+/* Second row: stats + login/user */
+.compact-header-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
+  justify-content: center;
+  gap: 12px;
 }
 
-.compact-header-logo svg {
-  color: var(--neon-green);
-  filter: drop-shadow(0 0 6px rgba(57, 255, 20, .5));
-}
-
-.compact-header-logo span {
-  font-family: var(--font-heading);
-  font-size: 8px;
-  color: var(--neon-green);
-  text-shadow: 0 0 10px rgba(57, 255, 20, .5);
-}
-
-/* Stats Row */
+/* Stats */
 .compact-header-stats {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 1;
-  justify-content: center;
 }
 
 .compact-stat {
@@ -82,7 +76,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 12px;
+  padding: 5px 10px;
   background: rgba(57, 255, 20, .1);
   border: 1px solid rgba(57, 255, 20, .3);
   border-radius: 6px;
@@ -111,10 +105,37 @@
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .compact-user:active {
   background: rgba(255, 215, 0, .15);
+}
+
+/* ── Wide screens: single row ───────────────────────────────────────────────── */
+
+@media (min-width: 600px) {
+  .compact-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 16px;
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(48px + env(safe-area-inset-top, 0px));
+  }
+
+  .compact-header-title {
+    font-size: 18px;
+    text-align: left;
+  }
+
+  .compact-header-row {
+    justify-content: flex-end;
+    flex: 1;
+  }
 }
