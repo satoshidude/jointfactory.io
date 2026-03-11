@@ -17,7 +17,7 @@
   justify-content: center;
   gap: 8px;
   font-family: var(--font-heading);
-  font-size: 16px;
+  font-size: 21px;
   color: var(--neon-green);
   text-shadow: 0 0 12px rgba(57, 255, 20, .5);
   cursor: pointer;
@@ -30,7 +30,8 @@
   font-size: 11px;
   color: var(--text-secondary);
   align-self: flex-end;
-  line-height: 1;
+  line-height: 2;
+  margin-left: -10px;
 }
 
 .compact-header-logo-icon {
@@ -39,11 +40,11 @@
   flex-shrink: 0;
 }
 
-/* Second row: stats left, login/user right */
+/* Stats row */
 .compact-header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
 }
 
@@ -52,6 +53,15 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* Pipe separators between stat items (single-col only) */
+.compact-header-stats > *:not(:last-child)::after {
+  content: '|';
+  margin-left: 12px;
+  color: var(--text-secondary);
+  opacity: 0.4;
+  font-weight: 400;
 }
 
 .compact-stat {
@@ -81,74 +91,20 @@
   filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
 }
 
-/* Login Button */
-.compact-login-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  min-height: 36px;
-  background: rgba(57, 255, 20, .1);
-  border: 1px solid rgba(57, 255, 20, .3);
-  border-radius: 6px;
-  color: var(--neon-green);
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.compact-login-btn:active {
-  background: rgba(57, 255, 20, .2);
-  transform: scale(0.95);
-}
-
-/* User Badge */
+/* User Badge (inline with stats) */
 .compact-user {
-  padding: 8px 14px;
-  min-height: 36px;
   display: flex;
   align-items: center;
-  background: rgba(255, 215, 0, .08);
-  border: 1px solid rgba(255, 215, 0, .2);
-  border-radius: 6px;
-  color: var(--neon-gold);
+  color: var(--neon-purple);
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  max-width: 180px;
+  gap: 4px;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.compact-user:active {
-  background: rgba(255, 215, 0, .15);
-}
-
-/* ── Wide screens: single row ───────────────────────────────────────────────── */
-
-@media (min-width: 600px) {
-  .compact-header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 16px;
-    padding-top: calc(8px + env(safe-area-inset-top, 0px));
-  }
-
-  .compact-header-title {
-    font-size: 18px;
-    text-align: left;
-  }
-
-  .compact-header-row {
-    justify-content: flex-end;
-    flex: 1;
-  }
-}

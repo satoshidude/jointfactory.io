@@ -1,0 +1,540 @@
+/* ── Mobile Lottery Page ──────────────────────────────────────────────────── */
+
+.ml-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+
+.ml-hero {
+  text-align: center;
+  padding: 32px 20px 24px;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-card);
+  background-image: var(--paper-noise);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.ml-hero-glow {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: ml-glow-pulse 3s ease-in-out infinite;
+}
+
+.ml-hero-glow-gold {
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.12) 0%, transparent 70%);
+}
+
+.ml-hero-glow-green {
+  background: radial-gradient(circle, rgba(57, 255, 20, 0.12) 0%, transparent 70%);
+}
+
+@keyframes ml-glow-pulse {
+  0%, 100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.15); }
+}
+
+.ml-hero-icon-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.ml-hero-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ml-hero-icon-gold {
+  background: rgba(255, 215, 0, 0.1);
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  color: var(--neon-gold);
+  animation: ml-icon-pulse-gold 2s ease-in-out infinite;
+}
+
+.ml-hero-icon-green {
+  background: rgba(57, 255, 20, 0.1);
+  border: 2px solid rgba(57, 255, 20, 0.3);
+  color: var(--neon-green);
+  animation: ml-icon-pulse-green 2s ease-in-out infinite;
+}
+
+@keyframes ml-icon-pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4), 0 0 20px rgba(255, 215, 0, 0.1); transform: scale(1); }
+  50% { box-shadow: 0 0 0 12px rgba(255, 215, 0, 0), 0 0 30px rgba(255, 215, 0, 0.2); transform: scale(1.05); }
+}
+
+@keyframes ml-icon-pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(57, 255, 20, 0.4), 0 0 20px rgba(57, 255, 20, 0.1); transform: scale(1); }
+  50% { box-shadow: 0 0 0 12px rgba(57, 255, 20, 0), 0 0 30px rgba(57, 255, 20, 0.2); transform: scale(1.05); }
+}
+
+.ml-hero-title {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  margin: 0 0 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.ml-hero-subtitle {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+  position: relative;
+  z-index: 1;
+}
+
+.ml-hero-perks {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.ml-hero-perk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--neon-green);
+  padding: 6px 14px;
+  border: 1px solid rgba(57, 255, 20, 0.25);
+  border-radius: 8px;
+  background: rgba(57, 255, 20, 0.06);
+}
+
+.ml-hero-perk.gold {
+  color: var(--neon-gold);
+  border-color: rgba(255, 215, 0, 0.25);
+  background: rgba(255, 215, 0, 0.06);
+}
+
+/* ── Card ─────────────────────────────────────────────────────────────────── */
+
+.ml-card {
+  background: var(--bg-card);
+  background-image: var(--paper-noise);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Section Header ──────────────────────────────────────────────────────── */
+
+.ml-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ml-section-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.ml-gold {
+  color: var(--neon-gold);
+  text-shadow: 0 0 10px rgba(255, 215, 0, .4);
+}
+
+.ml-icon-gold {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, .5));
+}
+
+.ml-icon-muted {
+  color: var(--text-secondary);
+}
+
+.ml-round-badge {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+/* ── Countdown ───────────────────────────────────────────────────────────── */
+
+.ml-countdown {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ml-countdown-time {
+  font-family: var(--font-body);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ml-countdown-remaining {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Stats Grid ──────────────────────────────────────────────────────────── */
+
+.ml-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.ml-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.ml-stat-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.ml-stat-value {
+  font-family: var(--font-body);
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.ml-stat-value.ml-gold svg {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
+}
+
+/* ── Price Curve ─────────────────────────────────────────────────────────── */
+
+.ml-price-curve {
+  padding: 10px;
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.ml-price-curve-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 21px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.ml-price-steps {
+  display: flex;
+  gap: 8px;
+}
+
+.ml-price-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, .03);
+  border-radius: 6px;
+}
+
+.ml-price-step-n {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.ml-price-step-cost {
+  font-family: var(--font-body);
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.ml-icon-green {
+  color: var(--neon-green);
+  filter: drop-shadow(0 0 4px rgba(57, 255, 20, .4));
+}
+
+/* ── Buy Section ─────────────────────────────────────────────────────────── */
+
+.ml-buy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.ml-my-tickets {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--neon-purple);
+  font-weight: 700;
+}
+
+.ml-buy-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--neon-purple);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 0 16px rgba(204, 68, 255, .3);
+}
+
+.ml-buy-btn:active:not(:disabled) {
+  transform: scale(0.97);
+  box-shadow: 0 0 24px rgba(204, 68, 255, .5);
+}
+
+.ml-buy-btn:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+.ml-hint {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.ml-error {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.ml-login-hint {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 4px 0;
+}
+
+.ml-empty {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* ── Winner History ──────────────────────────────────────────────────────── */
+
+.ml-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ml-history-card {
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.ml-history-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.ml-history-round {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--neon-gold);
+}
+
+.ml-history-time {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.ml-history-meta {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.ml-history-winners {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ml-winner-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ml-winner-name {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-decoration: none;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ml-winner-name:active {
+  color: var(--neon-gold);
+}
+
+.ml-winner-tickets {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ml-winner-payout {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--neon-gold);
+  white-space: nowrap;
+}
+
+.ml-winner-payout svg {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
+}
+
+.ml-no-winner {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  opacity: 0.5;
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+
+.ml-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.ml-page-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ml-page-btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, .08);
+  transform: scale(0.93);
+}
+
+.ml-page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.ml-page-info {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Zap link (in history) ───────────────────────────────────────────────── */
+
+.ml-zap-icon {
+  color: var(--neon-gold);
+  fill: var(--neon-gold);
+  flex-shrink: 0;
+}
+
+.ml-zap-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--neon-gold);
+  text-decoration: none;
+}
+
+.ml-zap-link:active {
+  opacity: 0.7;
+}

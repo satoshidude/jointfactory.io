@@ -1,0 +1,141 @@
+/* ── Mobile Info Page ─────────────────────────────────────────────────────── */
+
+.mi-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.mi-card {
+  background: var(--bg-card);
+  background-image: var(--paper-noise);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Intro ────────────────────────────────────────────────────────────────── */
+
+.mi-intro {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Features ─────────────────────────────────────────────────────────────── */
+
+.mi-features {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mi-feature {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.mi-feat-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.mi-feat-icon.green { color: var(--neon-green); filter: drop-shadow(0 0 6px rgba(57, 255, 20, .4)); }
+.mi-feat-icon.gold { color: var(--neon-gold); filter: drop-shadow(0 0 6px rgba(255, 215, 0, .4)); }
+.mi-feat-icon.purple { color: var(--neon-purple); filter: drop-shadow(0 0 6px rgba(204, 68, 255, .4)); }
+.mi-feat-icon.pink { color: #ff69b4; filter: drop-shadow(0 0 6px rgba(255, 105, 180, .4)); }
+
+.mi-feat-title {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.mi-feat-desc {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Links ────────────────────────────────────────────────────────────────── */
+
+.mi-link {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.mi-link.green { color: var(--neon-green); }
+.mi-link.gold { color: var(--neon-gold); }
+.mi-link.purple { color: var(--neon-purple); }
+
+.mi-link:active { opacity: 0.7; }
+
+/* ── Disclaimer ──────────────────────────────────────────────────────────── */
+
+.mi-disclaimer {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  background: rgba(255, 215, 0, .04);
+  border: 1px solid rgba(255, 215, 0, .15);
+  border-radius: 8px;
+}
+
+.mi-disclaimer-icon {
+  color: var(--neon-gold);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.mi-disclaimer p {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Contact ─────────────────────────────────────────────────────────────── */
+
+.mi-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ── CTA Button ──────────────────────────────────────────────────────────── */
+
+.mi-play-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--neon-green);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 0 16px rgba(57, 255, 20, .3);
+}
+
+.mi-play-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 0 24px rgba(57, 255, 20, .5);
+}

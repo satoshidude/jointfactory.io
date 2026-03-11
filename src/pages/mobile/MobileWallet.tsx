@@ -87,11 +87,7 @@ export default function MobileWallet() {
               <span>Win in lottery</span>
             </div>
           </div>
-          <button className="mobile-wallet-login-btn" onClick={() => setShowLogin(true)}>
-            Sign in
-          </button>
         </div>
-        {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       </div>
     )
   }

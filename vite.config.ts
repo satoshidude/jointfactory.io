@@ -25,12 +25,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://jointfactory.nsnip.io',
+        target: 'https://jointfactory.io',
         changeOrigin: true,
         secure: true,
       },
       '/ws': {
-        target: 'https://jointfactory.nsnip.io',
+        target: 'https://jointfactory.io',
         changeOrigin: true,
         secure: true,
         ws: true,

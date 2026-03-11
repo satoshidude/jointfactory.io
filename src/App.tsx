@@ -5,7 +5,7 @@ import MobileGame from './pages/mobile/MobileGame'
 import MobileLottery from './pages/mobile/MobileLottery'
 import MobileProfile from './pages/mobile/MobileProfile'
 import MobileWallet from './pages/mobile/MobileWallet'
-import InfoPage from './pages/Info'
+import MobileInfo from './pages/mobile/MobileInfo'
 import InvitePage from './pages/Invite'
 import PlayerProfile from './pages/PlayerProfile'
 import { GameDisplayProvider } from './stores/gameDisplayStore'
@@ -37,7 +37,7 @@ export default function App() {
           <Route path="/lottery" element={<MobileLottery />} />
           <Route path="/profile" element={<MobileProfile />} />
           <Route path="/wallet" element={<MobileWallet />} />
-          <Route path="/info" element={<InfoPage />} />
+          <Route path="/info" element={<MobileInfo />} />
           <Route path="/invite" element={<InvitePage />} />
           <Route path="/u/:npub" element={<PlayerProfile />} />
           <Route path="/r/:code" element={<RefRedirect />} />
