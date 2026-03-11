@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { Sprout, Footprints, Factory, Lock } from 'lucide-react'
 import type { PlantationState, CourierState, FabrikState } from '../../game/useGameLoop'
 import {
-  plantLevelCost, plantMilestoneInfo, plantEffectiveCycle, plantRate,
+  plantLevelCost, plantMilestoneInfo, plantOutput, plantEffectiveCycle, plantRate,
   courierTripTime, fabrikCycleTime,
   getSpeedUpgrade, PLANTATION_DEFS,
 } from '../../game/useGameLoop'
@@ -18,9 +18,9 @@ function fmtNum(n: number): string {
 
 // ── Animated Cycle Ring ─────────────────────────────────────────────────────
 
-function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5, label, onClick, disabled, ready }: {
+function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5, label, onClick, disabled, ready, value }: {
   progress: number; speed: number; color: string; trackColor: string; size?: number; stroke?: number
-  label?: string; onClick?: () => void; disabled?: boolean; ready?: boolean
+  label?: string; onClick?: () => void; disabled?: boolean; ready?: boolean; value?: string
 }) {
   const r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
@@ -62,7 +62,7 @@ function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5,
           className="cycle-ring-flash" />
       </svg>
       <div className="station-ring-center">
-        <span className="station-ring-speed">{speed.toFixed(1)}x</span>
+        {value && <span className="station-ring-value" style={{ color }}>{value}</span>}
         {label && <span className="station-ring-label">{label}</span>}
       </div>
     </div>
@@ -105,6 +105,7 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
           speed={plantagen.length > 0 ? plantagen[0].speed : 1}
           color="rgba(57, 255, 20, .9)"
           trackColor="rgba(57, 255, 20, .15)"
+          value={fmtNum(cannabis)}
         />
         <div className="station-info">
           <div className="station-stats">
@@ -124,6 +125,7 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
       <div className="plant-list">
         {plantagen.map((p, i) => {
           const cycle = plantEffectiveCycle(p)
+          const output = plantOutput(p)
           const rate = plantRate(p)
           const lvCost = plantLevelCost(p)
           const milestone = plantMilestoneInfo(p.level)
@@ -141,6 +143,7 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
                 trackColor="rgba(57, 255, 20, .15)"
                 size={58}
                 stroke={3}
+                value={fmtNum(output)}
                 label={isAuto ? undefined : (p.timer < p.cycleTime ? '...' : 'Grow')}
                 onClick={isAuto ? undefined : () => onGrow(i)}
                 disabled={isAuto ? undefined : p.timer < p.cycleTime}
@@ -248,6 +251,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
           speed={courier.speed}
           color="rgba(255, 105, 180, .9)"
           trackColor="rgba(255, 105, 180, .15)"
+          value={isMoving ? fmtNum(courier.carrying) : fmtNum(courier.capacity)}
           label={isAuto ? undefined : (isMoving ? 'En route...' : 'Send')}
           onClick={isAuto ? undefined : onSend}
           disabled={isAuto ? undefined : !canSend}
@@ -339,6 +343,7 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
           speed={fabrik.speed}
           color="rgba(204, 68, 255, .9)"
           trackColor="rgba(204, 68, 255, .15)"
+          value={fabrik.processing ? fmtNum(fabrik._currentCharge) : fmtNum(fabrik.capacity)}
           label={isAuto ? undefined : (fabrik.processing ? 'Rolling...' : 'Roll')}
           onClick={isAuto ? undefined : onRoll}
           disabled={isAuto ? undefined : !canRoll}

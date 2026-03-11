@@ -104,11 +104,11 @@
   pointer-events: none;
 }
 
-.station-ring-speed {
-  font-family: var(--font-body);
+.station-ring-value {
+  font-family: 'Press Start 2P', monospace;
   font-size: 13px;
   font-weight: 700;
-  color: var(--text-secondary);
+  line-height: 1;
 }
 
 .station-ring-label {
