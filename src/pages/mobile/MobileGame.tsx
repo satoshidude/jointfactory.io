@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { useGameLoop } from '../../game/useGameLoop'
@@ -18,7 +18,18 @@ export default function MobileGame() {
     auth.isNewAccount,
   )
 
-  // Sync display state for header stats
+  // Manager eligibility (3 required for lottery/withdraw)
+  const mgrCount = useMemo(() => {
+    let c = 0
+    if (state.plantagen?.[0]?.managerLevel > 0) c++
+    if (state.courier?.mgrLevel > 0) c++
+    if (state.fabrik?.mgrLevel > 0) c++
+    return c
+  }, [state.plantagen, state.courier?.mgrLevel, state.fabrik?.mgrLevel])
+  const eligible = mgrCount >= 3
+  const managersNeeded = 3 - mgrCount
+
+  // Sync display state for header stats + lottery eligibility
   useEffect(() => {
     gd.update({
       cannabis: state.cannabis,
@@ -27,8 +38,10 @@ export default function MobileGame() {
       joints: state.joints,
       sats: state.sats,
       rawGameState: state,
+      eligible,
+      upgradesNeeded: managersNeeded,
     })
-  }, [state.joints, state.sats, state.cannabis, state.cannabisAtFactory, state.courier.carrying, state.managerCount]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state.joints, state.sats, state.cannabis, state.cannabisAtFactory, state.courier.carrying, state.managerCount, eligible]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync total earned
   useEffect(() => {
