@@ -23,11 +23,19 @@
   background-size: 36px 36px;
 }
 
-/* On desktop, constrain header and nav to the same max-width */
+/* Constrain fixed elements to the same max-width container */
 .compact-header,
-.bottom-nav,
+.bottom-nav {
+  width: 100%;
+  max-width: 480px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
 .more-overlay {
   max-width: 480px;
   left: 50%;
+  right: auto;
   transform: translateX(-50%);
 }
