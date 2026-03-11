@@ -4,6 +4,7 @@ import { Cannabis, Zap, LogIn } from 'lucide-react'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import LoginModal from '../LoginModal'
+import ProfileSheet from './ProfileSheet'
 import './CompactHeader.css'
 
 function fmtNum(n: number): string {
@@ -18,6 +19,7 @@ export default function CompactHeader() {
   const gd = useGameDisplay()
   const navigate = useNavigate()
   const [showLogin, setShowLogin] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
 
   const joints = gd.joints || auth.joints
   const sats = gd.sats || auth.sats
@@ -48,15 +50,16 @@ export default function CompactHeader() {
             </button>
           )}
 
-          {auth.isLoggedIn && auth.displayName && (
-            <div className="compact-user" onClick={() => navigate('/wallet')}>
-              {auth.displayName}
+          {auth.isLoggedIn && (
+            <div className="compact-user" onClick={() => setShowProfile(true)}>
+              {auth.displayName || 'Anonymous'}
             </div>
           )}
         </div>
       </header>
 
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+      {showProfile && <ProfileSheet onClose={() => setShowProfile(false)} />}
     </>
   )
 }
