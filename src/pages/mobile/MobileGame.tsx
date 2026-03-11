@@ -26,8 +26,9 @@ export default function MobileGame() {
       courierCarrying: state.courier.carrying,
       joints: state.joints,
       sats: state.sats,
+      rawGameState: state,
     })
-  }, [state.joints, state.sats, state.cannabis, state.cannabisAtFactory, state.courier.carrying]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state.joints, state.sats, state.cannabis, state.cannabisAtFactory, state.courier.carrying, state.managerCount]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync total earned
   useEffect(() => {
