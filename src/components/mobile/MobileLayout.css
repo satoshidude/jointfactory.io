@@ -13,32 +13,25 @@
   position: relative;
 }
 
+/* Fixed top bar: header + nav stacked */
+.mobile-top-bar {
+  flex-shrink: 0;
+  z-index: 100;
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .4);
+}
+
 .mobile-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: 72px 0 calc(56px + env(safe-area-inset-bottom, 0px));
+  padding: 0;
   background-image: var(--grid-bg);
   background-size: 36px 36px;
 }
 
-@media (min-width: 600px) {
-  .mobile-content {
-    padding-top: calc(56px + env(safe-area-inset-top, 0px));
-  }
-}
-
-/* Constrain fixed elements to the same max-width container */
-.compact-header,
-.bottom-nav {
-  width: 100%;
-  max-width: 1200px;
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
-}
-
+/* Constrain more overlay to max-width */
 .more-overlay {
   max-width: 1200px;
   left: 50%;
@@ -50,7 +43,7 @@
 
 .mobile-version {
   position: fixed;
-  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  bottom: 8px;
   right: 8px;
   font-family: var(--font-body);
   font-size: 10px;
@@ -59,7 +52,7 @@
   z-index: 50;
 }
 
-/* ── Desktop: larger font, hide bottom nav label clutter ───────────────────── */
+/* ── Desktop: larger font ──────────────────────────────────────────────────── */
 
 @media (min-width: 600px) {
   .mobile-layout {

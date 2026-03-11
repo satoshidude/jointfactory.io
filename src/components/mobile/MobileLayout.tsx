@@ -6,11 +6,13 @@ import './MobileLayout.css'
 export default function MobileLayout({ children }: { children: ReactNode }) {
   return (
     <div className="mobile-layout">
-      <CompactHeader />
+      <div className="mobile-top-bar">
+        <CompactHeader />
+        <BottomNav />
+      </div>
       <main className="mobile-content">
         {children}
       </main>
-      <BottomNav />
       <span className="mobile-version">v0.2</span>
     </div>
   )

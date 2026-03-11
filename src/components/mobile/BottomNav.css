@@ -1,20 +1,13 @@
-/* ── Bottom Navigation ──────────────────────────────────────────────────────── */
+/* ── Top Navigation ──────────────────────────────────────────────────────── */
 
 .bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   display: flex;
   align-items: stretch;
   justify-content: space-around;
-  height: 56px;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  height: 44px;
   background: var(--bg-card);
   background-image: var(--paper-noise);
   border-top: 1px solid var(--border-color);
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, .4);
-  z-index: 100;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -45,16 +38,16 @@
   color: var(--neon-green);
 }
 
-.bottom-nav-tab.active::before {
+.bottom-nav-tab.active::after {
   content: '';
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 25%;
   right: 25%;
   height: 2px;
   background: var(--neon-green);
   box-shadow: var(--glow-green);
-  border-radius: 0 0 2px 2px;
+  border-radius: 2px 2px 0 0;
 }
 
 .bottom-nav-tab.active svg {
@@ -67,21 +60,21 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, .5);
-  z-index: 99;
+  z-index: 98;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   -webkit-tap-highlight-color: transparent;
 }
 
 .more-sheet {
   width: 100%;
+  margin-top: 120px;
   background: var(--bg-card);
   background-image: var(--paper-noise);
-  border-top: 1px solid var(--border-color);
-  border-radius: 16px 16px 0 0;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0 0 16px 16px;
   padding: 8px 0;
-  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 8px);
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, .5);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, .5);
 }
 
 .more-item {
