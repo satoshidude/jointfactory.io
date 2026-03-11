@@ -84,25 +84,24 @@ export function getOrCreatePlayer(npub, referralCode) {
 }
 
 // Atomic referral reward — triggered when referred user deposits 50+ sats
-const MAX_REFERRALS = 10;
+// Only the referrer gets 20 sats. The referred user gets nothing (must invite others themselves).
+// No cap on number of referrals.
 const _referralRewardTx = db.transaction((npub) => {
   const player = db.prepare('SELECT referred_by, referral_rewarded, total_deposited FROM players WHERE npub = ?').get(npub);
   if (!player?.referred_by || player.referral_rewarded) return null;
   if (player.total_deposited < 50) return null;
 
-  // Atomic mark + reward
+  // Atomic mark
   const marked = db.prepare('UPDATE players SET referral_rewarded = 1 WHERE npub = ? AND referral_rewarded = 0').run(npub);
   if (marked.changes === 0) return null;
 
   const referrerNpub = player.referred_by;
-  const rewardedCount = db.prepare('SELECT COUNT(*) as c FROM players WHERE referred_by = ? AND referral_rewarded = 1').get(referrerNpub)?.c || 0;
-  if (rewardedCount > MAX_REFERRALS) return null;
 
-  // Reward: 20 sats each
+  // Reward: only the referrer gets 20 sats
   db.prepare('UPDATE players SET sats = sats + 20 WHERE npub = ?').run(referrerNpub);
-  db.prepare('UPDATE players SET sats = sats + 20 WHERE npub = ?').run(npub);
 
-  console.log(`[Invite] Deposit reward #${rewardedCount} for ${referrerNpub.slice(0, 8)}... (buddy: ${npub.slice(0, 8)}... deposited ${player.total_deposited} sats) +20 sats each`);
+  const rewardedCount = db.prepare('SELECT COUNT(*) as c FROM players WHERE referred_by = ? AND referral_rewarded = 1').get(referrerNpub)?.c || 0;
+  console.log(`[Invite] Reward #${rewardedCount} for ${referrerNpub.slice(0, 8)}... (buddy: ${npub.slice(0, 8)}... deposited ${player.total_deposited} sats) +20 sats to referrer`);
   return { referrerNpub, rewardedCount, buddyNpub: npub };
 });
 
