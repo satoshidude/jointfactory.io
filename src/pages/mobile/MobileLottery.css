@@ -133,6 +133,25 @@
   background: rgba(255, 215, 0, 0.06);
 }
 
+/* ── Two-column layout (wide screens only) ───────────────────────────────── */
+
+.ml-two-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 1024px) {
+  .ml-two-col {
+    flex-direction: row;
+  }
+
+  .ml-two-col > .ml-card {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 /* ── Card ─────────────────────────────────────────────────────────────────── */
 
 .ml-card {

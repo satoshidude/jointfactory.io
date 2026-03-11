@@ -198,7 +198,8 @@ export default function MobileLottery() {
         </div>
       </div>
 
-      {/* ── Current Round ─────────────────────────────── */}
+      {/* ── Current Round + History side-by-side on wide screens */}
+      <div className="ml-two-col">
       <div className="ml-card">
         <div className="ml-section-header">
           <Zap size={24} className="ml-icon-gold" />
@@ -349,6 +350,7 @@ export default function MobileLottery() {
           </div>
         )
       })()}
+      </div>{/* end ml-two-col */}
     </div>
   )
 }

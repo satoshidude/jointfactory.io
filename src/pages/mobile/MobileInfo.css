@@ -18,6 +18,16 @@
   gap: 16px;
 }
 
+.mi-card-title {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  color: var(--neon-green);
+  text-shadow: 0 0 8px rgba(57, 255, 20, .4);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
 /* ── Intro ────────────────────────────────────────────────────────────────── */
 
 .mi-intro {

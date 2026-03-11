@@ -1,11 +1,9 @@
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../stores/authStore'
-import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, ExternalLink, UserPlus, AlertTriangle, Mail } from 'lucide-react'
+import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, UserPlus, AlertTriangle, Mail, Github } from 'lucide-react'
 import './MobileInfo.css'
 import './MobileLottery.css'
 
 export default function MobileInfo() {
-  const navigate = useNavigate()
   const auth = useAuth()
 
   return (
@@ -22,36 +20,20 @@ export default function MobileInfo() {
         <p className="ml-hero-subtitle">Grow. Produce. Earn. Compete.</p>
       </div>
 
-      {/* ── Intro ─────────────────────────────────────── */}
+      {/* ── Welcome ──────────────────────────────────── */}
       <div className="mi-card">
         <p className="mi-intro">
           Joint Factory is a real-time idle factory game built on{' '}
-          <a href="https://nostr.how/en/what-is-nostr" target="_blank" rel="noopener noreferrer" className="mi-link purple">
-            Nostr <ExternalLink size={10} />
-          </a>{' '}
-          and Bitcoin Lightning. Login with your Nostr key to save progress,
-          unlock auto managers, and earn real sats.
+          <a href="https://nostr.how/en/what-is-nostr" target="_blank" rel="noopener noreferrer" className="mi-link purple">Nostr</a> and Bitcoin Lightning. Grow cannabis, roll joints, and earn real sats.
+          Login with your Nostr key to save progress, unlock auto managers,
+          and compete on the leaderboard.
         </p>
       </div>
 
-      {/* ── Features ──────────────────────────────────── */}
+      {/* ── How to Play ──────────────────────────────── */}
       <div className="mi-card">
+        <h2 className="mi-card-title">How to Play</h2>
         <div className="mi-features">
-          <div className="mi-feature">
-            <KeyRound size={22} className="mi-feat-icon purple" />
-            <div>
-              <h3 className="mi-feat-title">Nostr Login</h3>
-              <p className="mi-feat-desc">Sign in with your Nostr identity. Get a key with{' '}
-                <a href="https://getalby.com" target="_blank" rel="noopener noreferrer" className="mi-link gold">Alby <ExternalLink size={10} /></a>.
-                {auth.isLoggedIn && auth.npub && (
-                  <>{' '}Your profile on{' '}
-                    <a href={`https://nostr.nsnip.io/#/p/${auth.npub}`} target="_blank" rel="noopener noreferrer" className="mi-link green">Jumble <ExternalLink size={10} /></a>.
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-
           <div className="mi-feature">
             <Cannabis size={22} className="mi-feat-icon green" />
             <div>
@@ -110,22 +92,43 @@ export default function MobileInfo() {
         </div>
       </div>
 
-      {/* ── Disclaimer + Contact ──────────────────────── */}
+      {/* ── Nostr Login ──────────────────────────────── */}
       <div className="mi-card">
-        <div className="mi-disclaimer">
-          <AlertTriangle size={18} className="mi-disclaimer-icon" />
-          <p>
-            <strong>Disclaimer:</strong> Joint Factory is an art and educational project
-            exploring decentralized technologies. Alpha status — only use small sats amounts.
-          </p>
+        <h2 className="mi-card-title">Nostr Login</h2>
+        <div className="mi-feature">
+          <KeyRound size={22} className="mi-feat-icon purple" />
+          <div>
+            <p className="mi-feat-desc">
+              Sign in with your Nostr identity to save progress and unlock all features.
+              Get a key with{' '}
+              <a href="https://getalby.com" target="_blank" rel="noopener noreferrer" className="mi-link gold">Alby</a>.
+              {auth.isLoggedIn && auth.npub && (
+                <>{' '}Your profile on{' '}
+                  <a href={`https://nostr.nsnip.io/#/p/${auth.npub}`} target="_blank" rel="noopener noreferrer" className="mi-link green">Jumble</a>.
+                </>
+              )}
+            </p>
+          </div>
         </div>
+      </div>
+
+      {/* ── Links & Contact ──────────────────────────── */}
+      <div className="mi-card">
+        <h2 className="mi-card-title">Links</h2>
 
         <div className="mi-contact">
           <Cannabis size={16} style={{ color: 'var(--neon-green)' }} />
-          <span>Follow{' '}
-            <a href="https://nostr.nsnip.io/users/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="mi-link green">
-              Joint Factory on Nostr <ExternalLink size={10} />
-            </a>
+          <span>
+            <a href="https://nostr.nsnip.io/#/p/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="mi-link green">
+              Joint Factory on Nostr</a>
+          </span>
+        </div>
+
+        <div className="mi-contact">
+          <Github size={16} style={{ color: 'var(--text-primary)' }} />
+          <span>
+            <a href="https://github.com/satoshidude/jointfactory.io" target="_blank" rel="noopener noreferrer" className="mi-link">
+              GitHub Repository</a>
           </span>
         </div>
 
@@ -133,14 +136,21 @@ export default function MobileInfo() {
           <Mail size={16} style={{ color: 'var(--text-secondary)' }} />
           <span>Contact:{' '}
             <a href="https://nostr.nsnip.io/#/p/satoshidude@nsnip.io" target="_blank" rel="noopener noreferrer" className="mi-link gold">
-              satoshidude@nsnip.io <ExternalLink size={10} />
-            </a>
+              satoshidude@nsnip.io</a>
           </span>
         </div>
+      </div>
 
-        <button className="mi-play-btn" onClick={() => navigate('/')}>
-          Start Playing
-        </button>
+      {/* ── Disclaimer ───────────────────────────────── */}
+      <div className="mi-card">
+        <div className="mi-disclaimer">
+          <AlertTriangle size={18} className="mi-disclaimer-icon" />
+          <p>
+            <strong>Disclaimer:</strong> Joint Factory is an art and educational project
+            exploring decentralized technologies. Alpha status — only deposit small sats amounts.
+            No guarantees. Play at your own risk.
+          </p>
+        </div>
       </div>
     </div>
   )
