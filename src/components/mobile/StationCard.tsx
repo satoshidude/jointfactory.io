@@ -18,9 +18,9 @@ function fmtNum(n: number): string {
 
 // ── Animated Cycle Ring ─────────────────────────────────────────────────────
 
-function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5, label, onClick, disabled }: {
+function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5, label, onClick, disabled, ready }: {
   progress: number; speed: number; color: string; trackColor: string; size?: number; stroke?: number
-  label?: string; onClick?: () => void; disabled?: boolean
+  label?: string; onClick?: () => void; disabled?: boolean; ready?: boolean
 }) {
   const r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
@@ -39,7 +39,7 @@ function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5,
 
   return (
     <div
-      className={`station-ring-wrap${isClickable ? ' ring-clickable' : ''}${disabled ? ' ring-disabled' : ''}`}
+      className={`station-ring-wrap${isClickable ? ' ring-clickable' : ''}${isClickable && ready ? ' ring-ready' : ''}${disabled ? ' ring-disabled' : ''}`}
       style={{ width: size, height: size }}
       onClick={isClickable ? onClick : undefined}
     >
@@ -144,6 +144,7 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
                 label={isAuto ? undefined : (p.timer < p.cycleTime ? '...' : 'Grow')}
                 onClick={isAuto ? undefined : () => onGrow(i)}
                 disabled={isAuto ? undefined : p.timer < p.cycleTime}
+                ready={!isAuto && p.timer >= p.cycleTime}
               />
               <div className="plant-row-info">
                 <div className="plant-row-name">{p.name}</div>
@@ -250,6 +251,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
           label={isAuto ? undefined : (isMoving ? 'En route...' : 'Send')}
           onClick={isAuto ? undefined : onSend}
           disabled={isAuto ? undefined : !canSend}
+          ready={!isAuto && canSend}
         />
         <div className="station-info">
           <div className="station-stats">
@@ -340,6 +342,7 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
           label={isAuto ? undefined : (fabrik.processing ? 'Rolling...' : 'Roll')}
           onClick={isAuto ? undefined : onRoll}
           disabled={isAuto ? undefined : !canRoll}
+          ready={!isAuto && canRoll}
         />
         <div className="station-info">
           <div className="station-stats">

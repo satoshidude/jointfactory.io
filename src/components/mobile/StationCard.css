@@ -64,13 +64,25 @@
 }
 
 .ring-clickable:active {
-  transform: scale(0.95);
+  transform: scale(0.95) !important;
+  animation: none !important;
   transition: transform 0.1s;
+}
+
+/* Pulse when cycle is complete and ready to click */
+.ring-ready {
+  animation: ring-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.06); filter: brightness(1.3); }
 }
 
 .ring-disabled {
   opacity: 0.5;
   cursor: default;
+  animation: none;
 }
 
 .ring-disabled:active {
