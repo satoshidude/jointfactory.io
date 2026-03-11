@@ -3,7 +3,7 @@
   background-image: var(--paper-noise);
   border: 1px solid rgba(255, 215, 0, .2);
   border-radius: 12px;
-  padding: 10px 14px;
+  padding: 12px 14px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   display: flex;
@@ -16,41 +16,62 @@
   border-color: rgba(255, 215, 0, .4);
 }
 
-.lottery-mini-row1 {
+/* Row 1: icon + title */
+.lottery-mini-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .lottery-mini-icon {
   color: var(--neon-gold);
-  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .5));
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, .4));
   flex-shrink: 0;
 }
 
 .lottery-mini-title {
   font-family: var(--font-heading);
-  font-size: 12px;
+  font-size: 16px;
   color: var(--neon-gold);
   text-shadow: 0 0 8px rgba(255, 215, 0, .4);
 }
 
-.lottery-mini-countdown {
-  margin-left: auto;
+/* Row 2: draw time + countdown */
+.lottery-mini-time {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+}
+
+.lottery-mini-draw {
   display: flex;
   align-items: center;
   gap: 4px;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.lottery-mini-draw svg {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
+}
+
+.lottery-mini-countdown {
   font-family: var(--font-body);
   font-size: 12px;
-  font-weight: 700;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
-.lottery-mini-row2 {
+/* Row 3: pot, tickets, players */
+.lottery-mini-stats {
   display: flex;
   align-items: center;
   gap: 14px;
+  justify-content: center;
 }
 
 .lottery-mini-stat {
@@ -58,10 +79,13 @@
   align-items: center;
   gap: 3px;
   font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 16px;
+  color: var(--neon-gold);
   font-variant-numeric: tabular-nums;
+}
+
+.lottery-mini-stat svg {
+  color: var(--text-secondary);
 }
 
 .lottery-mini-stat:first-child {
@@ -73,6 +97,86 @@
   filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
 }
 
-.lottery-mini-stat svg {
+.lottery-mini-my {
+  color: var(--neon-gold) !important;
+}
+
+.lottery-mini-my svg {
+  color: var(--neon-gold) !important;
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4)) !important;
+}
+
+/* Last result */
+.lottery-mini-last {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--neon-gold);
+}
+
+.lottery-mini-last-label {
   color: var(--text-secondary);
+}
+
+.lottery-mini-last svg {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
+}
+
+/* Buy section */
+.lottery-mini-buy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+}
+
+.lottery-mini-buy-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 12px;
+  min-height: 36px;
+  background: rgba(255, 215, 0, .1);
+  border: 1px solid rgba(255, 215, 0, .25);
+  border-radius: 8px;
+  color: var(--neon-gold);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lottery-mini-buy-btn:active:not(:disabled) {
+  transform: scale(0.97);
+  background: rgba(255, 215, 0, .2);
+}
+
+.lottery-mini-buy-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lottery-mini-pipe {
+  color: var(--text-secondary);
+  opacity: 0.4;
+  font-weight: 400;
+}
+
+.lottery-mini-avail {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--neon-green);
+}
+
+.lottery-mini-avail svg {
+  color: var(--neon-green);
 }
