@@ -10,7 +10,7 @@ export interface PlantationDef {
 }
 
 export const PLANTATION_DEFS: PlantationDef[] = [
-  { id: 0, name: 'Balcony Grow',   icon: '\u{1F33F}', baseProd: 5,       cycleTime: 4,   upgBase: 8,       upgMult: 1.28, mgrCost: 20,  unlockCost: 0 },
+  { id: 0, name: 'Balcony Grow',   icon: '\u{1F331}', baseProd: 5,       cycleTime: 4,   upgBase: 8,       upgMult: 1.28, mgrCost: 20,  unlockCost: 0 },
   { id: 1, name: 'Outdoor Plot',   icon: '\u{1F331}', baseProd: 60,      cycleTime: 5,   upgBase: 400,     upgMult: 1.28, mgrCost: 30,  unlockCost: 50_000 },
   { id: 2, name: 'Indoor Room',    icon: '\u{1F3E0}', baseProd: 400,     cycleTime: 4,   upgBase: 15_000,  upgMult: 1.28, mgrCost: 40,  unlockCost: 2_000_000 },
   { id: 3, name: 'Hydroponic Lab', icon: '\u{1F4A7}', baseProd: 3_000,   cycleTime: 3,   upgBase: 100_000, upgMult: 1.28, mgrCost: 60,  unlockCost: 100_000_000 },

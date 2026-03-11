@@ -314,7 +314,7 @@ export default function PlayerProfile() {
           <div className="pp-stations">
             {stations.plantations.map((p, i) => (
               <div key={i} className="pp-station-row">
-                <span className="pp-station-icon">{p.icon || '🌿'}</span>
+                <span className="pp-station-icon">{p.icon || '🌱'}</span>
                 <span className="pp-station-name">{p.name}</span>
                 <span className="pp-station-level">Lv {p.level}</span>
                 {p.has_manager && <Shield size={12} className="pp-mgr-badge" />}
