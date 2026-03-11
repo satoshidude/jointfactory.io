@@ -3,7 +3,7 @@ import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { useGameLoop } from '../../game/useGameLoop'
 import LotteryWidget from '../../components/mobile/LotteryWidget'
-import { PlantCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
+import { PlantationsCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
 import './MobilePages.css'
 
 export default function MobileGame() {
@@ -40,20 +40,19 @@ export default function MobileGame() {
     <div className="mobile-page mobile-game-page">
       <LotteryWidget />
 
-      {state.plantagen.map((plant, i) => (
-        <PlantCard
-          key={plant.id}
-          plant={plant}
-          joints={state.joints}
-          managerCount={state.managerCount}
-          isLoggedIn={auth.isLoggedIn}
-          totalDeposited={auth.totalDeposited}
-          onUpgradeLevel={() => actions.upgradePlantLevel(i)}
-          onUpgradeSpeed={() => actions.upgradePlantSpeed(i)}
-          onBuyManager={() => actions.buyPlantManager(i)}
-          onGrow={() => actions.grow(i)}
-        />
-      ))}
+      <PlantationsCard
+        plantagen={state.plantagen}
+        cannabis={state.cannabis}
+        joints={state.joints}
+        managerCount={state.managerCount}
+        isLoggedIn={auth.isLoggedIn}
+        totalDeposited={auth.totalDeposited}
+        onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
+        onUpgradeSpeed={(i) => actions.upgradePlantSpeed(i)}
+        onBuyManager={(i) => actions.buyPlantManager(i)}
+        onGrow={(i) => actions.grow(i)}
+        onUnlock={actions.unlockPlantation}
+      />
 
       <CourierCard
         courier={state.courier}

@@ -1,10 +1,10 @@
 import { useRef } from 'react'
-import { Sprout, Footprints, Factory } from 'lucide-react'
+import { Sprout, Footprints, Factory, Lock } from 'lucide-react'
 import type { PlantationState, CourierState, FabrikState } from '../../game/useGameLoop'
 import {
-  plantLevelCost, plantMilestoneInfo, plantOutput, plantEffectiveCycle, plantRate,
+  plantLevelCost, plantMilestoneInfo, plantEffectiveCycle, plantRate,
   courierTripTime, fabrikCycleTime,
-  getSpeedUpgrade,
+  getSpeedUpgrade, PLANTATION_DEFS,
 } from '../../game/useGameLoop'
 import './StationCard.css'
 
@@ -69,104 +69,143 @@ function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5,
   )
 }
 
-// ── Plantation Station Card ─────────────────────────────────────────────────
+// ── Plantations Group Card ──────────────────────────────────────────────────
 
-export function PlantCard({ plant, joints, managerCount, isLoggedIn, totalDeposited, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow }: {
-  plant: PlantationState
+export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isLoggedIn, totalDeposited, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow, onUnlock }: {
+  plantagen: PlantationState[]
+  cannabis: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
   totalDeposited: number
-  onUpgradeLevel: () => void
-  onUpgradeSpeed: () => void
-  onBuyManager: () => void
-  onGrow: () => void
+  onUpgradeLevel: (i: number) => void
+  onUpgradeSpeed: (i: number) => void
+  onBuyManager: (i: number) => void
+  onGrow: (i: number) => void
+  onUnlock: () => void
 }) {
-  const cycle = plantEffectiveCycle(plant)
-  const progress = 1 - (plant.timer / plant.cycleTime)
-  const output = plantOutput(plant)
-  const rate = plantRate(plant)
-  const levelCost = plantLevelCost(plant)
-  const milestone = plantMilestoneInfo(plant.level)
-  const speedUpg = getSpeedUpgrade(plant.speedLevel)
-  const canAffordLevel = joints >= levelCost
-  const needForLevel = levelCost - Math.floor(joints)
-  const isAuto = plant.managerLevel > 0
-  const isGrowing = plant.timer < plant.cycleTime
+  // Summary stats
+  let totalRate = 0
+  for (const p of plantagen) {
+    if (p.managerLevel > 0) totalRate += plantRate(p)
+  }
 
   return (
     <div className="station-card station-plant">
       <div className="station-header">
         <Sprout size={20} className="station-header-icon" />
-        <span className="station-name">{plant.name}</span>
-        <span className="station-level">Lvl {plant.level}</span>
+        <span className="station-name">Plantations</span>
+        <span className="station-level">{plantagen.length} / {PLANTATION_DEFS.length}</span>
       </div>
 
+      {/* Summary row */}
       <div className="station-card-top">
         <CycleRing
-          progress={progress}
-          speed={plant.speed}
+          progress={plantagen.length > 0 ? 1 - (plantagen[0].timer / plantagen[0].cycleTime) : 0}
+          speed={plantagen.length > 0 ? plantagen[0].speed : 1}
           color="rgba(57, 255, 20, .9)"
           trackColor="rgba(57, 255, 20, .15)"
-          label={isAuto ? undefined : (isGrowing ? 'Growing...' : 'Grow')}
-          onClick={isAuto ? undefined : onGrow}
-          disabled={isAuto ? undefined : isGrowing}
         />
         <div className="station-info">
           <div className="station-stats">
             <div className="station-stat-row">
-              <span className="station-stat-label">Output</span>
-              <span className="station-stat-value">{fmtNum(output)}</span>
+              <span className="station-stat-label">Stock</span>
+              <span className="station-stat-value">{fmtNum(cannabis)}</span>
             </div>
             <div className="station-stat-row">
-              <span className="station-stat-label">Rate</span>
-              <span className="station-stat-value">{fmtNum(rate)}/s</span>
+              <span className="station-stat-label">Production</span>
+              <span className="station-stat-value">{fmtNum(totalRate)}/s</span>
             </div>
-            <div className="station-stat-row">
-              <span className="station-stat-label">Cycle</span>
-              <span className="station-stat-value">{cycle.toFixed(1)}s</span>
-            </div>
-            {milestone.levelsToNext <= 5 && (
-              <div className="station-stat-row station-milestone">
-                <span className="station-stat-label">Milestone</span>
-                <span className="station-stat-value">{milestone.levelsToNext} lvl → {milestone.nextMult}x</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      <div className="station-actions">
-        <button
-          className={`station-btn station-btn-level${canAffordLevel ? '' : ' insufficient'}`}
-          onClick={onUpgradeLevel}
-          disabled={!canAffordLevel}
-        >
-          {canAffordLevel
-            ? `Upgrade — ${fmtNum(levelCost)}`
-            : `Need ${fmtNum(needForLevel)} more`
-          }
-        </button>
-        {!isAuto && managerCount < 2 && (
-          <button className="station-btn station-btn-manager station-btn-free" onClick={onBuyManager}>
-            Hire Manager — Free!
-          </button>
-        )}
-        {!isAuto && managerCount >= 2 && (!isLoggedIn || totalDeposited < 50) && (
-          <button className="station-btn station-btn-manager" disabled>
-            {!isLoggedIn ? 'Login + Deposit 50 sats to unlock' : `Deposit ${50 - totalDeposited} more sats to unlock`}
-          </button>
-        )}
-        {!isAuto && managerCount >= 2 && isLoggedIn && totalDeposited >= 50 && (
-          <button className="station-btn station-btn-manager" onClick={onBuyManager}>
-            Hire Manager — {plant.mgrCost} sats
-          </button>
-        )}
-        {speedUpg && (
-          <button className="station-btn station-btn-speed" onClick={onUpgradeSpeed}>
-            Speed {speedUpg.label} — {speedUpg.cost} sats
-          </button>
-        )}
+      {/* Individual plant rows */}
+      <div className="plant-list">
+        {plantagen.map((p, i) => {
+          const cycle = plantEffectiveCycle(p)
+          const rate = plantRate(p)
+          const lvCost = plantLevelCost(p)
+          const milestone = plantMilestoneInfo(p.level)
+          const speedUpg = getSpeedUpgrade(p.speedLevel)
+          const isAuto = p.managerLevel > 0
+          const canAfford = joints >= lvCost
+          const progress = 1 - (p.timer / p.cycleTime)
+
+          return (
+            <div className="plant-row" key={p.id}>
+              <CycleRing
+                progress={progress}
+                speed={p.speed}
+                color="rgba(57, 255, 20, .9)"
+                trackColor="rgba(57, 255, 20, .15)"
+                size={58}
+                stroke={3}
+                label={isAuto ? undefined : (p.timer < p.cycleTime ? '...' : 'Grow')}
+                onClick={isAuto ? undefined : () => onGrow(i)}
+                disabled={isAuto ? undefined : p.timer < p.cycleTime}
+              />
+              <div className="plant-row-info">
+                <div className="plant-row-name">{p.name}</div>
+                <div className="plant-row-sub">
+                  {fmtNum(rate)}/s · {cycle.toFixed(1)}s · <span className="plant-row-milestone">{milestone.nextMult}x in {milestone.levelsToNext}</span>
+                </div>
+              </div>
+              <div className="plant-row-actions">
+                <button className={`station-btn station-btn-level plant-row-btn${canAfford ? '' : ' insufficient'}`}
+                  onClick={() => onUpgradeLevel(i)} disabled={!canAfford}>
+                  Lvl {p.level + 1} — {fmtNum(lvCost)}
+                </button>
+                {!isAuto && managerCount < 2 && (
+                  <button className="station-btn station-btn-manager station-btn-free plant-row-btn" onClick={() => onBuyManager(i)}>
+                    Manager — Free!
+                  </button>
+                )}
+                {!isAuto && managerCount >= 2 && (!isLoggedIn || totalDeposited < 50) && (
+                  <button className="station-btn station-btn-manager plant-row-btn" disabled>
+                    {!isLoggedIn ? 'Login + 50 sats' : `${50 - totalDeposited} more sats`}
+                  </button>
+                )}
+                {!isAuto && managerCount >= 2 && isLoggedIn && totalDeposited >= 50 && (
+                  <button className="station-btn station-btn-manager plant-row-btn" onClick={() => onBuyManager(i)}>
+                    Manager — {p.mgrCost} sats
+                  </button>
+                )}
+                {speedUpg && isAuto && (
+                  <button className="station-btn station-btn-speed plant-row-btn" onClick={() => onUpgradeSpeed(i)}>
+                    Speed {speedUpg.label} — {speedUpg.cost} sats
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Locked plantations */}
+        {PLANTATION_DEFS.slice(plantagen.length).map((def, i) => {
+          const isNext = i === 0
+          return (
+            <div className="plant-row plant-row-locked" key={def.id}>
+              <div className="plant-locked-ring">
+                <Lock size={20} />
+              </div>
+              <div className="plant-row-info">
+                <div className="plant-row-name locked">{def.name}</div>
+                <div className="plant-row-sub">{fmtNum(def.baseProd)} base · {def.cycleTime}s</div>
+              </div>
+              <div className="plant-row-actions">
+                {isNext ? (
+                  <button className="station-btn station-btn-level plant-row-btn"
+                    onClick={onUnlock} disabled={joints < def.unlockCost}>
+                    Unlock — {fmtNum(def.unlockCost)}
+                  </button>
+                ) : (
+                  <span className="plant-locked-cost">{fmtNum(def.unlockCost)}</span>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
