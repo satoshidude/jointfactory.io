@@ -13,7 +13,6 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
       <main className="mobile-content">
         {children}
       </main>
-      <span className="mobile-version">v0.2</span>
     </div>
   )
 }

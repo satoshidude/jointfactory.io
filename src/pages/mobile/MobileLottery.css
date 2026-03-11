@@ -232,7 +232,7 @@
 
 .ml-stat-value {
   font-family: var(--font-body);
-  font-size: 21px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
   display: flex;
@@ -260,7 +260,7 @@
   align-items: center;
   gap: 6px;
   font-family: var(--font-body);
-  font-size: 21px;
+  font-size: 16px;
   font-weight: 600;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -290,7 +290,7 @@
 
 .ml-price-step-cost {
   font-family: var(--font-body);
-  font-size: 21px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
   display: flex;
