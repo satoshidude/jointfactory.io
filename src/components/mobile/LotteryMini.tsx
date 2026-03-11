@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Zap, Ticket, TicketPlus, Users, Timer, Cannabis, Trophy } from 'lucide-react'
+import { Zap, Ticket, TicketPlus, Users, Timer, Cannabis } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
