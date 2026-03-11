@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Zap, Save, Loader, LogOut, User, Ticket, TrendingUp } from 'lucide-react'
+import { Zap, Save, Loader, LogOut, User, Ticket, TrendingUp, Trash2, Globe } from 'lucide-react'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { apiFetch } from '../../lib/api'
@@ -105,12 +105,28 @@ export default function MobileProfile() {
     navigate('/')
   }
 
+  async function handleDelete() {
+    if (!window.confirm('Delete your account? All data, stats and sats will be lost. This cannot be undone.')) return
+    if (!window.confirm('Are you really sure? This is permanent.')) return
+    try {
+      const res = await apiFetch('/game/profile', { method: 'DELETE' })
+      if (res.ok) {
+        auth.logout()
+        navigate('/')
+      } else {
+        setError(res.reason || 'Delete failed')
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Connection error')
+    }
+  }
+
   if (!auth.isLoggedIn) {
     return (
       <div className="mobile-page mobile-profile">
         <div className="mp-guest">
           <User size={48} className="mp-guest-icon" />
-          <h2 className="mp-guest-title">Profile</h2>
+          <h2 className="mp-guest-title">Account</h2>
           <p className="mp-guest-sub">Sign in to see your stats, edit your name, and manage your account.</p>
           <button className="mp-login-btn" onClick={() => setShowLogin(true)}>Sign in</button>
         </div>
@@ -121,9 +137,19 @@ export default function MobileProfile() {
 
   return (
     <div className="mobile-page mobile-profile">
+      {/* Logout */}
+      <button className="mp-logout-btn" onClick={handleLogout}>
+        <LogOut size={16} /> Logout
+      </button>
+
       {/* Edit Profile */}
       <div className="mp-card">
-        <h3 className="mp-card-title"><User size={16} /> Profile</h3>
+        <div className="mp-card-header-row">
+          <h3 className="mp-card-title"><User size={16} /> Account</h3>
+          <button className="mp-nostr-btn" onClick={() => navigate('/profile/nostr')}>
+            <Globe size={12} /> Nostr Profile
+          </button>
+        </div>
         <label className="mp-label">Display Name</label>
         <input
           className="mp-input"
@@ -146,6 +172,9 @@ export default function MobileProfile() {
           {saving ? <><Loader size={14} className="spin" /> Saving...</> :
            saved ? <><Save size={14} /> Saved!</> :
            <><Save size={14} /> Save</>}
+        </button>
+        <button className="mp-delete-btn" onClick={handleDelete}>
+          <Trash2 size={14} /> Delete Account
         </button>
         {error && <p className="mp-error">{error}</p>}
       </div>
@@ -202,10 +231,6 @@ export default function MobileProfile() {
         </div>
       )}
 
-      {/* Logout */}
-      <button className="mp-logout-btn" onClick={handleLogout}>
-        <LogOut size={16} /> Logout
-      </button>
     </div>
   )
 }

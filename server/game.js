@@ -35,6 +35,7 @@ export function loadState(npub) {
 // Atomic saveState transaction
 const _saveStateTx = db.transaction((npub, payload) => {
   const { gameState, joints, total_joints_earned, joints_per_sec, manager_sats_spent } = payload;
+  let potUpdated = false;
 
   // Manager purchase: deduct sats atomically, 80% feeds lottery pot
   const mgrSpent = Math.floor(manager_sats_spent || 0);
@@ -47,6 +48,7 @@ const _saveStateTx = db.transaction((npub, payload) => {
         const toPot = Math.floor(mgrSpent * 0.8);
         db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE status = 'open'`).run(toPot);
         console.log(`[Lottery] Adding ${toPot} sats (80% of ${mgrSpent}) from ${npub.slice(0, 8)}... to pot`);
+        potUpdated = true;
       }
     }
   }
@@ -68,7 +70,7 @@ const _saveStateTx = db.transaction((npub, payload) => {
     npub
   );
 
-  return { ok: true };
+  return { ok: true, potUpdated };
 });
 
 export function saveState(npub, payload) {

@@ -4,7 +4,7 @@
   background: var(--bg-card);
   background-image: var(--paper-noise);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -105,7 +105,7 @@
   padding: 12px;
   background: var(--neon-purple);
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #fff;
   font-family: var(--font-body);
   font-size: 14px;

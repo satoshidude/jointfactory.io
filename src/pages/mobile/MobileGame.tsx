@@ -4,6 +4,8 @@ import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { useGameLoop } from '../../game/useGameLoop'
 import { PlantationsCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
 import LotteryMini from '../../components/mobile/LotteryMini'
+import GrowthRace from '../../components/mobile/GrowthRace'
+import Leaderboard from '../../components/mobile/Leaderboard'
 import './MobilePages.css'
 
 export default function MobileGame() {
@@ -52,47 +54,55 @@ export default function MobileGame() {
 
   return (
     <div className="mobile-page mobile-game-page">
-      <LotteryMini />
+      <div className="mgp-col mgp-col-left">
+        <LotteryMini />
 
-      <FactoryCard
-        fabrik={state.fabrik}
-        cannabisAtFactory={state.cannabisAtFactory}
-        joints={state.joints}
-        managerCount={state.managerCount}
-        isLoggedIn={auth.isLoggedIn}
-        totalDeposited={auth.totalDeposited}
-        onUpgradeCap={actions.upgradeFabrikCap}
-        onUpgradeSpeed={actions.upgradeFabrikSpeed}
-        onBuyManager={actions.buyFabrikManager}
-        onRoll={actions.rollJoints}
-      />
+        <FactoryCard
+          fabrik={state.fabrik}
+          cannabisAtFactory={state.cannabisAtFactory}
+          joints={state.joints}
+          managerCount={state.managerCount}
+          isLoggedIn={auth.isLoggedIn}
+          totalDeposited={auth.totalDeposited}
+          onUpgradeCap={actions.upgradeFabrikCap}
+          onUpgradeSpeed={actions.upgradeFabrikSpeed}
+          onBuyManager={actions.buyFabrikManager}
+          onRoll={actions.rollJoints}
+        />
 
-      <CourierCard
-        courier={state.courier}
-        cannabis={state.cannabis}
-        joints={state.joints}
-        managerCount={state.managerCount}
-        isLoggedIn={auth.isLoggedIn}
-        totalDeposited={auth.totalDeposited}
-        onUpgradeCap={actions.upgradeCourierCap}
-        onUpgradeSpeed={actions.upgradeCourierSpeed}
-        onBuyManager={actions.buyCourierManager}
-        onSend={actions.sendCourier}
-      />
+        <CourierCard
+          courier={state.courier}
+          cannabis={state.cannabis}
+          joints={state.joints}
+          managerCount={state.managerCount}
+          isLoggedIn={auth.isLoggedIn}
+          totalDeposited={auth.totalDeposited}
+          onUpgradeCap={actions.upgradeCourierCap}
+          onUpgradeSpeed={actions.upgradeCourierSpeed}
+          onBuyManager={actions.buyCourierManager}
+          onSend={actions.sendCourier}
+        />
 
-      <PlantationsCard
-        plantagen={state.plantagen}
-        cannabis={state.cannabis}
-        joints={state.joints}
-        managerCount={state.managerCount}
-        isLoggedIn={auth.isLoggedIn}
-        totalDeposited={auth.totalDeposited}
-        onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
-        onUpgradeSpeed={(i) => actions.upgradePlantSpeed(i)}
-        onBuyManager={(i) => actions.buyPlantManager(i)}
-        onGrow={(i) => actions.grow(i)}
-        onUnlock={actions.unlockPlantation}
-      />
+        <Leaderboard />
+      </div>
+
+      <div className="mgp-col mgp-col-right">
+        <PlantationsCard
+          plantagen={state.plantagen}
+          cannabis={state.cannabis}
+          joints={state.joints}
+          managerCount={state.managerCount}
+          isLoggedIn={auth.isLoggedIn}
+          totalDeposited={auth.totalDeposited}
+          onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
+          onUpgradeSpeed={(i) => actions.upgradePlantSpeed(i)}
+          onBuyManager={(i) => actions.buyPlantManager(i)}
+          onGrow={(i) => actions.grow(i)}
+          onUnlock={actions.unlockPlantation}
+        />
+
+        <GrowthRace />
+      </div>
     </div>
   )
 }

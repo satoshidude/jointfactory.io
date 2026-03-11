@@ -3,6 +3,7 @@ import { Zap, Key, Sparkles, X, Plug, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../stores/authStore';
 import { hasExtension, loginWithExtension, signWithNsec, generateKeypair, signWithSecretKey } from '../lib/nostr';
 import { apiFetch } from '../lib/api';
+import { fetchNostrProfile } from '../lib/nostrProfile';
 import './LoginModal.css';
 
 type Tab = 'extension' | 'nsec' | 'new';
@@ -35,6 +36,34 @@ export default function LoginModal({ onClose }: Props) {
       localStorage.removeItem('jf_referral');
       auth.login(res.token, res.player.npub, res.player.display_name || null, res.player.lightning_address || null, res.player.sats, res.player.joints, res.player.total_joints_earned || 0, !!res.is_new, res.player.total_deposited || 0);
       onClose();
+      // Background: fetch Nostr profile and sync account fields
+      fetchNostrProfile(res.player.npub).then(profile => {
+        console.log('[Login] Nostr profile fetched:', profile)
+        const newName = profile.display_name || profile.name
+        const newLn = profile.lud16 || profile.nip05
+        const currentName = res.player.display_name
+        const currentLn = res.player.lightning_address
+        const updates: Record<string, string | null> = {}
+        if (newName) updates.display_name = newName
+        if (newLn && !currentLn) updates.lightning_address = newLn
+        if (Object.keys(updates).length > 0) {
+          console.log('[Login] Syncing profile updates:', updates)
+          apiFetch('/game/profile', {
+            method: 'POST',
+            body: JSON.stringify(updates),
+          }).then(r => {
+            console.log('[Login] Profile update response:', r)
+            if (r.ok) {
+              auth.setProfile(
+                updates.display_name || currentName || null,
+                updates.lightning_address || currentLn || null,
+              )
+            }
+          }).catch(e => console.error('[Login] Profile update failed:', e))
+        } else {
+          console.log('[Login] No profile updates needed')
+        }
+      }).catch(e => console.error('[Login] Nostr profile fetch failed:', e))
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Connection error');
     } finally {

@@ -8,6 +8,7 @@ import MobileWallet from './pages/mobile/MobileWallet'
 import MobileInfo from './pages/mobile/MobileInfo'
 import InvitePage from './pages/Invite'
 import PlayerProfile from './pages/PlayerProfile'
+import NostrProfileEdit from './pages/mobile/NostrProfileEdit'
 import { GameDisplayProvider } from './stores/gameDisplayStore'
 import './App.css'
 
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/" element={<MobileGame />} />
           <Route path="/lottery" element={<MobileLottery />} />
           <Route path="/profile" element={<MobileProfile />} />
+          <Route path="/profile/nostr" element={<NostrProfileEdit />} />
           <Route path="/wallet" element={<MobileWallet />} />
           <Route path="/info" element={<MobileInfo />} />
           <Route path="/invite" element={<InvitePage />} />

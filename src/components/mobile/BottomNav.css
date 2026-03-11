@@ -5,8 +5,7 @@
   align-items: stretch;
   justify-content: space-around;
   height: 44px;
-  background: var(--bg-card);
-  background-image: var(--paper-noise);
+  background: transparent;
   border-top: 1px solid var(--border-color);
   -webkit-tap-highlight-color: transparent;
 }
@@ -42,12 +41,11 @@
   content: '';
   position: absolute;
   bottom: 0;
-  left: 25%;
-  right: 25%;
+  left: 10%;
+  right: 10%;
   height: 2px;
   background: var(--neon-green);
   box-shadow: var(--glow-green);
-  border-radius: 2px 2px 0 0;
 }
 
 .bottom-nav-tab.active svg {

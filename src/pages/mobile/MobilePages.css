@@ -11,31 +11,16 @@
   gap: 12px;
 }
 
+.mgp-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* 3-col: Lottery+Factory+Courier left column, Plantations right */
 @media (min-width: 1024px) {
   .mobile-game-page {
     grid-template-columns: 1fr 2fr;
-    grid-template-rows: auto auto auto;
-  }
-
-  .mobile-game-page > .lottery-mini {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .mobile-game-page > .station-factory {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .mobile-game-page > .station-courier {
-    grid-column: 1;
-    grid-row: 3;
-  }
-
-  .mobile-game-page > .station-plant {
-    grid-column: 2;
-    grid-row: 1 / 4;
   }
 }
 
@@ -139,7 +124,7 @@
   min-height: 44px;
   background: rgba(57, 255, 20, .1);
   border: 2px solid rgba(57, 255, 20, .4);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--neon-green);
   font-family: var(--font-heading);
   font-size: 13px;
@@ -197,7 +182,7 @@
   min-height: 44px;
   background: rgba(57, 255, 20, .1);
   border: 2px solid rgba(57, 255, 20, .4);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--neon-green);
   font-family: var(--font-heading);
   font-size: 13px;
@@ -214,11 +199,17 @@
   background: var(--bg-card);
   background-image: var(--paper-noise);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.mp-card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .mp-card-title {
@@ -230,6 +221,27 @@
   color: var(--neon-green);
   text-shadow: 0 0 8px rgba(57, 255, 20, .4);
   margin: 0;
+}
+
+.mp-nostr-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: rgba(204, 68, 255, .08);
+  border: 1px solid rgba(204, 68, 255, .25);
+  border-radius: 4px;
+  color: var(--neon-purple, #cc44ff);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mp-nostr-btn:active {
+  background: rgba(204, 68, 255, .15);
+  transform: scale(0.97);
 }
 
 .mp-label {
@@ -250,7 +262,7 @@
   min-height: 44px;
   background: rgba(255, 255, 255, .04);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 14px;
@@ -277,7 +289,7 @@
   min-height: 44px;
   background: rgba(57, 255, 20, .1);
   border: 1px solid rgba(57, 255, 20, .3);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--neon-green);
   font-family: var(--font-body);
   font-size: 13px;
@@ -294,6 +306,30 @@
 .mp-save-btn:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.mp-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 14px;
+  min-height: 44px;
+  background: transparent;
+  border: 1px solid rgba(255, 68, 68, .15);
+  border-radius: 6px;
+  color: rgba(255, 68, 68, .6);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mp-delete-btn:active {
+  background: rgba(255, 68, 68, .08);
+  transform: scale(0.98);
 }
 
 .mp-error {
@@ -317,7 +353,7 @@
   padding: 10px 8px;
   background: rgba(255, 255, 255, .02);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .mp-stat-val {
@@ -348,7 +384,7 @@
   min-height: 44px;
   background: rgba(255, 68, 68, .08);
   border: 1px solid rgba(255, 68, 68, .2);
-  border-radius: 8px;
+  border-radius: 6px;
   color: #ff4444;
   font-family: var(--font-body);
   font-size: 13px;
@@ -360,6 +396,130 @@
 .mp-logout-btn:active {
   background: rgba(255, 68, 68, .15);
   transform: scale(0.98);
+}
+
+/* ── Nostr Profile Edit ────────────────────────────────────────────────────── */
+
+.np-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.np-back-btn:active {
+  color: var(--text-primary);
+}
+
+.np-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.np-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.np-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.np-sign-section {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.np-sign-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.np-sign-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--neon-purple, #cc44ff);
+  font-family: var(--font-body);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 4px;
+}
+
+.np-sign-toggle:active {
+  opacity: 0.7;
+}
+
+.np-save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 14px;
+  min-height: 44px;
+  background: rgba(204, 68, 255, .1);
+  border: 1px solid rgba(204, 68, 255, .3);
+  border-radius: 6px;
+  color: var(--neon-purple, #cc44ff);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.np-save-btn:active:not(:disabled) {
+  background: rgba(204, 68, 255, .2);
+  transform: scale(0.98);
+}
+
+.np-save-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.np-success {
+  font-size: 12px;
+  color: var(--neon-green);
+  margin: 0;
+  text-align: center;
+}
+
+.np-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 16px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 /* Page-specific accent colors */

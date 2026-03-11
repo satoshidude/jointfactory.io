@@ -1,5 +1,5 @@
-import { useRef } from 'react'
-import { Sprout, Footprints, Factory, Lock } from 'lucide-react'
+import { useRef, useState, useEffect } from 'react'
+import { Sprout, Footprints, Factory, Lock, Cannabis, Zap } from 'lucide-react'
 import type { PlantationState, CourierState, FabrikState } from '../../game/useGameLoop'
 import {
   plantLevelCost, plantMilestoneInfo, plantOutput, plantEffectiveCycle, plantRate,
@@ -18,9 +18,9 @@ function fmtNum(n: number): string {
 
 // ── Animated Cycle Ring ─────────────────────────────────────────────────────
 
-function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5, label, onClick, disabled, ready, value }: {
+function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5, label, onClick, disabled, ready, value, blow }: {
   progress: number; speed: number; color: string; trackColor: string; size?: number; stroke?: number
-  label?: string; onClick?: () => void; disabled?: boolean; ready?: boolean; value?: string
+  label?: string; onClick?: () => void; disabled?: boolean; ready?: boolean; value?: string; blow?: string | null
 }) {
   const r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
@@ -62,8 +62,113 @@ function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5,
           className="cycle-ring-flash" />
       </svg>
       <div className="station-ring-center">
-        {value && <span className="station-ring-value" style={{ color }}>{value}</span>}
-        {label && <span className="station-ring-label">{label}</span>}
+        {blow ? (
+          <span className="station-ring-blow" style={{ color }}>{blow}</span>
+        ) : (
+          <>
+            {value && <span className="station-ring-value" style={{ color }}>{value}</span>}
+            {label && <span className="station-ring-label">{label}</span>}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Milestone Blow Hook ─────────────────────────────────────────────────────
+
+function useMilestoneBlow(level: number) {
+  const { multiplier } = plantMilestoneInfo(level)
+  const prevMultRef = useRef(multiplier)
+  const mountTimeRef = useRef(Date.now())
+  const [blow, setBlow] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Ignore multiplier changes in first 3s (state hydration on reload)
+    if (Date.now() - mountTimeRef.current < 3000) {
+      prevMultRef.current = multiplier
+      return
+    }
+    if (multiplier > prevMultRef.current) {
+      setBlow(`x${multiplier}`)
+      const timer = setTimeout(() => setBlow(null), 1500)
+      prevMultRef.current = multiplier
+      return () => clearTimeout(timer)
+    }
+    prevMultRef.current = multiplier
+  }, [multiplier])
+
+  return blow
+}
+
+// ── Plant Row ───────────────────────────────────────────────────────────────
+
+function PlantRow({ p, i, joints, managerCount, isLoggedIn, totalDeposited, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow }: {
+  p: PlantationState; i: number; joints: number; managerCount: number
+  isLoggedIn: boolean; totalDeposited: number
+  onUpgradeLevel: (i: number) => void; onUpgradeSpeed: (i: number) => void
+  onBuyManager: (i: number) => void; onGrow: (i: number) => void
+}) {
+  const cycle = plantEffectiveCycle(p)
+  const output = plantOutput(p)
+  const rate = plantRate(p)
+  const lvCost = plantLevelCost(p)
+  const milestone = plantMilestoneInfo(p.level)
+  const speedUpg = getSpeedUpgrade(p.speedLevel)
+  const isAuto = p.managerLevel > 0
+  const canAfford = joints >= lvCost
+  const progress = 1 - (p.timer / p.cycleTime)
+  const blow = useMilestoneBlow(p.level)
+
+  return (
+    <div className="plant-row">
+      <CycleRing
+        progress={progress}
+        speed={p.speed}
+        color="rgba(57, 255, 20, .9)"
+        trackColor="rgba(57, 255, 20, .15)"
+        size={88}
+        stroke={4}
+        value={fmtNum(output)}
+        label={isAuto ? undefined : (p.timer < p.cycleTime ? '...' : 'Grow')}
+        onClick={isAuto ? undefined : () => onGrow(i)}
+        disabled={isAuto ? undefined : p.timer < p.cycleTime}
+        ready={!isAuto && p.timer >= p.cycleTime}
+        blow={blow}
+      />
+      <div className="plant-row-info">
+        <div className="plant-row-name">{p.name}</div>
+        <div className="plant-row-sub">
+          {fmtNum(rate)}/s · {cycle.toFixed(1)}s · <span className="plant-row-milestone">{milestone.nextMult}x in {milestone.levelsToNext}</span>
+        </div>
+      </div>
+      <div className="plant-row-actions">
+        <button className={`station-btn station-btn-level plant-row-btn${canAfford ? '' : ' insufficient'}`}
+          onClick={() => onUpgradeLevel(i)} disabled={!canAfford}>
+          <span className="plant-btn-line">Lvl {p.level + 1}</span>
+          <span className="plant-btn-line"><Cannabis size={12} /> {fmtNum(lvCost)}</span>
+        </button>
+        {!isAuto && managerCount < 2 && (
+          <button className="station-btn station-btn-manager station-btn-free plant-row-btn" onClick={() => onBuyManager(i)}>
+            Manager — Free!
+          </button>
+        )}
+        {!isAuto && managerCount >= 2 && (!isLoggedIn || totalDeposited < 50) && (
+          <button className="station-btn station-btn-manager plant-row-btn" disabled>
+            {!isLoggedIn ? 'Login + 50 sats' : `${50 - totalDeposited} more sats`}
+          </button>
+        )}
+        {!isAuto && managerCount >= 2 && isLoggedIn && totalDeposited >= 50 && (
+          <button className="station-btn station-btn-manager plant-row-btn" onClick={() => onBuyManager(i)}>
+            Manager — {p.mgrCost} sats
+          </button>
+        )}
+        {speedUpg && isAuto && (
+          <button className="station-btn station-btn-speed plant-row-btn" onClick={() => onUpgradeSpeed(i)}>
+            <span className="plant-btn-line">Speed {speedUpg.label}</span>
+            <span className="plant-btn-line"><Zap size={12} /> {speedUpg.cost}</span>
+          </button>
+        )}
       </div>
     </div>
   )
@@ -125,67 +230,12 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
 
       {/* Individual plant rows */}
       <div className="plant-list">
-        {plantagen.map((p, i) => {
-          const cycle = plantEffectiveCycle(p)
-          const output = plantOutput(p)
-          const rate = plantRate(p)
-          const lvCost = plantLevelCost(p)
-          const milestone = plantMilestoneInfo(p.level)
-          const speedUpg = getSpeedUpgrade(p.speedLevel)
-          const isAuto = p.managerLevel > 0
-          const canAfford = joints >= lvCost
-          const progress = 1 - (p.timer / p.cycleTime)
-
-          return (
-            <div className="plant-row" key={p.id}>
-              <CycleRing
-                progress={progress}
-                speed={p.speed}
-                color="rgba(57, 255, 20, .9)"
-                trackColor="rgba(57, 255, 20, .15)"
-                size={88}
-                stroke={4}
-                value={fmtNum(output)}
-                label={isAuto ? undefined : (p.timer < p.cycleTime ? '...' : 'Grow')}
-                onClick={isAuto ? undefined : () => onGrow(i)}
-                disabled={isAuto ? undefined : p.timer < p.cycleTime}
-                ready={!isAuto && p.timer >= p.cycleTime}
-              />
-              <div className="plant-row-info">
-                <div className="plant-row-name">{p.name}</div>
-                <div className="plant-row-sub">
-                  {fmtNum(rate)}/s · {cycle.toFixed(1)}s · <span className="plant-row-milestone">{milestone.nextMult}x in {milestone.levelsToNext}</span>
-                </div>
-              </div>
-              <div className="plant-row-actions">
-                <button className={`station-btn station-btn-level plant-row-btn${canAfford ? '' : ' insufficient'}`}
-                  onClick={() => onUpgradeLevel(i)} disabled={!canAfford}>
-                  Lvl {p.level + 1} — {fmtNum(lvCost)}
-                </button>
-                {!isAuto && managerCount < 2 && (
-                  <button className="station-btn station-btn-manager station-btn-free plant-row-btn" onClick={() => onBuyManager(i)}>
-                    Manager — Free!
-                  </button>
-                )}
-                {!isAuto && managerCount >= 2 && (!isLoggedIn || totalDeposited < 50) && (
-                  <button className="station-btn station-btn-manager plant-row-btn" disabled>
-                    {!isLoggedIn ? 'Login + 50 sats' : `${50 - totalDeposited} more sats`}
-                  </button>
-                )}
-                {!isAuto && managerCount >= 2 && isLoggedIn && totalDeposited >= 50 && (
-                  <button className="station-btn station-btn-manager plant-row-btn" onClick={() => onBuyManager(i)}>
-                    Manager — {p.mgrCost} sats
-                  </button>
-                )}
-                {speedUpg && isAuto && (
-                  <button className="station-btn station-btn-speed plant-row-btn" onClick={() => onUpgradeSpeed(i)}>
-                    Speed {speedUpg.label} — {speedUpg.cost} sats
-                  </button>
-                )}
-              </div>
-            </div>
-          )
-        })}
+        {plantagen.map((p, i) => (
+          <PlantRow key={p.id} p={p} i={i} joints={joints} managerCount={managerCount}
+            isLoggedIn={isLoggedIn} totalDeposited={totalDeposited}
+            onUpgradeLevel={onUpgradeLevel} onUpgradeSpeed={onUpgradeSpeed}
+            onBuyManager={onBuyManager} onGrow={onGrow} />
+        ))}
 
         {/* Locked plantations */}
         {PLANTATION_DEFS.slice(plantagen.length).map((def, i) => {
@@ -201,12 +251,16 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
               </div>
               <div className="plant-row-actions">
                 {isNext ? (
-                  <button className="station-btn station-btn-level plant-row-btn"
+                  <button className={`station-btn station-btn-level plant-row-btn${joints >= def.unlockCost ? '' : ' insufficient'}`}
                     onClick={onUnlock} disabled={joints < def.unlockCost}>
-                    Unlock — {fmtNum(def.unlockCost)}
+                    <span className="plant-btn-line">Unlock</span>
+                    <span className="plant-btn-line"><Cannabis size={12} /> {fmtNum(def.unlockCost)}</span>
                   </button>
                 ) : (
-                  <span className="plant-locked-cost">{fmtNum(def.unlockCost)}</span>
+                  <button className="station-btn station-btn-level plant-row-btn insufficient" disabled>
+                    <span className="plant-btn-line">Unlock</span>
+                    <span className="plant-btn-line"><Cannabis size={12} /> {fmtNum(def.unlockCost)}</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -279,7 +333,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
       <div className="station-actions">
         <button className="station-btn station-btn-level" onClick={onUpgradeCap}
           disabled={joints < courier.capCost}>
-          Cap x2 — {fmtNum(courier.capCost)} Joints
+          Cap x2 — <Cannabis size={12} /> {fmtNum(courier.capCost)}
         </button>
         {!isAuto && managerCount < 2 && (
           <button className="station-btn station-btn-manager station-btn-free" onClick={onBuyManager}>
@@ -298,7 +352,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
         )}
         {speedUpg && (
           <button className="station-btn station-btn-speed" onClick={onUpgradeSpeed}>
-            Speed {speedUpg.label} — {speedUpg.cost} sats
+            Speed {speedUpg.label} — <Zap size={12} /> {speedUpg.cost}
           </button>
         )}
       </div>
@@ -356,12 +410,8 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
               <span className="station-stat-value">{cycleTime.toFixed(1)}s</span>
             </div>
             <div className="station-stat-row">
-              <span className="station-stat-label">Waiting</span>
-              <span className="station-stat-value" style={{ color: 'var(--neon-green)' }}>{fmtNum(cannabisAtFactory)}</span>
-            </div>
-            <div className="station-stat-row">
               <span className="station-stat-label">Total</span>
-              <span className="station-stat-value" style={{ color: 'var(--neon-green)' }}>{fmtNum(fabrik.total)}</span>
+              <span className="station-stat-value" style={{ color: 'var(--neon-green)' }}><Cannabis size={12} /> {fmtNum(fabrik.total)}</span>
             </div>
           </div>
         </div>
@@ -370,7 +420,7 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
       <div className="station-actions">
         <button className="station-btn station-btn-level" onClick={onUpgradeCap}
           disabled={joints < fabrik.capCost}>
-          Cap x2 — {fmtNum(fabrik.capCost)} Joints
+          Cap x2 — <Cannabis size={12} /> {fmtNum(fabrik.capCost)}
         </button>
         {!isAuto && managerCount < 2 && (
           <button className="station-btn station-btn-manager station-btn-free" onClick={onBuyManager}>
@@ -389,7 +439,7 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
         )}
         {speedUpg && (
           <button className="station-btn station-btn-speed" onClick={onUpgradeSpeed}>
-            Speed {speedUpg.label} — {speedUpg.cost} sats
+            Speed {speedUpg.label} — <Zap size={12} /> {speedUpg.cost}
           </button>
         )}
       </div>

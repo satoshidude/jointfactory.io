@@ -140,6 +140,20 @@ fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
     wsHub.broadcastPlayerUpdate(req.user.npub, Math.floor(joints || 0), Math.floor(total_joints_earned || 0), joints_per_sec || 0);
     logRateChange(req.user.npub, joints_per_sec || 0, total_joints_earned || 0);
   }
+  if (result.potUpdated) {
+    const round = getCurrentRound();
+    if (round) {
+      const tickets = getRoundTickets(round.id);
+      const uniquePlayers = new Set(tickets.map(t => t.npub)).size;
+      wsHub.broadcastLotteryTick({
+        draws_at: round.draws_at,
+        remaining_ms: Math.max(0, round.draws_at * 1000 - Date.now()),
+        pot_sats: Math.floor(round.total_sats_collected * 0.8),
+        total_tickets: tickets.length,
+        unique_players: uniquePlayers,
+      });
+    }
+  }
   return result;
 });
 fastify.post('/api/game/profile', { preHandler: requireAuth }, async (req) => updateProfile(req.user.npub, req.body));
@@ -166,6 +180,20 @@ fastify.post('/api/game/beacon', async (req, reply) => {
     if (joints !== undefined) {
       wsHub.broadcastPlayerUpdate(decoded.npub, Math.floor(joints || 0), Math.floor(total_joints_earned || 0), joints_per_sec || 0);
       logRateChange(decoded.npub, joints_per_sec || 0, total_joints_earned || 0);
+    }
+    if (result.potUpdated) {
+      const round = getCurrentRound();
+      if (round) {
+        const tickets = getRoundTickets(round.id);
+        const uniquePlayers = new Set(tickets.map(t => t.npub)).size;
+        wsHub.broadcastLotteryTick({
+          draws_at: round.draws_at,
+          remaining_ms: Math.max(0, round.draws_at * 1000 - Date.now()),
+          pot_sats: Math.floor(round.total_sats_collected * 0.8),
+          total_tickets: tickets.length,
+          unique_players: uniquePlayers,
+        });
+      }
     }
     return result;
   } catch(e) { return reply.code(401).send({ error: 'Invalid token' }); }
@@ -568,7 +596,7 @@ fastify.get('/api/player/payments', { preHandler: requireAuth }, async (req) => 
 fastify.get('/api/player/invite', { preHandler: requireAuth }, async (req) => {
   const player = db.prepare('SELECT invite_code FROM players WHERE npub = ?').get(req.user.npub);
   const referrals = db.prepare(`
-    SELECT display_name, created_at, referral_rewarded, game_state
+    SELECT npub, display_name, created_at, referral_rewarded, game_state
     FROM players WHERE referred_by = ? ORDER BY created_at DESC
   `).all(req.user.npub).map(r => {
     let mgrs = 0;
@@ -579,6 +607,7 @@ fastify.get('/api/player/invite', { preHandler: requireAuth }, async (req) => {
       if (gs.fabrik?.mgrLevel > 0) mgrs++;
     } catch {}
     return {
+      npub: r.npub,
       display_name: r.display_name,
       created_at: r.created_at,
       rewarded: !!r.referral_rewarded,
@@ -587,6 +616,14 @@ fastify.get('/api/player/invite', { preHandler: requireAuth }, async (req) => {
   });
   const rewardedCount = referrals.filter(r => r.rewarded).length;
   return { ok: true, invite_code: player?.invite_code || null, referrals, rewarded_count: rewardedCount, max_referrals: 10 };
+});
+
+// Remove a buddy (unlink referral)
+fastify.delete('/api/player/invite/:buddyNpub', { preHandler: requireAuth }, async (req) => {
+  const { buddyNpub } = req.params;
+  const result = db.prepare('UPDATE players SET referred_by = NULL WHERE npub = ? AND referred_by = ?').run(buddyNpub, req.user.npub);
+  if (result.changes === 0) return { ok: false, reason: 'Buddy not found' };
+  return { ok: true };
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
