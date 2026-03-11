@@ -13,6 +13,11 @@
   position: relative;
 }
 
+.mobile-content .mobile-page {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 /* Fixed top bar: header + nav stacked */
 .mobile-top-bar {
   flex-shrink: 0;
