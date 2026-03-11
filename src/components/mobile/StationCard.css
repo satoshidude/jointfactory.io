@@ -1,0 +1,184 @@
+/* ── Station Card ─────────────────────────────────────────────────────────── */
+
+.station-card {
+  background: var(--bg-card);
+  background-image: var(--paper-noise);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Top section: ring + info side-by-side */
+.station-card-top {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* ── Cycle Ring ────────────────────────────────────────────────────────────── */
+
+.station-ring-wrap {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+}
+
+.cycle-ring {
+  display: block;
+}
+
+.station-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.station-ring-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.station-ring-speed {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* Flash animation on cycle complete */
+@keyframes cycle-flash {
+  0% { opacity: 0.8; stroke-width: 8px; }
+  100% { opacity: 0; stroke-width: 14px; }
+}
+
+.cycle-ring-flash {
+  opacity: 0;
+  animation: cycle-flash 0.4s ease-out;
+}
+
+/* ── Station Info ──────────────────────────────────────────────────────────── */
+
+.station-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.station-name {
+  font-family: var(--font-heading);
+  font-size: 10px;
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+
+.station-plant .station-name { color: var(--neon-green); text-shadow: 0 0 8px rgba(57, 255, 20, .4); }
+.station-courier .station-name { color: #ff69b4; text-shadow: 0 0 8px rgba(255, 105, 180, .4); }
+.station-factory .station-name { color: var(--neon-purple); text-shadow: 0 0 8px rgba(204, 68, 255, .4); }
+
+.station-level {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.station-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.station-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.station-stat-label {
+  color: var(--text-secondary);
+}
+
+.station-stat-value {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.station-milestone .station-stat-value {
+  color: var(--neon-gold);
+}
+
+/* ── Action Buttons ────────────────────────────────────────────────────────── */
+
+.station-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.station-btn {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  background: rgba(255, 255, 255, .03);
+  color: var(--text-primary);
+  transition: transform 0.1s;
+}
+
+.station-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.station-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Grow / manual action */
+.station-btn-grow {
+  background: rgba(57, 255, 20, .1);
+  border-color: rgba(57, 255, 20, .3);
+  color: var(--neon-green);
+}
+
+/* Level upgrade */
+.station-btn-level {
+  background: rgba(57, 255, 20, .08);
+  border-color: rgba(57, 255, 20, .2);
+  color: var(--neon-green);
+}
+
+.station-btn-level.insufficient {
+  background: rgba(255, 68, 68, .06);
+  border-color: rgba(255, 68, 68, .15);
+  color: var(--text-secondary);
+}
+
+/* Manager hire */
+.station-btn-manager {
+  background: rgba(255, 215, 0, .08);
+  border-color: rgba(255, 215, 0, .2);
+  color: var(--neon-gold);
+}
+
+/* Speed upgrade */
+.station-btn-speed {
+  background: rgba(0, 212, 255, .06);
+  border-color: rgba(0, 212, 255, .15);
+  color: #00d4ff;
+  font-size: 12px;
+}

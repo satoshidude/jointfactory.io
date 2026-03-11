@@ -1,8 +1,14 @@
 /* ── Mobile Page Placeholders ───────────────────────────────────────────────── */
 
 .mobile-page {
-  padding: 16px;
+  padding: 12px;
   min-height: 100%;
+}
+
+.mobile-game-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .mobile-placeholder {

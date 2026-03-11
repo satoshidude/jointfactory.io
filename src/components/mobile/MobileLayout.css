@@ -2,12 +2,15 @@
 
 .mobile-layout {
   width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
   height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
   overflow: hidden;
   font-size: clamp(15px, 4vw, 18px);
+  position: relative;
 }
 
 .mobile-content {
@@ -15,7 +18,16 @@
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: 56px 0 calc(56px + env(safe-area-inset-bottom, 0px));
+  padding: 52px 0 calc(56px + env(safe-area-inset-bottom, 0px));
   background-image: var(--grid-bg);
   background-size: 36px 36px;
+}
+
+/* On desktop, constrain header and nav to the same max-width */
+.compact-header,
+.bottom-nav,
+.more-overlay {
+  max-width: 480px;
+  left: 50%;
+  transform: translateX(-50%);
 }
