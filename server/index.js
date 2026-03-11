@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Fastify from 'fastify';
 import fastifyCors from '@fastify/cors';
+import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyJwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
@@ -14,12 +15,13 @@ import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         startCron, getTicketPrice, getMyTicketCount, getPriceCurvePreview,
         MAX_WINNERS, SAT_PER_TICKET, TICKET_PRICE_CURVE } from './lottery.js';
 import { db, logRateChange } from './db.js';
-import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents } from './zap.js';
+import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder } from './zap.js';
 import { nip19 } from 'nostr-tools';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 initZapDb(db);
+initLotteryReminder(db);
 
 const fastify = Fastify({ logger: false, bodyLimit: 1048576 });
 
@@ -31,7 +33,12 @@ fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bo
   try { done(null, JSON.parse(body)); } catch(e) { done(null, {}); }
 });
 
-await fastify.register(fastifyCors, { origin: true });
+await fastify.register(fastifyRateLimit, {
+  max: 60,
+  timeWindow: '1 minute',
+  allowList: ['127.0.0.1'],
+});
+await fastify.register(fastifyCors, { origin: ['https://jointfactory.io', 'https://jointfactory.io'] });
 await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET || 'devsecret' });
 await fastify.register(fastifyStatic, { root: path.join(__dirname, '../dist'), prefix: '/' });
 await fastify.register(fastifyWebsocket);

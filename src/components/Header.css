@@ -225,3 +225,23 @@
   background: rgba(57,255,20,.1) !important;
   box-shadow: 0 0 12px rgba(57,255,20,.25);
 }
+
+/* Nostr button */
+.overview-wallet-btn.nostr-btn {
+  color: #9b59b6;
+}
+.overview-wallet-btn.nostr-btn:hover {
+  border-color: #9b59b6;
+  box-shadow: 0 0 8px rgba(155, 89, 182, 0.3);
+  background: rgba(155, 89, 182, 0.08);
+}
+
+/* GitHub button */
+.overview-wallet-btn.github-btn {
+  color: var(--text-secondary);
+}
+.overview-wallet-btn.github-btn:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}

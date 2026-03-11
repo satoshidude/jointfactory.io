@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cannabis, Zap, ArrowDownToLine, ArrowUpFromLine, LogIn, LogOut, Bird, Info, History, UserPlus } from 'lucide-react';
+import { Cannabis, Zap, LogIn, LogOut, Bird, Info, Landmark, UserPlus, Github } from 'lucide-react';
 import { useAuth } from '../stores/authStore';
 import { useGameDisplay } from '../stores/gameDisplayStore';
 import { apiFetch } from '../lib/api';
 import { nip19 } from 'nostr-tools';
 import LoginModal from './LoginModal';
-import DepositModal from './DepositModal';
-import WithdrawModal from './WithdrawModal';
 import './Header.css';
 
 function fmtNum(n: number): string {
@@ -22,8 +20,7 @@ export default function Header() {
   const gd = useGameDisplay();
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
-  const [showDeposit, setShowDeposit] = useState(false);
-  const [showWithdraw, setShowWithdraw] = useState(false);
+
 
   // Background polling for pending deposits
   const bgPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -91,17 +88,17 @@ export default function Header() {
               </div>
             </div>
             <div className="overview-wallet-btns">
-              <button className="overview-wallet-btn" title="History" onClick={() => navigate('/wallet')}>
-                <History size={16} />
-              </button>
-              <button className="overview-wallet-btn deposit" title="Deposit" onClick={() => setShowDeposit(true)}>
-                <ArrowDownToLine size={16} />
-              </button>
-              <button className="overview-wallet-btn" title="Withdraw" onClick={() => setShowWithdraw(true)}>
-                <ArrowUpFromLine size={16} />
+              <button className="overview-wallet-btn" title="Wallet" onClick={() => navigate('/wallet')}>
+                <Landmark size={16} />
               </button>
             </div>
             <div className="overview-user-section">
+              <a href="https://nostr.nsnip.io/users/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="overview-wallet-btn nostr-btn" title="Joint Factory on Nostr">
+                <Bird size={16} />
+              </a>
+              <a href="https://github.com/satoshidude/jointfactory.io" target="_blank" rel="noopener noreferrer" className="overview-wallet-btn github-btn" title="Source Code on GitHub">
+                <Github size={16} />
+              </a>
               <button className="overview-wallet-btn invite-btn" title="Invite a Buddy" onClick={() => navigate('/invite')}>
                 <UserPlus size={16} />
               </button>
@@ -132,19 +129,29 @@ export default function Header() {
             <div style={{ flex: 1 }} />
             <span className="overview-login-animated">Login for auto manager and speed upgrades!</span>
             <div style={{ flex: 1 }} />
-            <button className="overview-login-btn" onClick={() => setShowLogin(true)}>
-              <LogIn size={16} />
-              <span>Login</span>
-            </button>
-            <button className="overview-wallet-btn" title="Info" onClick={() => navigate('/info')}>
-              <Info size={16} />
-            </button>
+            <div className="overview-user-section">
+              <a href="https://nostr.nsnip.io/users/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="overview-wallet-btn nostr-btn" title="Joint Factory on Nostr">
+                <Bird size={16} />
+              </a>
+              <a href="https://github.com/satoshidude/jointfactory.io" target="_blank" rel="noopener noreferrer" className="overview-wallet-btn github-btn" title="Source Code on GitHub">
+                <Github size={16} />
+              </a>
+              <button className="overview-wallet-btn invite-btn" title="Invite a Buddy" onClick={() => navigate('/invite')}>
+                <UserPlus size={16} />
+              </button>
+              <button className="overview-wallet-btn" title="Info" onClick={() => navigate('/info')}>
+                <Info size={16} />
+              </button>
+              <button className="overview-login-btn" onClick={() => setShowLogin(true)}>
+                <LogIn size={16} />
+                <span>Login</span>
+              </button>
+            </div>
           </>
         )}
       </header>
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
-      {showDeposit && <DepositModal onClose={() => setShowDeposit(false)} />}
-      {showWithdraw && <WithdrawModal onClose={() => setShowWithdraw(false)} />}
+
     </>
   );
 }

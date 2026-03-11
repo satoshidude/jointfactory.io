@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Zap, ArrowDownToLine, ArrowUpFromLine, Trophy, UserPlus, Wallet, TrendingUp, ArrowLeft } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useAuth } from '../stores/authStore';
+import DepositModal from '../components/DepositModal';
+import WithdrawModal from '../components/WithdrawModal';
 import './Wallet.css';
 
 interface Payment {
@@ -29,6 +31,8 @@ export default function WalletPage() {
   const [sats, setSats] = useState(0);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('won');
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
 
   useEffect(() => {
     apiFetch('/player/payments')
@@ -111,44 +115,38 @@ export default function WalletPage() {
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="wallet-stats-row">
-        <div className="wallet-stat-card">
+      {/* Action buttons */}
+      <div className="wallet-action-row">
+        <button className="wallet-action-btn deposit" onClick={() => setShowDeposit(true)}>
           <ArrowDownToLine size={18} />
-          <span className="wallet-stat-val green">+{totalDeposited.toLocaleString()}</span>
-          <span className="wallet-stat-lbl">Deposited</span>
-        </div>
-        <div className="wallet-stat-card">
-          <TrendingUp size={18} />
-          <span className="wallet-stat-val gold">+{totalWon.toLocaleString()}</span>
-          <span className="wallet-stat-lbl">Won</span>
-        </div>
-        <div className="wallet-stat-card">
+          <span>Deposit</span>
+        </button>
+        <button className="wallet-action-btn withdraw" onClick={() => setShowWithdraw(true)}>
           <ArrowUpFromLine size={18} />
-          <span className="wallet-stat-val pink">-{totalWithdrawn.toLocaleString()}</span>
-          <span className="wallet-stat-lbl">Withdrawn</span>
-        </div>
+          <span>Withdraw</span>
+        </button>
       </div>
 
-      {/* Tabs + History */}
+      {/* Stats as Tabs + History */}
+      <div className="wallet-stats-row">
+        <button className={`wallet-stat-card${tab === 'deposits' ? ' active' : ''}`} onClick={() => setTab('deposits')}>
+          <ArrowDownToLine size={18} />
+          <span className="wallet-stat-val green">+{totalDeposited.toLocaleString()}</span>
+          <span className="wallet-stat-lbl">Deposited <span className="wallet-stat-count">{deposits.length}</span></span>
+        </button>
+        <button className={`wallet-stat-card${tab === 'won' ? ' active' : ''}`} onClick={() => setTab('won')}>
+          <TrendingUp size={18} />
+          <span className="wallet-stat-val gold">+{totalWon.toLocaleString()}</span>
+          <span className="wallet-stat-lbl">Won <span className="wallet-stat-count">{won.length}</span></span>
+        </button>
+        <button className={`wallet-stat-card${tab === 'withdrawn' ? ' active' : ''}`} onClick={() => setTab('withdrawn')}>
+          <ArrowUpFromLine size={18} />
+          <span className="wallet-stat-val pink">-{totalWithdrawn.toLocaleString()}</span>
+          <span className="wallet-stat-lbl">Withdrawn <span className="wallet-stat-count">{withdrawn.length}</span></span>
+        </button>
+      </div>
+
       <div className="wallet-history-card">
-        <div className="wallet-tabs">
-          <button className={`wallet-tab${tab === 'deposits' ? ' active' : ''}`} onClick={() => setTab('deposits')}>
-            <ArrowDownToLine size={14} />
-            <span>Deposits</span>
-            <span className="wallet-tab-count">{deposits.length}</span>
-          </button>
-          <button className={`wallet-tab${tab === 'won' ? ' active' : ''}`} onClick={() => setTab('won')}>
-            <Trophy size={14} />
-            <span>Won</span>
-            <span className="wallet-tab-count">{won.length}</span>
-          </button>
-          <button className={`wallet-tab${tab === 'withdrawn' ? ' active' : ''}`} onClick={() => setTab('withdrawn')}>
-            <ArrowUpFromLine size={14} />
-            <span>Withdrawn</span>
-            <span className="wallet-tab-count">{withdrawn.length}</span>
-          </button>
-        </div>
 
         {loading ? (
           <div className="wallet-loading">Loading...</div>
@@ -181,6 +179,8 @@ export default function WalletPage() {
           </div>
         )}
       </div>
+      {showDeposit && <DepositModal onClose={() => { setShowDeposit(false); apiFetch('/player/payments').then((d: any) => { if (d.ok) { setPayments(d.payments || []); setSats(d.sats || 0); }}); }} />}
+      {showWithdraw && <WithdrawModal onClose={() => { setShowWithdraw(false); apiFetch('/player/payments').then((d: any) => { if (d.ok) { setPayments(d.payments || []); setSats(d.sats || 0); }}); }} />}
     </div>
   );
 }

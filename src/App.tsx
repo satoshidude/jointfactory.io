@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Routes, Route, useSearchParams } from 'react-router-dom'
+import { Routes, Route, Navigate, useSearchParams, useParams } from 'react-router-dom'
 import Header from './components/Header'
 import Dashboard from './pages/Dashboard'
 import Game from './pages/Game'
@@ -10,6 +10,15 @@ import WalletPage from './pages/Wallet'
 import PlayerProfile from './pages/PlayerProfile'
 import { GameDisplayProvider } from './stores/gameDisplayStore'
 import './App.css'
+
+
+function RefRedirect() {
+  const { code } = useParams()
+  useEffect(() => {
+    if (code) localStorage.setItem('jf_referral', code)
+  }, [code])
+  return <Navigate to="/" replace />
+}
 
 export default function App() {
   const [searchParams] = useSearchParams()
@@ -34,6 +43,7 @@ export default function App() {
             <Route path="/invite" element={<InvitePage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/u/:npub" element={<PlayerProfile />} />
+            <Route path="/r/:code" element={<RefRedirect />} />
           </Routes>
         </div>
       </div>

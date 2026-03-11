@@ -8,7 +8,7 @@ import { useGameLoop, PLANTATION_DEFS,
 import { useAuth } from '../stores/authStore'
 import { apiFetch } from '../lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Factory, Cannabis, Footprints, PersonStanding, Zap, Timer, Ticket, Sprout, Trophy, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
+import { Factory, Cannabis, Footprints, PersonStanding, Zap, Timer, Ticket, Sprout, Trophy, ChevronLeft, ChevronRight, ExternalLink, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { nip19 } from 'nostr-tools'
 import { useGameDisplay } from '../stores/gameDisplayStore'
 import './Game.css'
@@ -105,7 +105,7 @@ const HIGHLIGHT_COLORS: Record<string, string> = {
   green: 'text-[var(--neon-green)]',
   purple: 'text-[var(--neon-purple)]',
   flamingo: 'text-[#ff69b4]',
-  cannabis: 'text-[var(--neon-purple)]',
+  cannabis: 'text-[#2e7d32] font-bold',
 }
 function StatRow({ label, value, highlight }: { label: string; value: string; highlight?: string }) {
   const colorClass = highlight ? (HIGHLIGHT_COLORS[highlight] || 'text-[var(--text-primary)]') : 'text-[var(--text-primary)]'
@@ -143,6 +143,100 @@ function fmtCountdown(ms: number): string {
   const m = Math.floor((totalSec % 3600) / 60)
   const s = totalSec % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+
+function GuestTour({ step, onNext, onDismiss }: { step: number; onNext: () => void; onDismiss: () => void }) {
+  const [arrowPos, setArrowPos] = useState<{ top: number; left: number; direction: 'down' | 'up' | 'left' } | null>(null)
+
+  const steps = [
+    {
+      target: null,
+      title: 'Welcome to Joint Factory!',
+      text: 'Grow weed, send it to the factory, roll joints and win sats in the lottery!',
+      btnText: 'Show me!',
+    },
+    {
+      target: 'tour-grow-btn',
+      title: 'Grow',
+      text: 'Start growing your first plant here. Click Grow to begin a harvest cycle!',
+      btnText: 'Next',
+    },
+    {
+      target: 'tour-send-btn',
+      title: 'Courier',
+      text: 'Send your harvest to the factory. The courier delivers your weed for processing.',
+      btnText: 'Next',
+    },
+    {
+      target: 'tour-roll-btn',
+      title: 'Factory',
+      text: 'Roll your weed into joints! Joints are your currency for upgrades and lottery tickets.',
+      btnText: 'Next',
+    },
+    {
+      target: null,
+      title: 'Good luck!',
+      text: 'Build joints, win the Lightning Lottery and earn real sats! Login to unlock auto-managers and speed upgrades.',
+      btnText: 'Let\'s go!',
+    },
+  ]
+
+  useEffect(() => {
+    const s = steps[step]
+    if (!s?.target) { setArrowPos(null); return }
+    const updatePos = () => {
+      const el = document.getElementById(s.target!)
+      if (!el) { setArrowPos(null); return }
+      const rect = el.getBoundingClientRect()
+      setArrowPos({
+        top: rect.top - 12,
+        left: rect.left + rect.width / 2,
+        direction: 'down',
+      })
+    }
+    updatePos()
+    const iv = setInterval(updatePos, 500)
+    return () => clearInterval(iv)
+  }, [step])
+
+  if (step >= steps.length) return null
+  const s = steps[step]
+
+  return (
+    <>
+      {/* Semi-transparent overlay — login button stays clickable via pointer-events */}
+      <div className="tour-overlay" onClick={(e) => e.stopPropagation()}>
+        {/* Blinking arrow pointing at target */}
+        {arrowPos && (
+          <div className="tour-arrow" style={{ top: arrowPos.top, left: arrowPos.left }}>
+            <svg width="28" height="28" viewBox="0 0 28 28">
+              <polygon points="14,24 4,8 24,8" fill="var(--neon-green)" />
+            </svg>
+          </div>
+        )}
+
+        {/* Tour card */}
+        <div className={`tour-card${step === 0 || step === 4 ? ' tour-card-center' : ''}`}>
+          <div className="tour-card-title">{s.title}</div>
+          <div className="tour-card-text">{s.text}</div>
+          <div className="tour-card-actions">
+            <button className="tour-card-btn" onClick={step < steps.length - 1 ? onNext : onDismiss}>
+              {s.btnText}
+            </button>
+            {step < steps.length - 1 && (
+              <button className="tour-card-skip" onClick={onDismiss}>Skip</button>
+            )}
+          </div>
+          <div className="tour-card-dots">
+            {steps.map((_, i) => (
+              <span key={i} className={`tour-dot${i === step ? ' active' : ''}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  )
 }
 
 export default function Game() {
@@ -203,81 +297,76 @@ export default function Game() {
   }, [])
 
   const raceChartData = useMemo(() => {
-    const activePlayers = players
-      .filter(p => (p.manager_count >= 3 && p.total_joints_earned > 0) || auth.npub === p.npub)
-      .slice(0, 8)
-    if (activePlayers.length === 0) return null
     const now = Math.floor(Date.now() / 1000)
-
-    // Logged in: 2h window, logged out: all-time (from earliest log)
-    let CHART_WINDOW: number
-    if (auth.isLoggedIn) {
-      CHART_WINDOW = 2 * 3600
-    } else {
-      const earliest = rateLogs.length > 0 ? Math.min(...rateLogs.map(l => l.ts)) : now - 86400
-      CHART_WINDOW = Math.max(now - earliest, 3600)
-    }
+    const CHART_WINDOW = 6 * 3600
     const windowStart = now - CHART_WINDOW
 
-    const lines = activePlayers.map((p, i) => {
+    // Find active players: those with rate_log entries in last 6h with rate > 0
+    const recentLogs = rateLogs.filter(l => l.ts >= windowStart && l.rate > 0)
+    const activeNpubs = new Set(recentLogs.map(l => l.npub))
+
+    // Build candidate list: active players sorted by current rate
+    let candidates = players
+      .filter(p => activeNpubs.has(p.npub) && p.joints_per_sec > 0)
+      .sort((a, b) => b.joints_per_sec - a.joints_per_sec)
+      .slice(0, 10)
+
+    // Ensure "you" is included if logged in
+    const me = auth.npub ? players.find(p => p.npub === auth.npub) : null
+    if (me && !candidates.find(c => c.npub === auth.npub)) {
+      candidates = [...candidates.slice(0, 9), me]
+    }
+
+    if (candidates.length === 0) return null
+
+    const lines = candidates.map((p, i) => {
       const isYou = auth.npub === p.npub
       const rate = isYou ? totalRate : p.joints_per_sec
       const c = CHART_COLORS[i % CHART_COLORS.length]
 
-      // Get this player's rate events sorted by time
-      const allEvents = rateLogs
-        .filter(l => l.npub === p.npub)
+      // Get this player's log events in the window, sorted by time
+      const events = rateLogs
+        .filter(l => l.npub === p.npub && l.ts >= windowStart - 3600) // include 1h before for baseline
         .sort((a, b) => a.ts - b.ts)
 
-      // Build segments, treating rate=0 (logout) as carry-forward of last active rate
-      const segments: { from: number; to: number; rate: number }[] = []
-      let lastActiveRate = 0
-      for (let e = 0; e < allEvents.length; e++) {
-        const ev = allEvents[e]
-        const nextTs = e < allEvents.length - 1 ? allEvents[e + 1].ts : now
-        if (ev.rate > 0) {
-          lastActiveRate = ev.rate
-          segments.push({ from: ev.ts, to: nextTs, rate: ev.rate })
-        } else {
-          segments.push({ from: ev.ts, to: nextTs, rate: lastActiveRate })
-        }
+      // Find baseline total at window start (interpolate from nearest event before)
+      let baseTotal = 0
+      for (const ev of events) {
+        if (ev.ts <= windowStart) baseTotal = ev.total
+        else break
       }
+      if (baseTotal === 0 && events.length > 0) baseTotal = events[0].total
 
-      // Find baseline rate at window start
-      let baseRate = 0
-      for (const seg of segments) {
-        if (windowStart >= seg.from && windowStart < seg.to) { baseRate = seg.rate; break }
-      }
-      // If no segment covers windowStart, find the last segment before it
-      if (baseRate === 0) {
-        for (const seg of segments) {
-          if (seg.to <= windowStart) baseRate = seg.rate
-        }
-      }
-      if (baseRate === 0) baseRate = 1 // avoid division by zero
-
-      // Sample points: growth factor relative to baseline (1× = no change)
+      // Sample cumulative production points (normalized from 0)
       const points: number[] = []
       for (let h = 0; h <= CHART_POINTS; h++) {
         const timeAt = windowStart + (h / CHART_POINTS) * CHART_WINDOW
-        if (timeAt > now) { points.push(points.length > 0 ? points[points.length - 1] : 1); continue }
-        let rateAtTime = 0
-        for (const seg of segments) {
-          if (timeAt >= seg.from && timeAt < seg.to) { rateAtTime = seg.rate; break }
+        if (timeAt > now) { points.push(points.length > 0 ? points[points.length - 1] : 0); continue }
+        // Find closest event at or before timeAt
+        let totalAtTime = baseTotal
+        for (const ev of events) {
+          if (ev.ts <= timeAt) totalAtTime = ev.total
+          else break
         }
-        if (rateAtTime === 0 && segments.length > 0 && timeAt >= segments[segments.length - 1].to) {
-          rateAtTime = lastActiveRate
-        }
-        points.push(Math.max(0, rateAtTime / baseRate))
+        points.push(Math.max(0, totalAtTime - baseTotal))
       }
-      const growth = points[points.length - 1]
-      return { name: isYou ? 'YOU' : (p.display_name || 'noname'), npub: p.npub, rate, growth, color: c.stroke, glow: c.glow, isYou, points }
+
+      // Rate history for sparkline dynamics
+      const ratePoints: number[] = []
+      for (let h = 0; h <= CHART_POINTS; h++) {
+        const timeAt = windowStart + (h / CHART_POINTS) * CHART_WINDOW
+        let rateAtTime = rate
+        for (let e = events.length - 1; e >= 0; e--) {
+          if (events[e].ts <= timeAt && events[e].rate > 0) { rateAtTime = events[e].rate; break }
+        }
+        ratePoints.push(rateAtTime)
+      }
+
+      return { name: isYou ? 'YOU' : (p.display_name || 'noname'), npub: p.npub, rate, color: c.stroke, glow: c.glow, isYou, points, ratePoints }
     })
-    const rawMax = Math.max(...lines.flatMap(l => l.points), 1.1)
-    const maxVal = rawMax <= 2 ? Math.ceil(rawMax * 10) / 10 : rawMax <= 10 ? Math.ceil(rawMax) : Math.ceil(rawMax / 5) * 5
-    const maxHours = Math.round(CHART_WINDOW / 3600)
-    return { lines, maxVal, maxHours }
-  }, [players, auth.npub, auth.isLoggedIn, totalRate, rateLogs])
+    const maxProduction = Math.max(...lines.flatMap(l => l.points), 1)
+    return { lines, maxProduction }
+  }, [players, auth.npub, totalRate, rateLogs])
 
   // ── Lottery data ──
   const [lotteryRound, setLotteryRound] = useState<LotteryRound | null>(null)
@@ -422,6 +511,44 @@ export default function Game() {
   const eligible = mgrCount >= 3
   const managersNeeded = 3 - mgrCount
 
+
+  // ── Guest Tour ──
+  const [tourStep, setTourStep] = useState(-1)
+  const [tourDismissed, setTourDismissed] = useState(() => {
+    return localStorage.getItem('jf_tour_done') === '1'
+  })
+  const tourTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Auto-start tour for guests
+  useEffect(() => {
+    if (!auth.isLoggedIn && !tourDismissed) {
+      const t = setTimeout(() => setTourStep(0), 1500)
+      return () => clearTimeout(t)
+    }
+  }, [auth.isLoggedIn, tourDismissed])
+
+  // Auto-advance tour steps
+  useEffect(() => {
+    if (tourStep < 0) return
+    if (tourTimerRef.current) clearTimeout(tourTimerRef.current)
+    const delays = [0, 6000, 6000, 6000, 0] // step 0 stays, 1-3 auto-advance after 6s
+    if (tourStep >= 1 && tourStep <= 3) {
+      tourTimerRef.current = setTimeout(() => setTourStep(s => s + 1), delays[tourStep])
+    }
+    return () => { if (tourTimerRef.current) clearTimeout(tourTimerRef.current) }
+  }, [tourStep])
+
+  const dismissTour = useCallback(() => {
+    setTourStep(-1)
+    setTourDismissed(true)
+    localStorage.setItem('jf_tour_done', '1')
+  }, [])
+
+  // Hide tour on login
+  useEffect(() => {
+    if (auth.isLoggedIn && tourStep >= 0) dismissTour()
+  }, [auth.isLoggedIn])
+
   const gd = useGameDisplay()
   useEffect(() => {
     gd.update({
@@ -510,6 +637,7 @@ export default function Game() {
               {state.fabrik.mgrLevel === 0 && (
                 <button
                   className={`action-btn fabrik${state.fabrik.processing ? ' active' : ''}`}
+                  id="tour-roll-btn"
                   onClick={actions.rollJoints}
                   disabled={state.fabrik.processing || state.cannabisAtFactory === 0}
                 >
@@ -607,6 +735,7 @@ export default function Game() {
               {state.courier.mgrLevel === 0 && (
                 <button
                   className={`action-btn courier${state.courier.state !== 'idle' ? ' active' : ''}`}
+                  id="tour-send-btn"
                   onClick={actions.sendCourier}
                   disabled={state.courier.state !== 'idle' || state.cannabis === 0}
                 >
@@ -631,7 +760,7 @@ export default function Game() {
             <Trophy size={32} className="title-gold" />
             <CardTitle className="station-title title-gold">Lottery Leaderboard</CardTitle>
             <div style={{ flex: 1 }} />
-            <a href="https://jumble.nsnip.io/users/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="lb-nostr-link">
+            <a href="https://nostr.nsnip.io/users/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="lb-nostr-link">
               <ExternalLink size={12} /> Nostr
             </a>
           </CardHeader>
@@ -971,6 +1100,7 @@ export default function Game() {
                       {p.managerLevel === 0 && (
                         <button
                           className={`action-btn plantage mini${isGrowing ? ' active' : ''}`}
+                          id={i === 0 ? 'tour-grow-btn' : undefined}
                           onClick={() => actions.grow(i)}
                           disabled={isGrowing}
                         >
@@ -1006,40 +1136,46 @@ export default function Game() {
               })}
             </div>
 
-            {raceChartData && (
+            {raceChartData && (() => {
+              const sorted = [...raceChartData.lines].sort((a, b) => b.rate - a.rate)
+              const topRate = sorted[0]?.rate || 1
+              const maxProd = raceChartData.maxProduction
+              return (
               <div className="production-race-section">
                 <div className="production-race-title">
                   <Cannabis size={22} className="title-darkgreen" />
                   <span className="title-darkgreen">Growth Race</span>
-                  <span className="race-time-label">24h</span>
+                  <span className="race-time-label">6h LIVE</span>
                 </div>
+                {/* Production curve chart */}
                 <div className="race-chart-wrap">
-                  <svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid meet" className="race-chart-svg">
+                  <svg viewBox="0 0 400 160" preserveAspectRatio="xMidYMid meet" className="race-chart-svg">
                     <defs>
-                      {raceChartData.lines.map((line, i) => (
+                      {sorted.map((line, i) => (
                         <linearGradient key={i} id={`rcg${i}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={line.color} stopOpacity="0.15" />
-                          <stop offset="100%" stopColor={line.color} stopOpacity="0.01" />
+                          <stop offset="0%" stopColor={line.color} stopOpacity="0.2" />
+                          <stop offset="100%" stopColor={line.color} stopOpacity="0" />
                         </linearGradient>
                       ))}
+                      <filter id="line-glow">
+                        <feGaussianBlur stdDeviation="2" result="blur" />
+                        <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                      </filter>
                     </defs>
-                    {/* Y-axis label */}
-                    <text x="6" y="10" fill="#2e7d32" fontSize="6" fontWeight="700" fontFamily="var(--font-heading)">growth ×</text>
-                    {/* Grid lines */}
-                    {[0.2, 0.4, 0.6, 0.8].map(y => (
-                      <line key={y} x1="0" y1={y * 200} x2="400" y2={y * 200} stroke="var(--border-color)" strokeWidth="0.4" strokeDasharray="4 4" />
+                    {/* Grid */}
+                    {[0.25, 0.5, 0.75].map(y => (
+                      <line key={y} x1="0" y1={y * 150} x2="400" y2={y * 150} stroke="var(--border-color)" strokeWidth="0.3" strokeDasharray="3 6" />
                     ))}
-                    {/* Vertical time markers */}
                     {[0.25, 0.5, 0.75].map(x => (
-                      <line key={x} x1={x * 400} y1="0" x2={x * 400} y2="200" stroke="var(--border-color)" strokeWidth="0.3" strokeDasharray="3 6" />
+                      <line key={x} x1={x * 400} y1="0" x2={x * 400} y2="150" stroke="var(--border-color)" strokeWidth="0.2" strokeDasharray="2 6" />
                     ))}
-                    {/* Area fills + lines + endpoint dots */}
-                    {raceChartData.lines.map((line, i) => {
+                    {/* Lines: render back-to-front so leader is on top */}
+                    {[...sorted].reverse().map((line, ri) => {
+                      const i = sorted.length - 1 - ri
                       const coords = line.points.map((v, h) => ({
-                        x: (h / CHART_POINTS) * 400,
-                        y: 200 - (v / raceChartData.maxVal) * 190
+                        x: (h / (line.points.length - 1)) * 400,
+                        y: 148 - (maxProd > 0 ? (v / maxProd) * 140 : 0)
                       }))
-                      // Smooth cubic bezier path
                       let linePath = `M${coords[0].x},${coords[0].y}`
                       for (let j = 1; j < coords.length; j++) {
                         const prev = coords[j - 1]
@@ -1047,43 +1183,67 @@ export default function Game() {
                         const cpx = (prev.x + cur.x) / 2
                         linePath += ` C${cpx},${prev.y} ${cpx},${cur.y} ${cur.x},${cur.y}`
                       }
-                      const areaPath = `${linePath} L400,200 L0,200 Z`
+                      const areaPath = `${linePath} L400,150 L0,150 Z`
                       const last = coords[coords.length - 1]
                       return (
-                        <g key={i}>
+                        <g key={line.npub}>
                           <path d={areaPath} fill={`url(#rcg${i})`} />
-                          <path d={linePath} fill="none" stroke={line.color} strokeWidth="1.5" opacity="0.8" />
-                          <circle cx={last.x} cy={last.y} r="3" fill={line.color} opacity="0.8" />
+                          <path d={linePath} fill="none" stroke={line.color} strokeWidth="2" filter="url(#line-glow)" opacity="0.85" />
+                          <circle cx={last.x} cy={last.y} r="3.5" fill={line.color} filter="url(#line-glow)" />
                         </g>
                       )
                     })}
                   </svg>
-                  {/* X-axis labels */}
                   <div className="race-chart-xaxis">
-                    {[0, 0.25, 0.5, 0.75, 1].map((f, i) => {
-                      const totalH = Math.round(raceChartData.maxHours * f)
-                      const d = Math.floor(totalH / 24)
-                      const h = totalH % 24
-                      const label = d > 0 ? (h > 0 ? `${d}d ${h}h` : `${d}d`) : `${h}h`
-                      return <span key={i}>{label}</span>
-                    })}
-                  </div>
-                  {/* Legend */}
-                  <div className="race-chart-legend">
-                    {raceChartData.lines.map((line, i) => (
-                      <span key={i} className="race-chart-legend-item">
-                        <span className="race-chart-legend-dot" style={{ background: line.color }} />
-                        {line.isYou ? line.name : (
-                          <a href={`/u/${(() => { try { return nip19.npubEncode(line.npub); } catch { return line.npub; } })()}`} className="lb-name-link">
-                            {line.name}
-                          </a>
-                        )} <span className="race-chart-legend-rate">{line.growth >= 10 ? Math.round(line.growth) : line.growth.toFixed(1)}×</span>
-                      </span>
-                    ))}
+                    <span>-6h</span><span>-4h 30m</span><span>-3h</span><span>-1h 30m</span><span>now</span>
                   </div>
                 </div>
+                {/* Racing bars */}
+                <div className="race-bars">
+                  {sorted.map((line, i) => {
+                    const pct = Math.max(8, (line.rate / topRate) * 100)
+                    const produced = line.points[line.points.length - 1] || 0
+                    const firstRate = line.ratePoints[0] || 0
+                    const lastRate = line.ratePoints[line.ratePoints.length - 1] || 0
+                    const trendPct = firstRate > 0 ? ((lastRate - firstRate) / firstRate) * 100 : 0
+                    const isFirst = i === 0
+                    return (
+                      <div key={line.npub} className={`race-bar-row${line.isYou ? ' race-bar-you' : ''}${isFirst ? ' race-bar-leader' : ''}`}>
+                        <div className="race-bar-rank">
+                          {isFirst ? <Trophy size={14} className="race-bar-trophy" /> : `#${i + 1}`}
+                        </div>
+                        <div className="race-bar-name">
+                          {line.isYou ? 'YOU' : (
+                            <a href={`/u/${(() => { try { return nip19.npubEncode(line.npub); } catch { return line.npub; } })()}`} className="lb-name-link">
+                              {line.name}
+                            </a>
+                          )}
+                        </div>
+                        <div className="race-bar-track">
+                          <div className="race-bar-fill" style={{
+                            width: `${pct}%`,
+                            background: `linear-gradient(90deg, ${line.color}22, ${line.color}88)`,
+                            boxShadow: `0 0 12px ${line.glow}, inset 0 1px 0 rgba(255,255,255,.15)`,
+                            borderColor: line.color,
+                          }}>
+                            <div className="race-bar-glow" style={{ background: line.color }} />
+                          </div>
+                        </div>
+                        <div className="race-bar-stats">
+                          <span className="race-bar-rate" style={{ color: line.color }}>{fmtNum(line.rate)}/s</span>
+                          <span className={`race-bar-trend${trendPct > 1 ? ' up' : trendPct < -1 ? ' down' : ''}`}>
+                            {trendPct > 1 ? <TrendingUp size={10} /> : trendPct < -1 ? <TrendingDown size={10} /> : <Minus size={10} />}
+                            {Math.abs(trendPct) >= 1 ? `${Math.round(Math.abs(trendPct))}%` : ''}
+                          </span>
+                          <span className="race-bar-produced">{fmtNum(produced)}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            )}
+              )
+            })()}
 
           </CardContent>
         </Card>
@@ -1091,6 +1251,11 @@ export default function Game() {
         </div>{/* end right-column */}
       </div>
     </div>
+
+      {/* Guest Onboarding Tour */}
+      {tourStep >= 0 && !auth.isLoggedIn && (
+        <GuestTour step={tourStep} onNext={() => setTourStep(s => s + 1)} onDismiss={dismissTour} />
+      )}
     </>
   )
 }

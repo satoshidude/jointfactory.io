@@ -46,7 +46,7 @@ export default function InfoPage() {
                   or any Nostr signer. Your progress is tied to your key.
                   {auth.isLoggedIn && auth.npub && (
                     <>{' '}Check out your profile on{' '}
-                      <a href={`https://jumble.nsnip.io/#/p/${auth.npub}`} target="_blank" rel="noopener noreferrer" className="info-link green">
+                      <a href={`https://nostr.nsnip.io/#/p/${auth.npub}`} target="_blank" rel="noopener noreferrer" className="info-link green">
                         Jumble <ExternalLink size={10} />
                       </a>.
                     </>
@@ -138,7 +138,7 @@ export default function InfoPage() {
           <div className="info-contact">
             <Cannabis size={16} className="info-contact-icon" style={{ color: 'var(--neon-green)' }} />
             <span>Follow{' '}
-              <a href="https://jumble.nsnip.io/users/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="info-link green">
+              <a href="https://nostr.nsnip.io/users/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="info-link green">
                 Joint Factory on Nostr <ExternalLink size={10} />
               </a>
             </span>
@@ -147,7 +147,7 @@ export default function InfoPage() {
           <div className="info-contact">
             <Mail size={16} className="info-contact-icon" />
             <span>Nostr / Mail / Zap:{' '}
-              <a href="https://jumble.nsnip.io/#/p/satoshidude@nsnip.io" target="_blank" rel="noopener noreferrer" className="info-link gold">
+              <a href="https://nostr.nsnip.io/#/p/satoshidude@nsnip.io" target="_blank" rel="noopener noreferrer" className="info-link gold">
                 satoshidude@nsnip.io <ExternalLink size={10} />
               </a>
             </span>

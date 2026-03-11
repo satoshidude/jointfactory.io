@@ -41,7 +41,7 @@ export default function InviteModal({ onClose }: Props) {
       .finally(() => setLoading(false));
   }, []);
 
-  const inviteUrl = inviteCode ? `${window.location.origin}/?ref=${inviteCode}` : '';
+  const inviteUrl = inviteCode ? `${window.location.origin}/r/${inviteCode}` : '';
 
   function copyLink() {
     if (!inviteUrl) return;

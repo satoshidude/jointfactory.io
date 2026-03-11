@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, Copy, Check, Gift, Zap, Shield, Clock, Users, ArrowLeft } from 'lucide-react';
+import { UserPlus, Copy, Check, Gift, Zap, Shield, Clock, Users, ArrowLeft, MessageSquare } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useAuth } from '../stores/authStore';
 import './Invite.css';
@@ -19,6 +19,179 @@ function timeAgo(ts: number): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+
+const PUBLISH_RELAYS = [
+  'wss://relay.nsnip.io/',
+  'wss://relay.damus.io/',
+  'wss://nos.lol/',
+  'wss://relay.snort.social/',
+  'wss://relay.nostr.band/',
+];
+
+function buildPostText(inviteUrl: string) {
+  return [
+    "\u26a1 Joint Factory \u2014 Idle Tycoon on Nostr with Lightning Lottery",
+    "",
+    "Build your production chain, roll for sats and climb the leaderboard!",
+    "",
+    "\ud83d\udc49 " + inviteUrl,
+    "",
+    "#JointFactory #Bitcoin #Lightning #Nostr"
+  ].join("\n");
+}
+
+async function publishToRelays(signedEvent: any): Promise<{ ok: number; fail: number }> {
+  const results = await Promise.allSettled(
+    PUBLISH_RELAYS.map(url => new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(url);
+      const timeout = setTimeout(() => { ws.close(); reject(new Error('timeout')); }, 10000);
+      ws.onopen = () => ws.send(JSON.stringify(['EVENT', signedEvent]));
+      ws.onmessage = (msg) => {
+        try {
+          const data = JSON.parse(msg.data);
+          if (Array.isArray(data) && data[0] === 'OK') {
+            clearTimeout(timeout);
+            data[2] ? resolve() : reject(new Error(data[3] || 'rejected'));
+            ws.close();
+          }
+        } catch {}
+      };
+      ws.onerror = () => { clearTimeout(timeout); reject(new Error('ws error')); };
+    }))
+  );
+  return {
+    ok: results.filter(r => r.status === 'fulfilled').length,
+    fail: results.filter(r => r.status === 'rejected').length,
+  };
+}
+
+function NostrShareCard({ inviteUrl, nostrCopied, setNostrCopied }: { inviteUrl: string; nostrCopied: boolean; setNostrCopied: (v: boolean) => void }) {
+  const [posting, setPosting] = useState(false);
+  const [posted, setPosted] = useState<string | null>(null);
+  const [showNsec, setShowNsec] = useState(false);
+  const [nsecInput, setNsecInput] = useState('');
+  const [error, setError] = useState('');
+
+  const postText = buildPostText(inviteUrl);
+  const hasExtension = typeof window !== 'undefined' && !!(window as any).nostr;
+
+  const unsignedEvent = {
+    kind: 1,
+    created_at: Math.floor(Date.now() / 1000),
+    content: postText,
+    tags: [
+      ['t', 'JointFactory'],
+      ['t', 'Bitcoin'],
+      ['t', 'Lightning'],
+      ['t', 'Nostr'],
+    ],
+  };
+
+  async function postWithExtension() {
+    setPosting(true);
+    setError('');
+    try {
+      const signed = await (window as any).nostr.signEvent(unsignedEvent);
+      const result = await publishToRelays(signed);
+      if (result.ok > 0) {
+        setPosted(`Published to ${result.ok} relay${result.ok > 1 ? 's' : ''}!`);
+      } else {
+        setError('No relay accepted the post. Try again later.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Signing failed');
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  async function postWithNsec() {
+    if (!nsecInput.trim()) return;
+    setPosting(true);
+    setError('');
+    try {
+      const { finalizeEvent } = await import('nostr-tools/pure');
+      const { decode } = await import('nostr-tools/nip19');
+      let sk: Uint8Array;
+      if (nsecInput.startsWith('nsec1')) {
+        const decoded = decode(nsecInput.trim());
+        if (decoded.type !== 'nsec') throw new Error('Invalid nsec');
+        sk = decoded.data;
+      } else {
+        throw new Error('Please enter a valid nsec key');
+      }
+      const signed = finalizeEvent(unsignedEvent, sk);
+      const result = await publishToRelays(signed);
+      if (result.ok > 0) {
+        setPosted(`Published to ${result.ok} relay${result.ok > 1 ? 's' : ''}!`);
+        setNsecInput('');
+        setShowNsec(false);
+      } else {
+        setError('No relay accepted the post. Try again later.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Signing failed');
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  return (
+    <div className="invite-nostr-card">
+      <div className="invite-nostr-header">
+        <MessageSquare size={18} />
+        <span>Share on Nostr</span>
+      </div>
+      <div className="invite-nostr-preview">{postText}</div>
+
+      {posted ? (
+        <div className="invite-nostr-success">
+          <Check size={16} /> {posted}
+        </div>
+      ) : (
+        <div className="invite-nostr-actions">
+          <button className="invite-nostr-copy-btn" onClick={() => {
+            navigator.clipboard.writeText(postText).then(() => {
+              setNostrCopied(true);
+              setTimeout(() => setNostrCopied(false), 2000);
+            });
+          }}>
+            {nostrCopied ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy</>}
+          </button>
+
+          {hasExtension && (
+            <button className="invite-nostr-post-btn" onClick={postWithExtension} disabled={posting}>
+              {posting ? 'Signing...' : <><Zap size={16} /> Post via Extension</>}
+            </button>
+          )}
+
+          <button className="invite-nostr-nsec-toggle" onClick={() => setShowNsec(!showNsec)}>
+            {showNsec ? 'Cancel' : 'Post with nsec'}
+          </button>
+        </div>
+      )}
+
+      {showNsec && !posted && (
+        <div className="invite-nostr-nsec-row">
+          <input
+            className="invite-nostr-nsec-input"
+            type="password"
+            placeholder="nsec1..."
+            value={nsecInput}
+            onChange={e => setNsecInput(e.target.value)}
+            autoComplete="off"
+          />
+          <button className="invite-nostr-post-btn" onClick={postWithNsec} disabled={posting || !nsecInput.trim()}>
+            {posting ? 'Posting...' : 'Post'}
+          </button>
+        </div>
+      )}
+
+      {error && <div className="invite-nostr-error">{error}</div>}
+    </div>
+  );
+}
+
 export default function InvitePage() {
   const navigate = useNavigate();
   const auth = useAuth();
@@ -27,6 +200,7 @@ export default function InvitePage() {
   const [rewardedCount, setRewardedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [nostrCopied, setNostrCopied] = useState(false);
 
   useEffect(() => {
     apiFetch('/player/invite')
@@ -41,7 +215,7 @@ export default function InvitePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const inviteUrl = inviteCode ? `${window.location.origin}/?ref=${inviteCode}` : '';
+  const inviteUrl = inviteCode ? `${window.location.origin}/r/${inviteCode}` : '';
 
   function copyLink() {
     if (!inviteUrl) return;
@@ -144,6 +318,10 @@ export default function InvitePage() {
           </button>
         </div>
       </div>
+
+
+      {/* Nostr share template */}
+      <NostrShareCard inviteUrl={inviteUrl} nostrCopied={nostrCopied} setNostrCopied={setNostrCopied} />
 
       {/* Referral list */}
       {loading ? (

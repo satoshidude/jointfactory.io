@@ -97,11 +97,10 @@ try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_players_invite_code ON play
 
 // Ensure there's always an open lottery round
 // Lottery draw schedule: 6 times daily in Europe/Berlin
-const DRAW_HOURS_BERLIN = [0, 8, 11, 16, 19, 21];
+const DRAW_HOURS_BERLIN = [0, 5, 11, 16, 19, 21];
 
 function nextDrawTime() {
   const now = new Date();
-  // Get Berlin time parts via Intl (reliable, handles DST)
   const fmt = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Berlin',
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -111,20 +110,21 @@ function nextDrawTime() {
   const parts = {};
   for (const p of fmt.formatToParts(now)) parts[p.type] = p.value;
   const berlinHour = parseInt(parts.hour);
-  const berlinMin = parseInt(parts.minute);
 
-  // Find next draw hour today
-  // Strictly next hour (skip current hour even at :00 to avoid double-draw)
   let nextHour = DRAW_HOURS_BERLIN.find(h => h > berlinHour);
   let dayOffset = 0;
   if (nextHour === undefined) {
-    nextHour = DRAW_HOURS_BERLIN[0]; // wrap to tomorrow
+    nextHour = DRAW_HOURS_BERLIN[0];
     dayOffset = 1;
   }
 
-  // Build ISO string for the target time in Berlin, then compute UTC offset
-  const targetBerlinStr = `${parts.year}-${parts.month}-${String(parseInt(parts.day) + dayOffset).padStart(2,'0')}T${String(nextHour).padStart(2,'0')}:00:00`;
-  // Get UTC offset by comparing now's UTC ms with what Berlin clock shows
+  // Use Date math to handle month/year boundaries correctly
+  const berlinDate = new Date(parseInt(parts.year), parseInt(parts.month) - 1, parseInt(parts.day));
+  berlinDate.setDate(berlinDate.getDate() + dayOffset);
+  const y = berlinDate.getFullYear();
+  const m = String(berlinDate.getMonth() + 1).padStart(2, '0');
+  const d = String(berlinDate.getDate()).padStart(2, '0');
+  const targetBerlinStr = `${y}-${m}-${d}T${String(nextHour).padStart(2,'0')}:00:00`;
   const berlinNowMs = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`).getTime();
   const offsetMs = berlinNowMs - now.getTime();
   const targetUtcMs = new Date(targetBerlinStr).getTime() - offsetMs;
