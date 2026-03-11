@@ -118,7 +118,7 @@ export default function LotteryWidget() {
   return (
     <div className="lottery-widget">
       <div className="lottery-widget-header">
-        <Zap size={18} className="lottery-widget-icon" />
+        <Zap size={24} className="lottery-widget-icon" />
         <span className="lottery-widget-title">Lightning Lottery</span>
         <span className="lottery-widget-round">#{round.id}</span>
       </div>

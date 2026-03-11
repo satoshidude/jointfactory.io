@@ -25,7 +25,7 @@
 
 .lottery-widget-title {
   font-family: var(--font-heading);
-  font-size: 11px;
+  font-size: 16px;
   color: var(--neon-gold);
   text-shadow: 0 0 10px rgba(255, 215, 0, .4);
   flex: 1;

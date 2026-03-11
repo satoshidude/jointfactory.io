@@ -93,7 +93,7 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
   return (
     <div className="station-card station-plant">
       <div className="station-header">
-        <Sprout size={20} className="station-header-icon" />
+        <Sprout size={24} className="station-header-icon" />
         <span className="station-name">Plantations</span>
         <span className="station-level">{plantagen.length} / {PLANTATION_DEFS.length}</span>
       </div>
@@ -240,7 +240,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
   return (
     <div className="station-card station-courier">
       <div className="station-header">
-        <Footprints size={20} className="station-header-icon" />
+        <Footprints size={24} className="station-header-icon" />
         <span className="station-name">Courier</span>
         <span className="station-level">{stateLabel}</span>
       </div>
@@ -332,7 +332,7 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
   return (
     <div className="station-card station-factory">
       <div className="station-header">
-        <Factory size={20} className="station-header-icon" />
+        <Factory size={24} className="station-header-icon" />
         <span className="station-name">Factory</span>
         <span className="station-level">{fabrik.processing ? 'Rolling...' : 'Idle'}</span>
       </div>
