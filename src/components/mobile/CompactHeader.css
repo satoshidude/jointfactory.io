@@ -25,6 +25,14 @@
   letter-spacing: 2px;
 }
 
+.compact-header-version {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+  align-self: flex-end;
+  line-height: 1;
+}
+
 .compact-header-logo-icon {
   color: var(--neon-green);
   filter: drop-shadow(0 0 8px rgba(57, 255, 20, .5));
