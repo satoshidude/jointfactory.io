@@ -83,60 +83,29 @@ export function getOrCreatePlayer(npub, referralCode) {
   return { player, is_new };
 }
 
-// Atomic referral reward transaction
+// Atomic referral reward — triggered when referred user deposits 50+ sats
 const MAX_REFERRALS = 10;
-const _referralRewardTx = db.transaction((npub, gameState) => {
-  // Atomic check: only reward if referral_rewarded = 0 (prevents double-reward)
-  const player = db.prepare('SELECT referred_by, referral_rewarded FROM players WHERE npub = ?').get(npub);
+const _referralRewardTx = db.transaction((npub) => {
+  const player = db.prepare('SELECT referred_by, referral_rewarded, total_deposited FROM players WHERE npub = ?').get(npub);
   if (!player?.referred_by || player.referral_rewarded) return null;
+  if (player.total_deposited < 50) return null;
 
-  // Verify managers from server-side game_state (not client-provided)
-  const serverPlayer = db.prepare('SELECT game_state FROM players WHERE npub = ?').get(npub);
-  let gs;
-  try { gs = JSON.parse(serverPlayer?.game_state || '{}'); } catch { return null; }
-  let mgrs = 0;
-  if (gs.plantagen?.[0]?.managerLevel > 0) mgrs++;
-  if (gs.courier?.mgrLevel > 0) mgrs++;
-  if (gs.fabrik?.mgrLevel > 0) mgrs++;
-  if (mgrs < 3) return null;
-
-  // Atomic mark + reward: UPDATE ... WHERE referral_rewarded = 0 prevents race
+  // Atomic mark + reward
   const marked = db.prepare('UPDATE players SET referral_rewarded = 1 WHERE npub = ? AND referral_rewarded = 0').run(npub);
-  if (marked.changes === 0) return null; // another request already rewarded
+  if (marked.changes === 0) return null;
 
   const referrerNpub = player.referred_by;
   const rewardedCount = db.prepare('SELECT COUNT(*) as c FROM players WHERE referred_by = ? AND referral_rewarded = 1').get(referrerNpub)?.c || 0;
   if (rewardedCount > MAX_REFERRALS) return null;
 
-  // Reward: 20 sats each (first 2 managers are free now, no need for free manager grant)
+  // Reward: 20 sats each
   db.prepare('UPDATE players SET sats = sats + 20 WHERE npub = ?').run(referrerNpub);
   db.prepare('UPDATE players SET sats = sats + 20 WHERE npub = ?').run(npub);
 
-  console.log(`[Invite] Reward #${rewardedCount} for ${referrerNpub.slice(0, 8)}... (buddy: ${npub.slice(0, 8)}...) +20 sats each`);
+  console.log(`[Invite] Deposit reward #${rewardedCount} for ${referrerNpub.slice(0, 8)}... (buddy: ${npub.slice(0, 8)}... deposited ${player.total_deposited} sats) +20 sats each`);
   return { referrerNpub, rewardedCount, buddyNpub: npub };
 });
 
-export function checkReferralReward(npub, gameState) {
-  return _referralRewardTx(npub, gameState);
-}
-
-// Grant a free auto-manager (next unmanaged station)
-function grantFreeManager(npub) {
-  const row = db.prepare('SELECT game_state FROM players WHERE npub = ?').get(npub);
-  if (!row?.game_state) return;
-  try {
-    const gs = typeof row.game_state === 'string' ? JSON.parse(row.game_state) : row.game_state;
-    if (gs.plantagen?.[0]?.managerLevel === 0) {
-      gs.plantagen[0].managerLevel = 1;
-    } else if (gs.courier?.mgrLevel === 0) {
-      gs.courier.mgrLevel = 1;
-    } else if (gs.fabrik?.mgrLevel === 0) {
-      gs.fabrik.mgrLevel = 1;
-    } else {
-      return;
-    }
-    db.prepare('UPDATE players SET game_state = ? WHERE npub = ?').run(JSON.stringify(gs), npub);
-  } catch (e) {
-    console.error('[Invite] Failed to grant manager:', e.message);
-  }
+export function checkReferralReward(npub) {
+  return _referralRewardTx(npub);
 }

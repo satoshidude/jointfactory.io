@@ -1,6 +1,4 @@
 import { db } from './db.js';
-import { checkReferralReward } from './auth.js';
-import { publishReferralReward } from './zap.js';
 
 function countManagers(gameState) {
   if (!gameState) return 0;
@@ -74,18 +72,7 @@ const _saveStateTx = db.transaction((npub, payload) => {
 });
 
 export function saveState(npub, payload) {
-  const result = _saveStateTx(npub, payload);
-
-  // Check referral reward outside transaction (async nostr publish can't be in tx)
-  const referralResult = checkReferralReward(npub, payload.gameState);
-  if (referralResult) {
-    const buddy = db.prepare('SELECT display_name FROM players WHERE npub=?').get(npub);
-    const referrer = db.prepare('SELECT display_name FROM players WHERE npub=?').get(referralResult.referrerNpub);
-    publishReferralReward(referralResult.referrerNpub, referrer?.display_name, npub, buddy?.display_name)
-      .catch(err => console.error('[invite] Referral reward note failed:', err.message));
-  }
-
-  return { ...result, referral_reward: referralResult || undefined };
+  return _saveStateTx(npub, payload);
 }
 
 // Atomic delete: remove player and all dependencies, keep invited buddies

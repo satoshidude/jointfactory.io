@@ -1,4 +1,6 @@
 import { db } from './db.js';
+import { checkReferralReward } from './auth.js';
+import { publishReferralReward } from './zap.js';
 import 'dotenv/config';
 
 const LNBITS_URL = process.env.LNBITS_URL || 'http://localhost:5000';
@@ -6,7 +8,7 @@ const INVOICE_KEY = process.env.LNBITS_INVOICE_KEY || '';
 const ADMIN_KEY = process.env.LNBITS_ADMIN_KEY || '';
 
 export const SAT_PACKS = [
-  { id: 'grower',   sats: 50,   price_sats: 50,   label: '🌿 Grower',   description: '50 Sats' },
+  { id: 'grower',   sats: 50,   price_sats: 50,   label: '🌱 Grower',   description: '50 Sats' },
   { id: 'pimp',     sats: 100,  price_sats: 100,  label: '💎 Pimp',     description: '100 Sats' },
   { id: 'hustler',  sats: 200,  price_sats: 200,  label: '🔥 Hustler',  description: '200 Sats' },
   { id: 'whale',    sats: 1000, price_sats: 1000,  label: '🐋 Whale',    description: '1000 Sats' },
@@ -99,5 +101,19 @@ const _handleWebhookTx = db.transaction((paymentHash) => {
 });
 
 export function handleWebhook(paymentHash) {
-  return _handleWebhookTx(paymentHash);
+  const result = _handleWebhookTx(paymentHash);
+
+  // Check referral reward after deposit (triggers when total_deposited >= 50)
+  if (result.ok && result.npub) {
+    const referralResult = checkReferralReward(result.npub);
+    if (referralResult) {
+      const buddy = db.prepare('SELECT display_name FROM players WHERE npub=?').get(result.npub);
+      const referrer = db.prepare('SELECT display_name FROM players WHERE npub=?').get(referralResult.referrerNpub);
+      publishReferralReward(referralResult.referrerNpub, referrer?.display_name, result.npub, buddy?.display_name)
+        .catch(err => console.error('[invite] Referral reward note failed:', err.message));
+      result.referral_reward = referralResult;
+    }
+  }
+
+  return result;
 }
