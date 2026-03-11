@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { UserPlus, Copy, Check, Gift, Zap, Shield, Clock, Users, ArrowLeft, MessageSquare } from 'lucide-react';
+import { UserPlus, Copy, Check, Gift, Zap, Shield, Clock, Users, MessageSquare } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useAuth } from '../stores/authStore';
 import './Invite.css';
@@ -193,7 +192,6 @@ function NostrShareCard({ inviteUrl, nostrCopied, setNostrCopied }: { inviteUrl:
 }
 
 export default function InvitePage() {
-  const navigate = useNavigate();
   const auth = useAuth();
   const [inviteCode, setInviteCode] = useState('');
   const [referrals, setReferrals] = useState<Referral[]>([]);
@@ -256,9 +254,6 @@ export default function InvitePage() {
 
   return (
     <div className="invite-page">
-      <button className="info-back" onClick={() => navigate('/')}>
-        <ArrowLeft size={16} /> Back to Game
-      </button>
       {/* Hero */}
       <div className="invite-hero">
         <div className="invite-hero-glow" />

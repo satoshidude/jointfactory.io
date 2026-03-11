@@ -1,0 +1,78 @@
+.lottery-mini {
+  background: var(--bg-card);
+  background-image: var(--paper-noise);
+  border: 1px solid rgba(255, 215, 0, .2);
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lottery-mini:active {
+  transform: scale(0.98);
+  border-color: rgba(255, 215, 0, .4);
+}
+
+.lottery-mini-row1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lottery-mini-icon {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .5));
+  flex-shrink: 0;
+}
+
+.lottery-mini-title {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  color: var(--neon-gold);
+  text-shadow: 0 0 8px rgba(255, 215, 0, .4);
+}
+
+.lottery-mini-countdown {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.lottery-mini-row2 {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lottery-mini-stat {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.lottery-mini-stat:first-child {
+  color: var(--neon-gold);
+}
+
+.lottery-mini-stat:first-child svg {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
+}
+
+.lottery-mini-stat svg {
+  color: var(--text-secondary);
+}

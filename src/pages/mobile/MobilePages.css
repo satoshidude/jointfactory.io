@@ -11,6 +11,11 @@
   gap: 12px;
 }
 
+/* Lottery mini always full width */
+.mobile-game-page > .lottery-mini {
+  grid-column: 1 / -1;
+}
+
 /* 3-col: Factory+Courier left column, Plantations spans 2 cols right */
 @media (min-width: 1024px) {
   .mobile-game-page {

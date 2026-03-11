@@ -30,6 +30,16 @@ export default function MobileInfo() {
         </p>
       </div>
 
+      {/* ── Disclaimer ───────────────────────────────── */}
+      <div className="mi-disclaimer">
+        <AlertTriangle size={18} className="mi-disclaimer-icon" />
+        <p>
+          <strong>Disclaimer:</strong> Joint Factory is an art and educational project
+          exploring decentralized technologies. Alpha status — only deposit small sats amounts.
+          No guarantees. Play at your own risk.
+        </p>
+      </div>
+
       {/* ── How to Play ──────────────────────────────── */}
       <div className="mi-card">
         <h2 className="mi-card-title">How to Play</h2>
@@ -104,7 +114,7 @@ export default function MobileInfo() {
               <a href="https://getalby.com" target="_blank" rel="noopener noreferrer" className="mi-link gold">Alby</a>.
               {auth.isLoggedIn && auth.npub && (
                 <>{' '}Your profile on{' '}
-                  <a href={`https://nostr.nsnip.io/#/p/${auth.npub}`} target="_blank" rel="noopener noreferrer" className="mi-link green">Jumble</a>.
+                  <a href={`https://nostr.nsnip.io/#/p/${auth.npub}`} target="_blank" rel="noopener noreferrer" className="mi-link purple">Nostr</a>.
                 </>
               )}
             </p>
@@ -141,17 +151,6 @@ export default function MobileInfo() {
         </div>
       </div>
 
-      {/* ── Disclaimer ───────────────────────────────── */}
-      <div className="mi-card">
-        <div className="mi-disclaimer">
-          <AlertTriangle size={18} className="mi-disclaimer-icon" />
-          <p>
-            <strong>Disclaimer:</strong> Joint Factory is an art and educational project
-            exploring decentralized technologies. Alpha status — only deposit small sats amounts.
-            No guarantees. Play at your own risk.
-          </p>
-        </div>
-      </div>
     </div>
   )
 }

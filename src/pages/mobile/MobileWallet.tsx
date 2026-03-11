@@ -6,6 +6,7 @@ import DepositModal from '../../components/DepositModal'
 import WithdrawModal from '../../components/WithdrawModal'
 import '../Wallet.css'
 import './MobilePages.css'
+import './MobileLottery.css'
 
 interface Payment {
   type: 'deposit' | 'lottery_win' | 'ticket' | 'withdraw' | 'referral_reward'
@@ -92,9 +93,16 @@ export default function MobileWallet() {
 
   return (
     <div className="mobile-page mobile-wallet">
-      {/* Balance card */}
-      <div className="wallet-balance-card">
-        <div className="wallet-balance-label">Current Balance</div>
+      {/* Balance hero */}
+      <div className="ml-hero">
+        <div className="ml-hero-glow ml-hero-glow-gold"></div>
+        <div className="ml-hero-icon-wrap">
+          <div className="ml-hero-icon ml-hero-icon-gold">
+            <Wallet size={48} />
+          </div>
+        </div>
+        <h1 className="ml-hero-title ml-gold">Wallet</h1>
+        <p className="ml-hero-subtitle">Current Balance</p>
         <div className="wallet-balance-value">
           <Zap size={24} />
           <span>{Math.floor(sats).toLocaleString()}</span>

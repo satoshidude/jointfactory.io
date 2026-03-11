@@ -3,6 +3,7 @@ import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { useGameLoop } from '../../game/useGameLoop'
 import { PlantationsCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
+import LotteryMini from '../../components/mobile/LotteryMini'
 import './MobilePages.css'
 
 export default function MobileGame() {
@@ -51,6 +52,8 @@ export default function MobileGame() {
 
   return (
     <div className="mobile-page mobile-game-page">
+      <LotteryMini />
+
       <FactoryCard
         fabrik={state.fabrik}
         cannabisAtFactory={state.cannabisAtFactory}
