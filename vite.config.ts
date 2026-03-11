@@ -3,10 +3,19 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+// build:dev uses index.html (mobile App.tsx)
+// build uses index-desktop.html (desktop AppDesktop.tsx)
+const isDevBuild = process.argv.includes('dist-dev')
+
 export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    rollupOptions: {
+      input: isDevBuild ? 'index.html' : 'index-desktop.html',
     },
   },
   optimizeDeps: {
