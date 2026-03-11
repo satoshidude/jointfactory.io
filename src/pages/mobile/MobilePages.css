@@ -6,9 +6,28 @@
 }
 
 .mobile-game-page {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 12px;
+}
+
+/* Lottery widget always full width */
+.mobile-game-page > .lottery-widget {
+  grid-column: 1 / -1;
+}
+
+/* 2 columns on tablets / small laptops */
+@media (min-width: 600px) {
+  .mobile-game-page {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 3 columns on notebooks / desktops */
+@media (min-width: 1024px) {
+  .mobile-game-page {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .mobile-placeholder {
