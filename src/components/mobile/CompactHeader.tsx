@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Cannabis, Zap, LogIn } from 'lucide-react'
+import { Cannabis, Zap } from 'lucide-react'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import LoginModal from '../LoginModal'

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Cannabis, Ticket, Wallet, UserPlus, User, LogIn, Info, Menu, X } from 'lucide-react'
+import { Cannabis, Ticket, Wallet, UserPlus, User, Info, Menu, X } from 'lucide-react'
 import { useAuth } from '../../stores/authStore'
 import LoginModal from '../LoginModal'
 import './DrawerNav.css'

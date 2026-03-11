@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../stores/authStore'
-import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, ExternalLink, UserPlus, AlertTriangle, Mail, Info } from 'lucide-react'
+import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, ExternalLink, UserPlus, AlertTriangle, Mail } from 'lucide-react'
 import './MobileInfo.css'
 import './MobileLottery.css'
 

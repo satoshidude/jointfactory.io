@@ -4,7 +4,6 @@ import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import DepositModal from '../../components/DepositModal'
 import WithdrawModal from '../../components/WithdrawModal'
-import LoginModal from '../../components/LoginModal'
 import '../Wallet.css'
 import './MobilePages.css'
 
@@ -33,7 +32,6 @@ export default function MobileWallet() {
   const [tab, setTab] = useState<Tab>('won')
   const [showDeposit, setShowDeposit] = useState(false)
   const [showWithdraw, setShowWithdraw] = useState(false)
-  const [showLogin, setShowLogin] = useState(false)
 
   const reload = () => {
     apiFetch('/player/payments')
