@@ -493,11 +493,10 @@ export function useGameLoop(
       }
 
       const g = gsRef.current
-      const isLoggedIn = loggedInRef.current
 
       // ── Plantations ──
       for (const p of g.plantagen) {
-        const isAuto = p.managerLevel > 0 && isLoggedIn
+        const isAuto = p.managerLevel > 0
         if (isAuto || p.timer < p.cycleTime) {
           p.timer -= dt * p.speed
           while (p.timer <= 0) {
@@ -518,7 +517,7 @@ export function useGameLoop(
       const tripTime = courierTripTime(c)
 
       if (c.state === 'idle') {
-        if (c.mgrLevel > 0 && isLoggedIn && g.cannabis > 0) {
+        if (c.mgrLevel > 0 && g.cannabis > 0) {
           c.carrying = Math.min(c.capacity, g.cannabis)
           g.cannabis -= c.carrying
           c.state = 'toFactory'
@@ -554,7 +553,7 @@ export function useGameLoop(
       // ── Fabrik (The Basement) ──
       const f = g.fabrik
 
-      if (!f.processing && f.mgrLevel > 0 && isLoggedIn && g.cannabisAtFactory > 0) {
+      if (!f.processing && f.mgrLevel > 0 && g.cannabisAtFactory > 0) {
         f._currentCharge = Math.min(f.capacity, g.cannabisAtFactory)
         g.cannabisAtFactory -= f._currentCharge
         f.processing = true

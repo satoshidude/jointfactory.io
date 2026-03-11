@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { Sprout, Footprints, Factory } from 'lucide-react'
 import type { PlantationState, CourierState, FabrikState } from '../../game/useGameLoop'
 import {
   plantLevelCost, plantMilestoneInfo, plantOutput, plantEffectiveCycle, plantRate,
@@ -17,8 +18,9 @@ function fmtNum(n: number): string {
 
 // ── Animated Cycle Ring ─────────────────────────────────────────────────────
 
-function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5 }: {
+function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5, label, onClick, disabled }: {
   progress: number; speed: number; color: string; trackColor: string; size?: number; stroke?: number
+  label?: string; onClick?: () => void; disabled?: boolean
 }) {
   const r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
@@ -27,37 +29,43 @@ function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5 
   const prevRef = useRef(clamped)
   const flashRef = useRef(0)
 
-  // Detect cycle completion (progress wraps from high to low)
   if (prevRef.current > 0.7 && clamped < 0.3) {
     flashRef.current++
   }
   prevRef.current = clamped
 
-  // Glow intensity scales with speed
   const glowIntensity = Math.min(1, speed / 4)
+  const isClickable = onClick && !disabled
 
   return (
-    <svg width={size} height={size} className="cycle-ring" style={{
-      filter: `drop-shadow(0 0 ${4 + glowIntensity * 8}px ${color})`
-    }}>
-      {/* Track */}
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={trackColor} strokeWidth={stroke} />
-      {/* Progress arc */}
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={color} strokeWidth={stroke + glowIntensity * 2}
-        strokeDasharray={circ} strokeDashoffset={offset}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        style={{ transition: 'stroke-dashoffset 0.05s linear' }} />
-      {/* Flash ring on cycle complete */}
-      <circle key={flashRef.current} cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={color} strokeWidth={stroke}
-        strokeDasharray={circ} strokeDashoffset={0}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        className="cycle-ring-flash" />
-    </svg>
+    <div
+      className={`station-ring-wrap${isClickable ? ' ring-clickable' : ''}${disabled ? ' ring-disabled' : ''}`}
+      style={{ width: size, height: size }}
+      onClick={isClickable ? onClick : undefined}
+    >
+      <svg width={size} height={size} className="cycle-ring" style={{
+        filter: `drop-shadow(0 0 ${4 + glowIntensity * 8}px ${color})`
+      }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={trackColor} strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={color} strokeWidth={stroke + glowIntensity * 2}
+          strokeDasharray={circ} strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: 'stroke-dashoffset 0.05s linear' }} />
+        <circle key={flashRef.current} cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={color} strokeWidth={stroke}
+          strokeDasharray={circ} strokeDashoffset={0}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          className="cycle-ring-flash" />
+      </svg>
+      <div className="station-ring-center">
+        <span className="station-ring-speed">{speed.toFixed(1)}x</span>
+        {label && <span className="station-ring-label">{label}</span>}
+      </div>
+    </div>
   )
 }
 
@@ -84,25 +92,27 @@ export function PlantCard({ plant, joints, managerCount, isLoggedIn, totalDeposi
   const canAffordLevel = joints >= levelCost
   const needForLevel = levelCost - Math.floor(joints)
   const isAuto = plant.managerLevel > 0
+  const isGrowing = plant.timer < plant.cycleTime
 
   return (
     <div className="station-card station-plant">
+      <div className="station-header">
+        <Sprout size={20} className="station-header-icon" />
+        <span className="station-name">{plant.name}</span>
+        <span className="station-level">Lvl {plant.level}</span>
+      </div>
+
       <div className="station-card-top">
-        <div className="station-ring-wrap">
-          <CycleRing
-            progress={progress}
-            speed={plant.speed}
-            color="rgba(57, 255, 20, .9)"
-            trackColor="rgba(57, 255, 20, .15)"
-          />
-          <div className="station-ring-center">
-            <span className="station-ring-icon">{plant.icon}</span>
-            <span className="station-ring-speed">{plant.speed.toFixed(1)}x</span>
-          </div>
-        </div>
+        <CycleRing
+          progress={progress}
+          speed={plant.speed}
+          color="rgba(57, 255, 20, .9)"
+          trackColor="rgba(57, 255, 20, .15)"
+          label={isAuto ? undefined : (isGrowing ? 'Growing...' : 'Grow')}
+          onClick={isAuto ? undefined : onGrow}
+          disabled={isAuto ? undefined : isGrowing}
+        />
         <div className="station-info">
-          <div className="station-name">{plant.name}</div>
-          <div className="station-level">Lvl {plant.level}</div>
           <div className="station-stats">
             <div className="station-stat-row">
               <span className="station-stat-label">Output</span>
@@ -127,11 +137,6 @@ export function PlantCard({ plant, joints, managerCount, isLoggedIn, totalDeposi
       </div>
 
       <div className="station-actions">
-        {!isAuto && (
-          <button className="station-btn station-btn-grow" onClick={onGrow}>
-            Grow
-          </button>
-        )}
         <button
           className={`station-btn station-btn-level${canAffordLevel ? '' : ' insufficient'}`}
           onClick={onUpgradeLevel}
@@ -187,25 +192,27 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
   const speedUpg = getSpeedUpgrade(courier.speedLevel)
   const isAuto = courier.mgrLevel > 0
   const stateLabel = courier.state === 'toFactory' ? 'To Factory' : courier.state === 'toPlant' ? 'Returning' : 'Idle'
+  const canSend = courier.state === 'idle' && cannabis > 0
 
   return (
     <div className="station-card station-courier">
+      <div className="station-header">
+        <Footprints size={20} className="station-header-icon" />
+        <span className="station-name">Courier</span>
+        <span className="station-level">{stateLabel}</span>
+      </div>
+
       <div className="station-card-top">
-        <div className="station-ring-wrap">
-          <CycleRing
-            progress={progress}
-            speed={courier.speed}
-            color="rgba(255, 105, 180, .9)"
-            trackColor="rgba(255, 105, 180, .15)"
-          />
-          <div className="station-ring-center">
-            <span className="station-ring-icon">🚐</span>
-            <span className="station-ring-speed">{courier.speed.toFixed(1)}x</span>
-          </div>
-        </div>
+        <CycleRing
+          progress={progress}
+          speed={courier.speed}
+          color="rgba(255, 105, 180, .9)"
+          trackColor="rgba(255, 105, 180, .15)"
+          label={isAuto ? undefined : (isMoving ? 'En route...' : 'Send')}
+          onClick={isAuto ? undefined : onSend}
+          disabled={isAuto ? undefined : !canSend}
+        />
         <div className="station-info">
-          <div className="station-name">Courier</div>
-          <div className="station-level">{stateLabel}</div>
           <div className="station-stats">
             <div className="station-stat-row">
               <span className="station-stat-label">Capacity</span>
@@ -228,12 +235,6 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
       </div>
 
       <div className="station-actions">
-        {!isAuto && (
-          <button className="station-btn station-btn-grow" onClick={onSend}
-            disabled={courier.state !== 'idle' || cannabis <= 0}>
-            Send Courier
-          </button>
-        )}
         <button className="station-btn station-btn-level" onClick={onUpgradeCap}
           disabled={joints < courier.capCost}>
           Cap x2 — {fmtNum(courier.capCost)} Joints
@@ -281,25 +282,27 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
   const progress = fabrik.processing ? 1 - (fabrik.timer / fabrik.processTime) : 0
   const speedUpg = getSpeedUpgrade(fabrik.speedLevel)
   const isAuto = fabrik.mgrLevel > 0
+  const canRoll = !fabrik.processing && cannabisAtFactory > 0
 
   return (
     <div className="station-card station-factory">
+      <div className="station-header">
+        <Factory size={20} className="station-header-icon" />
+        <span className="station-name">Factory</span>
+        <span className="station-level">{fabrik.processing ? 'Rolling...' : 'Idle'}</span>
+      </div>
+
       <div className="station-card-top">
-        <div className="station-ring-wrap">
-          <CycleRing
-            progress={progress}
-            speed={fabrik.speed}
-            color="rgba(204, 68, 255, .9)"
-            trackColor="rgba(204, 68, 255, .15)"
-          />
-          <div className="station-ring-center">
-            <span className="station-ring-icon">🏭</span>
-            <span className="station-ring-speed">{fabrik.speed.toFixed(1)}x</span>
-          </div>
-        </div>
+        <CycleRing
+          progress={progress}
+          speed={fabrik.speed}
+          color="rgba(204, 68, 255, .9)"
+          trackColor="rgba(204, 68, 255, .15)"
+          label={isAuto ? undefined : (fabrik.processing ? 'Rolling...' : 'Roll')}
+          onClick={isAuto ? undefined : onRoll}
+          disabled={isAuto ? undefined : !canRoll}
+        />
         <div className="station-info">
-          <div className="station-name">Factory</div>
-          <div className="station-level">{fabrik.processing ? 'Rolling...' : 'Idle'}</div>
           <div className="station-stats">
             <div className="station-stat-row">
               <span className="station-stat-label">Capacity</span>
@@ -326,12 +329,6 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
       </div>
 
       <div className="station-actions">
-        {!isAuto && (
-          <button className="station-btn station-btn-grow" onClick={onRoll}
-            disabled={fabrik.processing || cannabisAtFactory <= 0}>
-            Roll Joints
-          </button>
-        )}
         <button className="station-btn station-btn-level" onClick={onUpgradeCap}
           disabled={joints < fabrik.capCost}>
           Cap x2 — {fmtNum(fabrik.capCost)} Joints
