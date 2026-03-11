@@ -1,0 +1,96 @@
+/* ── Mobile Page Placeholders ───────────────────────────────────────────────── */
+
+.mobile-page {
+  padding: 16px;
+  min-height: 100%;
+}
+
+.mobile-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.mobile-placeholder-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.mobile-placeholder h2 {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  color: var(--neon-green);
+  text-shadow: 0 0 10px rgba(57, 255, 20, .4);
+  margin: 0;
+}
+
+.mobile-placeholder p {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 280px;
+}
+
+/* Station Ring Previews */
+.mobile-placeholder-stations {
+  display: flex;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.placeholder-station {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.placeholder-ring {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  position: relative;
+}
+
+.placeholder-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid var(--border-color);
+}
+
+.placeholder-ring.plant::before {
+  border-color: rgba(57, 255, 20, .3);
+  box-shadow: 0 0 12px rgba(57, 255, 20, .15);
+}
+
+.placeholder-ring.courier::before {
+  border-color: rgba(255, 105, 180, .3);
+  box-shadow: 0 0 12px rgba(255, 105, 180, .15);
+}
+
+.placeholder-ring.factory::before {
+  border-color: rgba(204, 68, 255, .3);
+  box-shadow: 0 0 12px rgba(204, 68, 255, .15);
+}
+
+.placeholder-label {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+/* Page-specific accent colors */
+.mobile-page-stats .mobile-placeholder h2 { color: var(--neon-gold); text-shadow: 0 0 10px rgba(255, 215, 0, .4); }
+.mobile-page-lottery .mobile-placeholder h2 { color: var(--neon-purple); text-shadow: 0 0 10px rgba(204, 68, 255, .4); }
+.mobile-page-wallet .mobile-placeholder h2 { color: var(--neon-gold); text-shadow: 0 0 10px rgba(255, 215, 0, .4); }

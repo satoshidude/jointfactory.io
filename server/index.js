@@ -38,9 +38,30 @@ await fastify.register(fastifyRateLimit, {
   timeWindow: '1 minute',
   allowList: ['127.0.0.1'],
 });
-await fastify.register(fastifyCors, { origin: ['https://jointfactory.io', 'https://jointfactory.io'] });
+await fastify.register(fastifyCors, { origin: ['https://jointfactory.io', 'https://dev.jointfactory.io'] });
 await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET || 'devsecret' });
-await fastify.register(fastifyStatic, { root: path.join(__dirname, '../dist'), prefix: '/' });
+// Host-based static file serving: dev.jointfactory.io → dist-dev/, else → dist/
+const distDir = path.join(__dirname, '../dist');
+const distDevDir = path.join(__dirname, '../dist-dev');
+
+function isDevHost(req) {
+  return (req.headers.host || '').split(':')[0] === 'dev.jointfactory.io';
+}
+
+await fastify.register(fastifyStatic, { root: distDir, prefix: '/', serve: false });
+await fastify.register(fastifyStatic, { root: distDevDir, prefix: '/dev-static/', decorateReply: false });
+
+// Serve static files from correct dist dir based on Host header
+fastify.addHook('onRequest', (req, reply, done) => {
+  if (req.url.startsWith('/api/') || req.url.startsWith('/ws')) return done();
+  const root = isDevHost(req) ? distDevDir : distDir;
+  // For files with extensions (JS, CSS, images etc.)
+  if (req.url.includes('.')) {
+    const filePath = req.url.split('?')[0];
+    return reply.sendFile(filePath, root);
+  }
+  done();
+});
 await fastify.register(fastifyWebsocket);
 
 async function requireAuth(req, reply) {
@@ -568,19 +589,21 @@ fastify.get('/api/player/invite', { preHandler: requireAuth }, async (req) => {
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-// SPA fallback — serve index.html for non-API routes
+// SPA fallback — serve index.html for non-API routes (host-aware)
 try {
   fastify.setNotFoundHandler((req, reply) => {
     if (req.url.startsWith("/api/") || req.url.startsWith("/ws")) {
       return reply.code(404).send({ error: "Not found" });
     }
-    reply.sendFile("index.html");
+    const root = isDevHost(req) ? distDevDir : distDir;
+    reply.sendFile("index.html", root);
   });
 } catch(e) {
   // Already set by @fastify/static — register SPA fallback via hook instead
   fastify.addHook('onRequest', (req, reply, done) => {
     if (!req.url.startsWith('/api/') && !req.url.startsWith('/ws') && !req.url.includes('.')) {
-      reply.sendFile('index.html');
+      const root = isDevHost(req) ? distDevDir : distDir;
+      reply.sendFile('index.html', root);
       return;
     }
     done();

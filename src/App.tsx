@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate, useSearchParams, useParams } from 'react-router-dom'
-import Header from './components/Header'
-import Dashboard from './pages/Dashboard'
-import Game from './pages/Game'
-import LotteryPage from './pages/Lottery'
+import MobileLayout from './components/mobile/MobileLayout'
+import MobileGame from './pages/mobile/MobileGame'
+import MobileDashboard from './pages/mobile/MobileDashboard'
+import MobileLottery from './pages/mobile/MobileLottery'
+import MobileWallet from './pages/mobile/MobileWallet'
 import InfoPage from './pages/Info'
 import InvitePage from './pages/Invite'
-import WalletPage from './pages/Wallet'
 import PlayerProfile from './pages/PlayerProfile'
 import { GameDisplayProvider } from './stores/gameDisplayStore'
 import './App.css'
@@ -31,23 +31,18 @@ export default function App() {
 
   return (
     <GameDisplayProvider>
-    <div className="layout">
-      <div className="main">
-        <Header />
-        <div className="content">
-          <Routes>
-            <Route path="/" element={<Game />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/lottery" element={<LotteryPage />} />
-            <Route path="/info" element={<InfoPage />} />
-            <Route path="/invite" element={<InvitePage />} />
-            <Route path="/wallet" element={<WalletPage />} />
-            <Route path="/u/:npub" element={<PlayerProfile />} />
-            <Route path="/r/:code" element={<RefRedirect />} />
-          </Routes>
-        </div>
-      </div>
-    </div>
+      <MobileLayout>
+        <Routes>
+          <Route path="/" element={<MobileGame />} />
+          <Route path="/dashboard" element={<MobileDashboard />} />
+          <Route path="/lottery" element={<MobileLottery />} />
+          <Route path="/wallet" element={<MobileWallet />} />
+          <Route path="/info" element={<InfoPage />} />
+          <Route path="/invite" element={<InvitePage />} />
+          <Route path="/u/:npub" element={<PlayerProfile />} />
+          <Route path="/r/:code" element={<RefRedirect />} />
+        </Routes>
+      </MobileLayout>
     </GameDisplayProvider>
   )
 }

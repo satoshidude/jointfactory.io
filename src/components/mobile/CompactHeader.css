@@ -1,0 +1,120 @@
+/* ── Compact Header (Mobile) ────────────────────────────────────────────────── */
+
+.compact-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--bg-card);
+  background-image: var(--paper-noise);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
+  z-index: 100;
+  gap: 8px;
+}
+
+/* Logo */
+.compact-header-logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.compact-header-logo svg {
+  color: var(--neon-green);
+  filter: drop-shadow(0 0 6px rgba(57, 255, 20, .5));
+}
+
+.compact-header-logo span {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  color: var(--neon-green);
+  text-shadow: 0 0 10px rgba(57, 255, 20, .5);
+}
+
+/* Stats Row */
+.compact-header-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  justify-content: center;
+}
+
+.compact-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.compact-stat.joints {
+  color: var(--neon-green);
+}
+
+.compact-stat.joints svg {
+  color: var(--neon-green);
+  filter: drop-shadow(0 0 4px rgba(57, 255, 20, .4));
+}
+
+.compact-stat.sats {
+  color: var(--neon-gold);
+}
+
+.compact-stat.sats svg {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
+}
+
+/* Login Button */
+.compact-login-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(57, 255, 20, .1);
+  border: 1px solid rgba(57, 255, 20, .3);
+  border-radius: 6px;
+  color: var(--neon-green);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.compact-login-btn:active {
+  background: rgba(57, 255, 20, .2);
+  transform: scale(0.95);
+}
+
+/* User Badge */
+.compact-user {
+  padding: 4px 10px;
+  background: rgba(255, 215, 0, .08);
+  border: 1px solid rgba(255, 215, 0, .2);
+  border-radius: 6px;
+  color: var(--neon-gold);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.compact-user:active {
+  background: rgba(255, 215, 0, .15);
+}

@@ -1,0 +1,108 @@
+/* ── Bottom Navigation ──────────────────────────────────────────────────────── */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  height: 56px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--bg-card);
+  background-image: var(--paper-noise);
+  border-top: 1px solid var(--border-color);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, .4);
+  z-index: 100;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 9px;
+  cursor: pointer;
+  transition: color 0.15s;
+  padding: 4px 0;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav-tab:active {
+  transform: scale(0.92);
+}
+
+.bottom-nav-tab.active {
+  color: var(--neon-green);
+}
+
+.bottom-nav-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 25%;
+  right: 25%;
+  height: 2px;
+  background: var(--neon-green);
+  box-shadow: var(--glow-green);
+  border-radius: 0 0 2px 2px;
+}
+
+.bottom-nav-tab.active svg {
+  filter: drop-shadow(0 0 6px rgba(57, 255, 20, .5));
+}
+
+/* ── More Sheet ────────────────────────────────────────────────────────────── */
+
+.more-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .5);
+  z-index: 99;
+  display: flex;
+  align-items: flex-end;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.more-sheet {
+  width: 100%;
+  background: var(--bg-card);
+  background-image: var(--paper-noise);
+  border-top: 1px solid var(--border-color);
+  border-radius: 16px 16px 0 0;
+  padding: 8px 0;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 8px);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, .5);
+}
+
+.more-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 16px 24px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.more-item:active {
+  background: var(--bg-hover);
+}
+
+.more-item.active {
+  color: var(--neon-green);
+}
