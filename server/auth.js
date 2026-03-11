@@ -67,7 +67,7 @@ export function getOrCreatePlayer(npub, referralCode) {
       }
     }
     db.prepare(`
-      INSERT INTO players (npub, display_name, sats, joints, invite_code, referred_by, referral_rewarded) VALUES (?, ?, 40, 0, ?, ?, 0)
+      INSERT INTO players (npub, display_name, sats, joints, invite_code, referred_by, referral_rewarded) VALUES (?, ?, 0, 0, ?, ?, 0)
     `).run(npub, name, inviteCode, referredBy);
     player = db.prepare('SELECT * FROM players WHERE npub = ?').get(npub);
     is_new = true;
@@ -108,14 +108,11 @@ const _referralRewardTx = db.transaction((npub, gameState) => {
   const rewardedCount = db.prepare('SELECT COUNT(*) as c FROM players WHERE referred_by = ? AND referral_rewarded = 1').get(referrerNpub)?.c || 0;
   if (rewardedCount > MAX_REFERRALS) return null;
 
-  if (rewardedCount === 1) {
-    grantFreeManager(referrerNpub);
-  }
+  // Reward: 20 sats each (first 2 managers are free now, no need for free manager grant)
+  db.prepare('UPDATE players SET sats = sats + 20 WHERE npub = ?').run(referrerNpub);
+  db.prepare('UPDATE players SET sats = sats + 20 WHERE npub = ?').run(npub);
 
-  db.prepare('UPDATE players SET sats = sats + 10 WHERE npub = ?').run(referrerNpub);
-  db.prepare('UPDATE players SET sats = sats + 10 WHERE npub = ?').run(npub);
-
-  console.log(`[Invite] Reward #${rewardedCount} for ${referrerNpub.slice(0, 8)}... (buddy: ${npub.slice(0, 8)}...) +10 sats each`);
+  console.log(`[Invite] Reward #${rewardedCount} for ${referrerNpub.slice(0, 8)}... (buddy: ${npub.slice(0, 8)}...) +20 sats each`);
   return { referrerNpub, rewardedCount, buddyNpub: npub };
 });
 

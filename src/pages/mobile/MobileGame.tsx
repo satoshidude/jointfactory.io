@@ -45,6 +45,9 @@ export default function MobileGame() {
           key={plant.id}
           plant={plant}
           joints={state.joints}
+          managerCount={state.managerCount}
+          isLoggedIn={auth.isLoggedIn}
+          totalDeposited={auth.totalDeposited}
           onUpgradeLevel={() => actions.upgradePlantLevel(i)}
           onUpgradeSpeed={() => actions.upgradePlantSpeed(i)}
           onBuyManager={() => actions.buyPlantManager(i)}
@@ -56,6 +59,9 @@ export default function MobileGame() {
         courier={state.courier}
         cannabis={state.cannabis}
         joints={state.joints}
+        managerCount={state.managerCount}
+        isLoggedIn={auth.isLoggedIn}
+        totalDeposited={auth.totalDeposited}
         onUpgradeCap={actions.upgradeCourierCap}
         onUpgradeSpeed={actions.upgradeCourierSpeed}
         onBuyManager={actions.buyCourierManager}
@@ -66,6 +72,9 @@ export default function MobileGame() {
         fabrik={state.fabrik}
         cannabisAtFactory={state.cannabisAtFactory}
         joints={state.joints}
+        managerCount={state.managerCount}
+        isLoggedIn={auth.isLoggedIn}
+        totalDeposited={auth.totalDeposited}
         onUpgradeCap={actions.upgradeFabrikCap}
         onUpgradeSpeed={actions.upgradeFabrikSpeed}
         onBuyManager={actions.buyFabrikManager}

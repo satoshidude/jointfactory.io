@@ -175,6 +175,14 @@
   color: var(--neon-gold);
 }
 
+/* Free manager */
+.station-btn-free {
+  background: rgba(57, 255, 20, .15);
+  border-color: rgba(57, 255, 20, .4);
+  color: var(--neon-green);
+  box-shadow: 0 0 8px rgba(57, 255, 20, .15);
+}
+
 /* Speed upgrade */
 .station-btn-speed {
   background: rgba(0, 212, 255, .06);

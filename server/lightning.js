@@ -92,7 +92,7 @@ const _handleWebhookTx = db.transaction((paymentHash) => {
   const updated = db.prepare(`UPDATE lightning_payments SET status = 'paid', paid_at = unixepoch() WHERE payment_hash = ? AND status = 'pending'`).run(paymentHash);
   if (updated.changes === 0) return { ok: true, already: true };
 
-  db.prepare(`UPDATE players SET sats = sats + ? WHERE npub = ?`).run(payment.amount_sats, payment.npub);
+  db.prepare(`UPDATE players SET sats = sats + ?, total_deposited = total_deposited + ? WHERE npub = ?`).run(payment.amount_sats, payment.amount_sats, payment.npub);
 
   console.log(`[Lightning] Payment confirmed: ${payment.amount_sats} sats → ${payment.npub.slice(0,16)}...`);
   return { ok: true, npub: payment.npub, sats: payment.amount_sats };

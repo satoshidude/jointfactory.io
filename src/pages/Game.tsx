@@ -615,7 +615,7 @@ export default function Game() {
                 onClick={actions.upgradeFabrikCap}>
                 <span>Cap x2</span>|<span className="cost">{fmtNum(state.fabrik.capCost)}</span>
               </button>
-              {auth.isLoggedIn ? (
+              {state.fabrik.mgrLevel > 0 && (
                 state.fabrik.speedLevel < MAX_SPEED_LEVEL ? (() => {
                   const next = getSpeedUpgrade(state.fabrik.speedLevel)!
                   return (
@@ -629,10 +629,6 @@ export default function Game() {
                     <span>MAX</span>
                   </button>
                 )
-              ) : (
-                <button className="upgrade-btn mgr-btn mgr-login" disabled>
-                  <span>Auto Manager</span>|<span className="cost sats">Login</span>
-                </button>
               )}
               {state.fabrik.mgrLevel === 0 && (
                 <button
@@ -645,12 +641,23 @@ export default function Game() {
                 </button>
               )}
             </div>
-            {auth.isLoggedIn && state.fabrik.mgrLevel === 0 && (
+            {state.fabrik.mgrLevel === 0 && (
               <div className="upgrades">
-                <button className="upgrade-btn mgr-btn" disabled={state.sats < state.fabrik.mgrCost}
-                  onClick={() => { actions.buyFabrikManager(); triggerSatsFlash() }}>
-                  <span>Auto Manager</span>|<span className="cost sats">{state.fabrik.mgrCost} sats</span>
-                </button>
+                {state.managerCount < 2 ? (
+                  <button className="upgrade-btn mgr-btn"
+                    onClick={() => { actions.buyFabrikManager(); triggerSatsFlash() }}>
+                    <span>Auto Manager</span>|<span className="cost" style={{color:'var(--neon-green)'}}>Free!</span>
+                  </button>
+                ) : auth.isLoggedIn && auth.totalDeposited >= 50 ? (
+                  <button className="upgrade-btn mgr-btn" disabled={state.sats < state.fabrik.mgrCost}
+                    onClick={() => { actions.buyFabrikManager(); triggerSatsFlash() }}>
+                    <span>Auto Manager</span>|<span className="cost sats">{state.fabrik.mgrCost} sats</span>
+                  </button>
+                ) : (
+                  <button className="upgrade-btn mgr-btn" disabled>
+                    <span>Auto Manager</span>|<span className="cost">{!auth.isLoggedIn ? 'Login + Deposit 50 sats' : `Deposit ${50 - auth.totalDeposited} more sats`}</span>
+                  </button>
+                )}
               </div>
             )}
           </CardContent>
@@ -713,7 +720,7 @@ export default function Game() {
                 onClick={actions.upgradeCourierCap}>
                 <span>Cap x2</span>|<span className="cost">{fmtNum(state.courier.capCost)}</span>
               </button>
-              {auth.isLoggedIn ? (
+              {state.courier.mgrLevel > 0 && (
                 state.courier.speedLevel < MAX_SPEED_LEVEL ? (() => {
                   const next = getSpeedUpgrade(state.courier.speedLevel)!
                   return (
@@ -727,10 +734,6 @@ export default function Game() {
                     <span>Speed MAX</span>
                   </button>
                 )
-              ) : (
-                <button className="upgrade-btn mgr-btn mgr-login" disabled>
-                  <span>Auto Manager</span>|<span className="cost sats">Login</span>
-                </button>
               )}
               {state.courier.mgrLevel === 0 && (
                 <button
@@ -743,12 +746,23 @@ export default function Game() {
                 </button>
               )}
             </div>
-            {auth.isLoggedIn && state.courier.mgrLevel === 0 && (
+            {state.courier.mgrLevel === 0 && (
               <div className="upgrades">
-                <button className="upgrade-btn mgr-btn" disabled={state.sats < state.courier.mgrCost}
-                  onClick={() => { actions.buyCourierManager(); triggerSatsFlash() }}>
-                  <span>Auto Manager</span>|<span className="cost sats">{state.courier.mgrCost} sats</span>
-                </button>
+                {state.managerCount < 2 ? (
+                  <button className="upgrade-btn mgr-btn"
+                    onClick={() => { actions.buyCourierManager(); triggerSatsFlash() }}>
+                    <span>Auto Manager</span>|<span className="cost" style={{color:'var(--neon-green)'}}>Free!</span>
+                  </button>
+                ) : auth.isLoggedIn && auth.totalDeposited >= 50 ? (
+                  <button className="upgrade-btn mgr-btn" disabled={state.sats < state.courier.mgrCost}
+                    onClick={() => { actions.buyCourierManager(); triggerSatsFlash() }}>
+                    <span>Auto Manager</span>|<span className="cost sats">{state.courier.mgrCost} sats</span>
+                  </button>
+                ) : (
+                  <button className="upgrade-btn mgr-btn" disabled>
+                    <span>Auto Manager</span>|<span className="cost">{!auth.isLoggedIn ? 'Login + Deposit 50 sats' : `Deposit ${50 - auth.totalDeposited} more sats`}</span>
+                  </button>
+                )}
               </div>
             )}
           </CardContent>
@@ -1071,30 +1085,33 @@ export default function Game() {
                         }}>
                         <span>Level {p.level + 1}</span>|<span className="cost">{fmtNum(lvCost)}</span>
                       </button>
-                      {auth.isLoggedIn ? (
-                        p.managerLevel === 0 ? (
+                      {p.managerLevel === 0 ? (
+                        state.managerCount < 2 ? (
+                          <button className="upgrade-btn mgr-btn"
+                            onClick={() => { actions.buyPlantManager(i); triggerSatsFlash() }}>
+                            <span>Auto Manager</span>|<span className="cost" style={{color:'var(--neon-green)'}}>Free!</span>
+                          </button>
+                        ) : auth.isLoggedIn && auth.totalDeposited >= 50 ? (
                           <button className="upgrade-btn mgr-btn" disabled={state.sats < p.mgrCost}
                             onClick={() => { actions.buyPlantManager(i); triggerSatsFlash() }}>
                             <span>Auto Manager</span>|<span className="cost sats">{p.mgrCost} sats</span>
                           </button>
-                        ) : p.speedLevel < MAX_SPEED_LEVEL ? (() => {
-                          const next = getSpeedUpgrade(p.speedLevel)!
-                          return (
-                            <button className="upgrade-btn sats-upgrade" disabled={state.sats < next.cost}
-                              onClick={() => { actions.upgradePlantSpeed(i); triggerSatsFlash() }}>
-                              <span>Speed {next.label}</span>|<span className="cost sats">{next.cost} sats</span>
-                            </button>
-                          )
-                        })() : (
-                          <button className="upgrade-btn mgr-btn" disabled={state.sats < p.mgrCost}
-                            onClick={() => { actions.buyPlantManager(i); triggerSatsFlash() }}>
-                            <span>Manager</span>
-                            <span className="cost sats">{p.mgrCost} sats</span>
+                        ) : (
+                          <button className="upgrade-btn mgr-btn" disabled>
+                            <span>Auto Manager</span>|<span className="cost">{!auth.isLoggedIn ? 'Login + Deposit 50 sats' : `Deposit ${50 - auth.totalDeposited} more sats`}</span>
                           </button>
                         )
-                      ) : (
-                        <button className="upgrade-btn mgr-btn mgr-login" disabled>
-                          <span>Auto Manager</span>|<span className="cost sats">Login</span>
+                      ) : p.speedLevel < MAX_SPEED_LEVEL ? (() => {
+                        const next = getSpeedUpgrade(p.speedLevel)!
+                        return (
+                          <button className="upgrade-btn sats-upgrade" disabled={state.sats < next.cost}
+                            onClick={() => { actions.upgradePlantSpeed(i); triggerSatsFlash() }}>
+                            <span>Speed {next.label}</span>|<span className="cost sats">{next.cost} sats</span>
+                          </button>
+                        )
+                      })() : (
+                        <button className="upgrade-btn sats-upgrade" disabled>
+                          <span>Speed MAX</span>
                         </button>
                       )}
                       {p.managerLevel === 0 && (

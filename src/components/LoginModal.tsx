@@ -33,7 +33,7 @@ export default function LoginModal({ onClose }: Props) {
         return;
       }
       localStorage.removeItem('jf_referral');
-      auth.login(res.token, res.player.npub, res.player.display_name || null, res.player.lightning_address || null, res.player.sats, res.player.joints, res.player.total_joints_earned || 0, !!res.is_new);
+      auth.login(res.token, res.player.npub, res.player.display_name || null, res.player.lightning_address || null, res.player.sats, res.player.joints, res.player.total_joints_earned || 0, !!res.is_new, res.player.total_deposited || 0);
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Connection error');

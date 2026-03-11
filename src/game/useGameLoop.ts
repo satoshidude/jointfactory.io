@@ -69,6 +69,7 @@ export interface DisplayState {
   courier: CourierState
   fabrik: FabrikState
   unlockIdx: number
+  managerCount: number
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -740,17 +741,36 @@ export function useGameLoop(
     }
   }, [spendSats, flushAndSave])
 
+  // Count total managers across all stations
+  const countManagers = useCallback((): number => {
+    const g = gsRef.current
+    let count = 0
+    for (const p of g.plantagen) { if (p.managerLevel > 0) count++ }
+    if (g.courier.mgrLevel > 0) count++
+    if (g.fabrik.mgrLevel > 0) count++
+    return count
+  }, [])
+
   const buyPlantManager = useCallback((index: number) => {
     const p = gsRef.current.plantagen[index]
     if (!p || p.managerLevel > 0) return
-    const cost = p.mgrCost
-    if (spendSats(cost)) {
+    const mgrs = countManagers()
+    if (mgrs < 2) {
+      // First 2 managers are free
       p.managerLevel = 1
-      p.timer = 0.001 // immediate auto-start
-      addManagerSatsSpent(cost)
+      p.timer = 0.001
       flushAndSave()
+    } else {
+      // 3rd+ manager costs sats
+      const cost = p.mgrCost
+      if (spendSats(cost)) {
+        p.managerLevel = 1
+        p.timer = 0.001
+        addManagerSatsSpent(cost)
+        flushAndSave()
+      }
     }
-  }, [spendSats, flushAndSave])
+  }, [spendSats, flushAndSave, countManagers])
 
   const upgradePlantSpeed = useCallback((index: number) => {
     const p = gsRef.current.plantagen[index]
@@ -768,24 +788,36 @@ export function useGameLoop(
   const buyCourierManager = useCallback(() => {
     const c = gsRef.current.courier
     if (c.mgrLevel > 0) return
-    const cost = c.mgrCost
-    if (spendSats(cost)) {
+    const mgrs = countManagers()
+    if (mgrs < 2) {
       c.mgrLevel = 1
-      addManagerSatsSpent(cost)
       flushAndSave()
+    } else {
+      const cost = c.mgrCost
+      if (spendSats(cost)) {
+        c.mgrLevel = 1
+        addManagerSatsSpent(cost)
+        flushAndSave()
+      }
     }
-  }, [spendSats, flushAndSave])
+  }, [spendSats, flushAndSave, countManagers])
 
   const buyFabrikManager = useCallback(() => {
     const f = gsRef.current.fabrik
     if (f.mgrLevel > 0) return
-    const cost = f.mgrCost
-    if (spendSats(cost)) {
+    const mgrs = countManagers()
+    if (mgrs < 2) {
       f.mgrLevel = 1
-      addManagerSatsSpent(cost)
       flushAndSave()
+    } else {
+      const cost = f.mgrCost
+      if (spendSats(cost)) {
+        f.mgrLevel = 1
+        addManagerSatsSpent(cost)
+        flushAndSave()
+      }
     }
-  }, [spendSats, flushAndSave])
+  }, [spendSats, flushAndSave, countManagers])
 
   const unlockPlantation = useCallback(() => {
     const g = gsRef.current
@@ -815,6 +847,10 @@ export function useGameLoop(
 // ── Display state builder ────────────────────────────────────────────────────
 
 function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: number): DisplayState {
+  let mgrs = 0
+  for (const p of g.plantagen) { if (p.managerLevel > 0) mgrs++ }
+  if (g.courier.mgrLevel > 0) mgrs++
+  if (g.fabrik.mgrLevel > 0) mgrs++
   return {
     cannabis: g.cannabis,
     cannabisAtFactory: g.cannabisAtFactory,
@@ -825,5 +861,6 @@ function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: nu
     courier: { ...g.courier },
     fabrik: { ...g.fabrik },
     unlockIdx: g._unlockIdx,
+    managerCount: mgrs,
   }
 }

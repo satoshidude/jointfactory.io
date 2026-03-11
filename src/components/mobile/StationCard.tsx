@@ -63,9 +63,12 @@ function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5 
 
 // ── Plantation Station Card ─────────────────────────────────────────────────
 
-export function PlantCard({ plant, joints, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow }: {
+export function PlantCard({ plant, joints, managerCount, isLoggedIn, totalDeposited, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow }: {
   plant: PlantationState
   joints: number
+  managerCount: number
+  isLoggedIn: boolean
+  totalDeposited: number
   onUpgradeLevel: () => void
   onUpgradeSpeed: () => void
   onBuyManager: () => void
@@ -139,7 +142,17 @@ export function PlantCard({ plant, joints, onUpgradeLevel, onUpgradeSpeed, onBuy
             : `Need ${fmtNum(needForLevel)} more`
           }
         </button>
-        {!isAuto && (
+        {!isAuto && managerCount < 2 && (
+          <button className="station-btn station-btn-manager station-btn-free" onClick={onBuyManager}>
+            Hire Manager — Free!
+          </button>
+        )}
+        {!isAuto && managerCount >= 2 && (!isLoggedIn || totalDeposited < 50) && (
+          <button className="station-btn station-btn-manager" disabled>
+            {!isLoggedIn ? 'Login + Deposit 50 sats to unlock' : `Deposit ${50 - totalDeposited} more sats to unlock`}
+          </button>
+        )}
+        {!isAuto && managerCount >= 2 && isLoggedIn && totalDeposited >= 50 && (
           <button className="station-btn station-btn-manager" onClick={onBuyManager}>
             Hire Manager — {plant.mgrCost} sats
           </button>
@@ -156,10 +169,13 @@ export function PlantCard({ plant, joints, onUpgradeLevel, onUpgradeSpeed, onBuy
 
 // ── Courier Station Card ────────────────────────────────────────────────────
 
-export function CourierCard({ courier, cannabis, joints, onUpgradeCap, onUpgradeSpeed, onBuyManager, onSend }: {
+export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedIn, totalDeposited, onUpgradeCap, onUpgradeSpeed, onBuyManager, onSend }: {
   courier: CourierState
   cannabis: number
   joints: number
+  managerCount: number
+  isLoggedIn: boolean
+  totalDeposited: number
   onUpgradeCap: () => void
   onUpgradeSpeed: () => void
   onBuyManager: () => void
@@ -222,7 +238,17 @@ export function CourierCard({ courier, cannabis, joints, onUpgradeCap, onUpgrade
           disabled={joints < courier.capCost}>
           Cap x2 — {fmtNum(courier.capCost)} Joints
         </button>
-        {!isAuto && (
+        {!isAuto && managerCount < 2 && (
+          <button className="station-btn station-btn-manager station-btn-free" onClick={onBuyManager}>
+            Hire Manager — Free!
+          </button>
+        )}
+        {!isAuto && managerCount >= 2 && (!isLoggedIn || totalDeposited < 50) && (
+          <button className="station-btn station-btn-manager" disabled>
+            {!isLoggedIn ? 'Login + Deposit 50 sats to unlock' : `Deposit ${50 - totalDeposited} more sats to unlock`}
+          </button>
+        )}
+        {!isAuto && managerCount >= 2 && isLoggedIn && totalDeposited >= 50 && (
           <button className="station-btn station-btn-manager" onClick={onBuyManager}>
             Hire Manager — {courier.mgrCost} sats
           </button>
@@ -239,10 +265,13 @@ export function CourierCard({ courier, cannabis, joints, onUpgradeCap, onUpgrade
 
 // ── Factory Station Card ────────────────────────────────────────────────────
 
-export function FactoryCard({ fabrik, cannabisAtFactory, joints, onUpgradeCap, onUpgradeSpeed, onBuyManager, onRoll }: {
+export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, isLoggedIn, totalDeposited, onUpgradeCap, onUpgradeSpeed, onBuyManager, onRoll }: {
   fabrik: FabrikState
   cannabisAtFactory: number
   joints: number
+  managerCount: number
+  isLoggedIn: boolean
+  totalDeposited: number
   onUpgradeCap: () => void
   onUpgradeSpeed: () => void
   onBuyManager: () => void
@@ -307,7 +336,17 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, onUpgradeCap, o
           disabled={joints < fabrik.capCost}>
           Cap x2 — {fmtNum(fabrik.capCost)} Joints
         </button>
-        {!isAuto && (
+        {!isAuto && managerCount < 2 && (
+          <button className="station-btn station-btn-manager station-btn-free" onClick={onBuyManager}>
+            Hire Manager — Free!
+          </button>
+        )}
+        {!isAuto && managerCount >= 2 && (!isLoggedIn || totalDeposited < 50) && (
+          <button className="station-btn station-btn-manager" disabled>
+            {!isLoggedIn ? 'Login + Deposit 50 sats to unlock' : `Deposit ${50 - totalDeposited} more sats to unlock`}
+          </button>
+        )}
+        {!isAuto && managerCount >= 2 && isLoggedIn && totalDeposited >= 50 && (
           <button className="station-btn station-btn-manager" onClick={onBuyManager}>
             Hire Manager — {fabrik.mgrCost} sats
           </button>

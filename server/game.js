@@ -29,6 +29,7 @@ export function loadState(npub) {
     joints: player.joints,
     sats: player.sats,
     total_joints_earned: player.total_joints_earned,
+    total_deposited: player.total_deposited || 0,
     gameState,
   };
 }
@@ -37,7 +38,7 @@ export function loadState(npub) {
 const _saveStateTx = db.transaction((npub, payload) => {
   const { gameState, joints, total_joints_earned, joints_per_sec, manager_sats_spent } = payload;
 
-  // Manager purchase: deduct sats atomically and feed lottery pot
+  // Manager purchase: deduct sats atomically, 80% feeds lottery pot
   const mgrSpent = Math.floor(manager_sats_spent || 0);
   if (mgrSpent > 0) {
     const mgrs = countManagers(gameState);
@@ -45,8 +46,9 @@ const _saveStateTx = db.transaction((npub, payload) => {
       // Atomic deduct — fails silently if not enough sats
       const deducted = db.prepare(`UPDATE players SET sats = sats - ? WHERE npub = ? AND sats >= ?`).run(mgrSpent, npub, mgrSpent);
       if (deducted.changes > 0) {
-        db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE status = 'open'`).run(mgrSpent);
-        console.log(`[Lottery] Adding ${mgrSpent} sats from ${npub.slice(0, 8)}... to pot`);
+        const toPot = Math.floor(mgrSpent * 0.8);
+        db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE status = 'open'`).run(toPot);
+        console.log(`[Lottery] Adding ${toPot} sats (80% of ${mgrSpent}) from ${npub.slice(0, 8)}... to pot`);
       }
     }
   }

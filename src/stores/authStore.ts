@@ -8,15 +8,17 @@ export interface AuthState {
   sats: number;
   joints: number;
   totalJointsEarned: number;
+  totalDeposited: number;
   isNewAccount: boolean;
 }
 
 export interface AuthContextValue extends AuthState {
-  login: (token: string, npub: string, displayName: string | null, lightningAddress: string | null, sats: number, joints: number, totalJointsEarned?: number, isNewAccount?: boolean) => void;
+  login: (token: string, npub: string, displayName: string | null, lightningAddress: string | null, sats: number, joints: number, totalJointsEarned?: number, isNewAccount?: boolean, totalDeposited?: number) => void;
   logout: () => void;
   setSats: (sats: number) => void;
   setJoints: (joints: number) => void;
   setTotalJointsEarned: (n: number) => void;
+  setTotalDeposited: (n: number) => void;
   setProfile: (displayName: string | null, lightningAddress: string | null) => void;
   isLoggedIn: boolean;
 }

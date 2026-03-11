@@ -123,6 +123,7 @@ fastify.post('/api/auth/nostr', async (req, reply) => {
       joints: player.joints,
       sats: player.sats,
       total_joints_earned: player.total_joints_earned || 0,
+      total_deposited: player.total_deposited || 0,
       display_name: player.display_name || null,
       lightning_address: player.lightning_address || null,
       invite_code: player.invite_code || null,

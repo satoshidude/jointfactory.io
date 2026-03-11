@@ -95,6 +95,9 @@ try { db.exec(`ALTER TABLE players ADD COLUMN referred_by TEXT`); } catch(_) {}
 try { db.exec(`ALTER TABLE players ADD COLUMN referral_rewarded INTEGER DEFAULT 0`); } catch(_) {}
 try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_players_invite_code ON players(invite_code)`); } catch(_) {}
 
+// Track total Lightning deposits per player
+try { db.exec(`ALTER TABLE players ADD COLUMN total_deposited INTEGER DEFAULT 0`); } catch(_) {}
+
 // Ensure there's always an open lottery round
 // Lottery draw schedule: 6 times daily in Europe/Berlin
 const DRAW_HOURS_BERLIN = [0, 5, 11, 16, 19, 21];
