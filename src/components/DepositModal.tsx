@@ -65,6 +65,7 @@ export default function DepositModal({ onClose }: Props) {
         if (pollRef.current) clearInterval(pollRef.current);
         const state = await apiFetch('/game/state');
         if (state?.sats !== undefined) auth.setSats(state.sats);
+        if (state?.total_deposited !== undefined) auth.setTotalDeposited(state.total_deposited);
       }
     }, 2000);
   }
