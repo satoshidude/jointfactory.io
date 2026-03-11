@@ -1,9 +1,12 @@
+import LotteryWidget from '../../components/mobile/LotteryWidget'
 import './MobilePages.css'
 
 export default function MobileGame() {
   return (
     <div className="mobile-page">
-      <div className="mobile-placeholder">
+      <LotteryWidget />
+
+      <div className="mobile-placeholder" style={{ marginTop: 24 }}>
         <div className="mobile-placeholder-icon">🌿</div>
         <h2>Grow Station</h2>
         <p>Station cycle rings + upgrade buttons coming here</p>

@@ -36,7 +36,7 @@
 
 .compact-header-logo span {
   font-family: var(--font-heading);
-  font-size: 11px;
+  font-size: 8px;
   color: var(--neon-green);
   text-shadow: 0 0 10px rgba(57, 255, 20, .5);
 }
@@ -55,7 +55,7 @@
   align-items: center;
   gap: 4px;
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -88,7 +88,7 @@
   border-radius: 6px;
   color: var(--neon-green);
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;

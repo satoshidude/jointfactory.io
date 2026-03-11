@@ -22,7 +22,7 @@
 
 .mobile-placeholder h2 {
   font-family: var(--font-heading);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--neon-green);
   text-shadow: 0 0 10px rgba(57, 255, 20, .4);
   margin: 0;
@@ -30,7 +30,7 @@
 
 .mobile-placeholder p {
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   margin: 0;
   max-width: 280px;

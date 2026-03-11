@@ -1,0 +1,146 @@
+/* -- Lottery Widget (Home Page) ------------------------------------------- */
+
+.lottery-widget {
+  background: var(--bg-card);
+  background-image: var(--paper-noise);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Header row */
+.lottery-widget-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lottery-widget-icon {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, .5));
+}
+
+.lottery-widget-title {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  color: var(--neon-gold);
+  text-shadow: 0 0 10px rgba(255, 215, 0, .4);
+  flex: 1;
+}
+
+.lottery-widget-round {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Countdown row */
+.lottery-widget-countdown {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.lottery-widget-time {
+  font-family: var(--font-body);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.lottery-widget-remaining {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stats row */
+.lottery-widget-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lottery-widget-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.lottery-widget-stat:first-child {
+  color: var(--neon-gold);
+}
+
+.lottery-widget-stat:first-child svg {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
+}
+
+/* Buy section */
+.lottery-widget-buy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lottery-widget-my-tickets {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--neon-purple);
+  font-weight: 700;
+}
+
+.lottery-widget-buy-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--neon-purple);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 0 16px rgba(204, 68, 255, .3);
+}
+
+.lottery-widget-buy-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 0 24px rgba(204, 68, 255, .5);
+}
+
+.lottery-widget-buy-btn:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+.lottery-widget-hint {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.lottery-widget-error {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.lottery-widget-login-hint {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 4px 0;
+}
