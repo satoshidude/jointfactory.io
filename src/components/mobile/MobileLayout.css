@@ -7,7 +7,7 @@
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
+  background: transparent;
   overflow: hidden;
   font-size: clamp(15px, 4vw, 17px);
   position: relative;
@@ -32,8 +32,12 @@
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   padding: 0;
-  background-image: var(--grid-bg);
-  background-size: 36px 36px;
+  background: transparent;
+  scrollbar-width: none;
+}
+
+.mobile-content::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── Version tag ───────────────────────────────────────────────────────────── */

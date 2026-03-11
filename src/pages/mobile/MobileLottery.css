@@ -119,7 +119,7 @@
   color: var(--neon-green);
   padding: 6px 14px;
   border: 1px solid rgba(57, 255, 20, 0.25);
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgba(57, 255, 20, 0.06);
 }
 
@@ -159,7 +159,7 @@
   background: var(--bg-card);
   background-image: var(--paper-noise);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -239,7 +239,7 @@
   padding: 10px;
   background: rgba(255, 255, 255, .03);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .ml-stat-label {
@@ -272,7 +272,7 @@
   padding: 10px;
   background: rgba(255, 255, 255, .02);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .ml-price-curve-header {
@@ -346,7 +346,7 @@
   padding: 12px;
   background: var(--neon-purple);
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #fff;
   font-family: var(--font-body);
   font-size: 14px;
@@ -405,7 +405,7 @@
 .ml-history-card {
   background: rgba(255, 255, 255, .02);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 10px 12px;
 }
 
@@ -516,7 +516,7 @@
   height: 28px;
   background: rgba(255, 255, 255, .03);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--text-primary);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;

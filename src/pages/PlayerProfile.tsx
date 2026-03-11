@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trophy, Zap, ArrowLeft, Circle, Cannabis, Truck, Factory, Shield, Ticket, Clock, Calendar, ExternalLink, User, Save, Loader, Copy, Check } from 'lucide-react';
+import { Trophy, Zap, Circle, Cannabis, Sprout, Footprints, Factory, Shield, Ticket, Clock, Calendar, ExternalLink, User, Save, Loader, Copy, Check } from 'lucide-react';
 import { useAuth } from '../stores/authStore';
 import { apiFetch } from '../lib/api';
 import { nip19 } from 'nostr-tools';
@@ -149,7 +149,6 @@ export default function PlayerProfile() {
   if (loading) return <div className="pp-page"><div className="pp-loading">Loading...</div></div>;
   if (error || !player) return (
     <div className="pp-page">
-      <button className="info-back" onClick={() => navigate(-1)}><ArrowLeft size={16} /> Back</button>
       <div className="pp-error">{error || 'Player not found'}</div>
     </div>
   );
@@ -205,10 +204,6 @@ export default function PlayerProfile() {
 
   return (
     <div className="pp-page">
-      <button className="info-back" onClick={() => navigate(-1)}>
-        <ArrowLeft size={16} /> Back
-      </button>
-
       {/* Hero */}
       <div className="pp-hero">
         <div className="pp-hero-glow" />
@@ -233,7 +228,7 @@ export default function PlayerProfile() {
       {/* Edit Profile (own profile only) */}
       {isOwnProfile && (
         <div className="pp-card pp-edit-card">
-          <h2 className="pp-card-title"><User size={16} /> Edit Profile</h2>
+          <h2 className="pp-card-title"><User size={16} className="pp-icon-purple" /> Edit Profile</h2>
           <div className="pp-key-block">
             <div className="pp-key-row">
               <span className="pp-key-label">npub</span>
@@ -276,7 +271,7 @@ export default function PlayerProfile() {
       {/* Production Stats */}
       {production && (
         <div className="pp-card">
-          <h2 className="pp-card-title"><Cannabis size={16} /> Production</h2>
+          <h2 className="pp-card-title"><Cannabis size={16} className="pp-icon-green" /> Production</h2>
           <div className="pp-stats-grid">
             <div className="pp-stat">
               <span className="pp-stat-val green">{fmtNum(liveJoints)}</span>
@@ -310,11 +305,11 @@ export default function PlayerProfile() {
       {/* Stations */}
       {stations && (
         <div className="pp-card">
-          <h2 className="pp-card-title"><Factory size={16} /> Stations</h2>
+          <h2 className="pp-card-title"><Sprout size={16} className="pp-icon-green" /> Stations</h2>
           <div className="pp-stations">
             {stations.plantations.map((p, i) => (
               <div key={i} className="pp-station-row">
-                <span className="pp-station-icon">{p.icon || '🌱'}</span>
+                <Sprout size={14} className="pp-station-plant" />
                 <span className="pp-station-name">{p.name}</span>
                 <span className="pp-station-level">Lv {p.level}</span>
                 {p.has_manager && <Shield size={12} className="pp-mgr-badge" />}
@@ -322,7 +317,7 @@ export default function PlayerProfile() {
             ))}
             {stations.courier && (
               <div className="pp-station-row">
-                <Truck size={14} className="pp-station-truck" />
+                <Footprints size={14} className="pp-station-courier" />
                 <span className="pp-station-name">Courier</span>
                 <span className="pp-station-level">Cap {stations.courier.capacity} / Spd {stations.courier.speed_level}</span>
                 {stations.courier.has_manager && <Shield size={12} className="pp-mgr-badge" />}
@@ -343,7 +338,7 @@ export default function PlayerProfile() {
       {/* Lottery */}
       {lottery && (
         <div className="pp-card">
-          <h2 className="pp-card-title"><Ticket size={16} /> Lottery</h2>
+          <h2 className="pp-card-title"><Ticket size={16} className="pp-icon-gold" /> Lottery</h2>
           <div className="pp-stats-grid">
             <div className="pp-stat">
               <span className="pp-stat-val gold">{lottery.total_sats_won.toLocaleString()}</span>

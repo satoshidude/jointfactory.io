@@ -1,5 +1,5 @@
 import { useAuth } from '../../stores/authStore'
-import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, UserPlus, AlertTriangle, MessageSquare, Github } from 'lucide-react'
+import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, UserPlus, AlertTriangle, MessageSquare, Github, UserCog } from 'lucide-react'
 import './MobileInfo.css'
 import './MobileLottery.css'
 
@@ -120,6 +120,17 @@ export default function MobileInfo() {
             </p>
           </div>
         </div>
+        {auth.isLoggedIn && (
+          <div className="mi-feature">
+            <UserCog size={22} className="mi-feat-icon purple" />
+            <div>
+              <h3 className="mi-feat-title">Nostr Profile Manager</h3>
+              <p className="mi-feat-desc">
+                <a href="/profile/nostr" className="mi-link purple">Edit your Nostr profile</a> — update your name, bio, picture, lightning address and more.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Links & Contact ──────────────────────────── */}

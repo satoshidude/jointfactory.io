@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Copy, Check, Gift, Zap, Shield, Clock, Users, MessageSquare } from 'lucide-react';
+import { UserPlus, Copy, Check, Gift, Zap, Shield, Clock, Users, MessageSquare, X } from 'lucide-react';
+import { nip19 } from 'nostr-tools';
 import { apiFetch } from '../lib/api';
 import { useAuth } from '../stores/authStore';
 import './Invite.css';
 
 interface Referral {
+  npub: string;
   display_name: string | null;
   created_at: number;
   rewarded: boolean;
@@ -325,26 +327,37 @@ export default function InvitePage() {
         <div className="invite-buddies-card">
           <h3 className="invite-buddies-title">Your Buddies</h3>
           <div className="invite-buddies-list">
-            {referrals.map((r, i) => (
-              <div key={i} className={`invite-buddy-row${r.rewarded ? ' rewarded' : ''}`}>
-                <div className="invite-buddy-info">
-                  <span className="invite-buddy-name">{r.display_name || 'Unknown'}</span>
-                  <span className="invite-buddy-meta">
-                    <Clock size={10} /> {timeAgo(r.created_at)}
-                    <span className="invite-buddy-mgrs">
-                      <Shield size={10} /> {r.managers}/3 managers
+            {referrals.map((r, i) => {
+              const profileUrl = `/u/${(() => { try { return nip19.npubEncode(r.npub) } catch { return r.npub } })()}`
+              return (
+                <div key={i} className={`invite-buddy-row${r.rewarded ? ' rewarded' : ''}`}>
+                  <div className="invite-buddy-info">
+                    <a className="invite-buddy-name" href={profileUrl}>{r.display_name || 'Unknown'}</a>
+                    <span className="invite-buddy-meta">
+                      <Clock size={10} /> {timeAgo(r.created_at)}
+                      <span className="invite-buddy-mgrs">
+                        <Shield size={10} /> {r.managers}/3 managers
+                      </span>
                     </span>
-                  </span>
+                  </div>
+                  <div className="invite-buddy-status">
+                    {r.rewarded ? (
+                      <span className="invite-buddy-done"><Zap size={14} /> +10 sats</span>
+                    ) : (
+                      <span className="invite-buddy-pending">{3 - r.managers} manager{3 - r.managers !== 1 ? 's' : ''} to go</span>
+                    )}
+                  </div>
+                  <button className="invite-buddy-delete" onClick={() => {
+                    if (!window.confirm(`Remove ${r.display_name || 'this buddy'} from your list?`)) return
+                    apiFetch(`/player/invite/${r.npub}`, { method: 'DELETE' }).then(res => {
+                      if (res.ok) setReferrals(prev => prev.filter(ref => ref.npub !== r.npub))
+                    })
+                  }} title="Remove buddy">
+                    <X size={14} />
+                  </button>
                 </div>
-                <div className="invite-buddy-status">
-                  {r.rewarded ? (
-                    <span className="invite-buddy-done"><Zap size={14} /> +10 sats</span>
-                  ) : (
-                    <span className="invite-buddy-pending">{3 - r.managers} manager{3 - r.managers !== 1 ? 's' : ''} to go</span>
-                  )}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       ) : null}
