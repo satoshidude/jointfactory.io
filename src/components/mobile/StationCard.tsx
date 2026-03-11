@@ -237,7 +237,6 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
   const progress = courier.state === 'toPlant' ? 1 - rawProgress : rawProgress
   const speedUpg = getSpeedUpgrade(courier.speedLevel)
   const isAuto = courier.mgrLevel > 0
-  const stateLabel = courier.state === 'toFactory' ? 'To Factory' : courier.state === 'toPlant' ? 'Returning' : 'Idle'
   const canSend = courier.state === 'idle' && cannabis > 0
 
   return (
