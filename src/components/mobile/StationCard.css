@@ -176,9 +176,13 @@
 }
 
 .station-stat-value {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   color: var(--text-primary);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .station-milestone .station-stat-value {

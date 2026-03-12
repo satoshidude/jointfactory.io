@@ -260,7 +260,7 @@ async function publishBotProfile() {
       created_at: Math.floor(Date.now() / 1000),
       content: JSON.stringify({
         name: 'jointfactory.io',
-        about: 'Official Joint Factory Bot — Idle Tycoon Game on Nostr with Lightning Lottery ⚡\n\n🕐 Daily lottery draws at: 00:00 · 05:00 · 11:00 · 16:00 · 19:00 · 21:00 (Berlin time)\n\n🎮 Grow cannabis, roll joints, win sats! Check the webapp and all its amazing features!',
+        about: 'Official Joint Factory Bot — Idle Tycoon Game on Nostr with Lightning Lottery ⚡\n\n🕐 Daily lottery draws at: 00:00 · 05:00 · 11:00 · 16:00 · 19:00 · 21:00 (Berlin time)\n\n🎮 Grow cannabis, transport weed, roll joints, win sats! Check the webapp and all its amazing features!',
         picture: 'https://jointfactory.io/avatar.gif',
         banner: 'https://jointfactory.io/banner.jpg',
         nip05: 'jointfactory@nsnip.io',
