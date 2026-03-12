@@ -290,48 +290,93 @@ async function publishBotProfile() {
 setTimeout(publishBotProfile, 5000);
 
 // ---------------------------------------------------------------------------
-// Lottery reminder (1 hour before each draw)
+// Lottery reminders (2h + 1h before each draw, deleted after draw)
 // ---------------------------------------------------------------------------
 
 import cron from 'node-cron';
 
 let _reminderDb = null;
-const _postedReminders = new Set();
+const _postedReminders = new Set(); // tracks "roundId-hours" keys
+const _reminderEventIds = new Map(); // roundId -> [eventId, ...]
 
 export function initLotteryReminder(db) {
   _reminderDb = db;
   console.log('[nostr] Lottery reminder cron started');
 }
 
-// Check every minute if a draw is ~60 min away
+async function deleteReminderEvents(roundId) {
+  const eventIds = _reminderEventIds.get(roundId);
+  if (!eventIds || eventIds.length === 0) return;
+
+  try {
+    const deleteEvent = finalizeEvent({
+      kind: 5,
+      created_at: Math.floor(Date.now() / 1000),
+      content: 'Lottery draw completed',
+      tags: eventIds.map(id => ['e', id]),
+    }, serverSecretKey);
+    await publishToAllRelays(deleteEvent);
+    console.log(`[nostr] Deleted ${eventIds.length} reminder(s) for round ${roundId}`);
+  } catch (err) {
+    console.error('[nostr] Failed to delete reminders:', err.message);
+  }
+  _reminderEventIds.delete(roundId);
+}
+
+async function postReminder(round, hoursLabel) {
+  const potSats = round.total_sats_collected || 0;
+  const potLine = potSats > 0
+    ? `Current pot: ${potSats.toLocaleString()} sats \u2014 and growing.`
+    : 'The pot is empty \u2014 be the first to roll and set the stakes!';
+
+  const ticketCount = _reminderDb.prepare(
+    `SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=?`
+  ).get(round.id)?.n || 0;
+
+  const note = await publishNote(
+    `\u26a1 Lightning Lottery draws in ${hoursLabel}!\n\n${potLine}\n${ticketCount} ticket${ticketCount !== 1 ? 's' : ''} in play.\n\nRoll your joints, grab your tickets and don\u2019t miss the draw!\n\n\ud83d\udc49 ${SITE_URL}`,
+    []
+  );
+
+  // Track event ID for deletion after draw
+  if (!_reminderEventIds.has(round.id)) _reminderEventIds.set(round.id, []);
+  _reminderEventIds.get(round.id).push(note.id);
+
+  console.log(`[nostr] Lottery reminder (${hoursLabel}) posted for round ${round.id}`);
+}
+
+// Check every minute for upcoming draws and completed draws
 cron.schedule('* * * * *', async () => {
   if (!_reminderDb) return;
   try {
     const now = Math.floor(Date.now() / 1000);
-    const windowStart = now + 55 * 60;
-    const windowEnd = now + 65 * 60;
-    const round = _reminderDb.prepare(
-      `SELECT id, draws_at, total_sats_collected FROM lottery_rounds WHERE status='open' AND draws_at >= ? AND draws_at <= ? LIMIT 1`
-    ).get(windowStart, windowEnd);
 
-    if (!round) return;
-    if (_postedReminders.has(round.id)) return;
-    _postedReminders.add(round.id);
+    // Post reminders at 2h and 1h before draw
+    for (const { minutes, label } of [{ minutes: 120, label: '2 hours' }, { minutes: 60, label: '1 hour' }]) {
+      const windowStart = now + (minutes - 5) * 60;
+      const windowEnd = now + (minutes + 5) * 60;
+      const round = _reminderDb.prepare(
+        `SELECT id, draws_at, total_sats_collected FROM lottery_rounds WHERE status='open' AND draws_at >= ? AND draws_at <= ? LIMIT 1`
+      ).get(windowStart, windowEnd);
 
-    const potSats = round.total_sats_collected || 0;
-    const potLine = potSats > 0
-      ? `Current pot: ${potSats.toLocaleString()} sats \u2014 and growing.`
-      : 'The pot is empty \u2014 be the first to roll and set the stakes!';
+      if (!round) continue;
+      const key = `${round.id}-${minutes}`;
+      if (_postedReminders.has(key)) continue;
+      _postedReminders.add(key);
 
-    const ticketCount = _reminderDb.prepare(
-      `SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=?`
-    ).get(round.id)?.n || 0;
+      await postReminder(round, label);
+    }
 
-    await publishNote(
-      `\u26a1 Lightning Lottery draws in 1 hour!\n\n${potLine}\n${ticketCount} ticket${ticketCount !== 1 ? 's' : ''} in play.\n\nRoll your joints, grab your tickets and don\u2019t miss the draw!\n\n\ud83d\udc49 ${SITE_URL}`,
-      []
-    );
-    console.log(`[nostr] Lottery reminder posted for round ${round.id}`);
+    // Delete reminders for recently completed draws
+    const recentlyDrawn = _reminderDb.prepare(
+      `SELECT id FROM lottery_rounds WHERE status='drawn' AND draws_at >= ? AND draws_at <= ?`
+    ).all(now - 10 * 60, now);
+
+    for (const round of recentlyDrawn) {
+      if (_reminderEventIds.has(round.id)) {
+        await deleteReminderEvents(round.id);
+      }
+    }
   } catch (err) {
     console.error('[nostr] Lottery reminder error:', err.message);
   }
