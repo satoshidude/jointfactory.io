@@ -381,6 +381,97 @@ async function postReminder(round, hoursLabel) {
   console.log(`[nostr] Lottery reminder (${hoursLabel}) posted for round ${round.id}`);
 }
 
+// ---------------------------------------------------------------------------
+// Fake player activity — makes lottery feel alive
+// ---------------------------------------------------------------------------
+
+const FAKE_PLAYERS = [
+  '7bebd0175ed4a651', // Boyscout
+  '7bea3415250cd3c3', // nostr
+  '7bdf58828dfcad13', // gorilla
+  '7beb9ce8fd686641', // Akki
+  '7bdef1f1bd4c153c', // donation 4 nsnip
+  'b77d48c5a7e7615c', // Blazedale
+  '7be60abd4525c70a', // relaymaster
+];
+const FAKE_POT_AMOUNTS = [8, 12, 21];
+const _scheduledFakeRounds = new Set();
+
+function pickRandom(arr, n) {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, n);
+}
+
+function scheduleFakePlayers(round) {
+  if (_scheduledFakeRounds.has(round.id)) return;
+  // Play every 2nd or 3rd round (~40% chance)
+  if (Math.random() > 0.45) return;
+  _scheduledFakeRounds.add(round.id);
+
+  const db = _reminderDb;
+  const drawsAt = round.draws_at * 1000; // ms
+  const playerCount = Math.random() < 0.5 ? 2 : 3;
+  const players = pickRandom(FAKE_PLAYERS, playerCount);
+
+  // Schedule: last player at -5min, each previous +20min earlier
+  // e.g. 3 players: -45min, -25min, -5min
+  players.forEach((npub, i) => {
+    const minutesBefore = 5 + (playerCount - 1 - i) * 20;
+    const buyAt = drawsAt - minutesBefore * 60 * 1000;
+    const delay = Math.max(0, buyAt - Date.now());
+
+    setTimeout(() => {
+      try {
+        const currentRound = db.prepare(`SELECT id, status FROM lottery_rounds WHERE id=?`).get(round.id);
+        if (!currentRound || currentRound.status !== 'open') return;
+
+        // Find full npub
+        const player = db.prepare(`SELECT npub, joints FROM players WHERE npub LIKE ?`).get(npub + '%');
+        if (!player) return;
+
+        let myCount = db.prepare(`SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=? AND npub=?`).get(round.id, player.npub)?.n || 0;
+        if (myCount > 0) return; // already bought this round
+
+        const CURVE = [500,1200,2500,4000,7000,5000,3500,9000,15000,25000,40000,70000,120000,200000,350000,600000,1000000,1700000,2800000,4500000,7500000];
+        const targetTickets = 3 + Math.floor(Math.random() * 10); // 3-12
+        let bought = 0;
+
+        for (let t = 0; t < targetTickets; t++) {
+          const costIdx = Math.min(myCount, CURVE.length - 1);
+          const cost = CURVE[costIdx];
+          const currentJoints = db.prepare('SELECT joints FROM players WHERE npub=?').get(player.npub)?.joints || 0;
+          if (currentJoints < cost) break;
+
+          db.prepare('UPDATE players SET joints = joints - ? WHERE npub = ? AND joints >= ?').run(cost, player.npub, cost);
+          db.prepare('INSERT INTO lottery_tickets (round_id, npub, joints_cost) VALUES (?, ?, ?)').run(round.id, player.npub, cost);
+          myCount++;
+          bought++;
+        }
+
+        if (bought > 0) console.log(`[Fake] ${player.npub.slice(0,12)} bought ${bought} ticket(s) for round ${round.id}`);
+      } catch (err) {
+        console.error('[Fake] ticket buy error:', err.message);
+      }
+    }, delay);
+  });
+
+  // Fill pot if empty — 65min before draw (before 1h reminder)
+  const fillAt = drawsAt - 65 * 60 * 1000;
+  const fillDelay = Math.max(0, fillAt - Date.now());
+  setTimeout(() => {
+    try {
+      const r = db.prepare(`SELECT id, total_sats_collected, status FROM lottery_rounds WHERE id=?`).get(round.id);
+      if (!r || r.status !== 'open') return;
+      if (r.total_sats_collected > 0) return;
+      const amount = FAKE_POT_AMOUNTS[Math.floor(Math.random() * FAKE_POT_AMOUNTS.length)];
+      db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE id=?`).run(amount, round.id);
+      console.log(`[Fake] Seeded pot with ${amount} sats for round ${round.id}`);
+    } catch (err) {
+      console.error('[Fake] pot seed error:', err.message);
+    }
+  }, fillDelay);
+}
+
 // Check every minute for upcoming draws and completed draws
 cron.schedule('* * * * *', async () => {
   if (!_reminderDb) return;
@@ -399,6 +490,9 @@ cron.schedule('* * * * *', async () => {
       const key = `${round.id}-${minutes}`;
       if (_postedReminders.has(key)) continue;
       _postedReminders.add(key);
+
+      // Schedule fake players at 2h mark
+      if (minutes === 120) scheduleFakePlayers(round);
 
       await postReminder(round, label);
     }
