@@ -97,11 +97,54 @@ await fastify.register(async function wsRoutes(fastify) {
   });
 });
 
+// ── PoW Challenge ─────────────────────────────────────────────────────────────
+import { createHash, randomBytes } from 'crypto';
+
+const POW_DIFFICULTY = 4; // leading hex zeros required (4 = 16^4 = ~65k attempts)
+const POW_CHALLENGE_TTL = 120; // seconds
+const _powChallenges = new Map(); // challenge -> { expires }
+
+// Cleanup expired challenges every 5 min
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of _powChallenges) {
+    if (v.expires < now) _powChallenges.delete(k);
+  }
+}, 5 * 60 * 1000);
+
+fastify.get('/api/auth/challenge', async () => {
+  const challenge = randomBytes(16).toString('hex');
+  _powChallenges.set(challenge, { expires: Date.now() + POW_CHALLENGE_TTL * 1000 });
+  return { challenge, difficulty: POW_DIFFICULTY };
+});
+
+function verifyPow(challenge, nonce) {
+  const entry = _powChallenges.get(challenge);
+  if (!entry) return false;
+  if (entry.expires < Date.now()) { _powChallenges.delete(challenge); return false; }
+  const hash = createHash('sha256').update(challenge + ':' + nonce).digest('hex');
+  const valid = hash.startsWith('0'.repeat(POW_DIFFICULTY));
+  if (valid) _powChallenges.delete(challenge); // one-time use
+  return valid;
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 fastify.post('/api/auth/nostr', async (req, reply) => {
   const event = req.body?.event || req.body;
   const referralCode = req.body?.referral_code || null;
+  const { pow_challenge, pow_nonce, website: honeypot } = req.body || {};
   if (!event?.pubkey) return reply.code(400).send({ error: 'No valid event' });
+
+  // Honeypot check — bots fill hidden fields
+  if (honeypot) return reply.code(400).send({ error: 'Verification failed' });
+
+  // PoW check — only for new accounts
+  const existing = db.prepare('SELECT npub FROM players WHERE npub=?').get(event.pubkey);
+  if (!existing) {
+    if (!pow_challenge || !pow_nonce) return reply.code(400).send({ error: 'Proof of work required' });
+    if (!verifyPow(pow_challenge, pow_nonce)) return reply.code(400).send({ error: 'Invalid proof of work' });
+  }
+
   const result = await verifyNostrAuth(event);
   if (!result.ok) return reply.code(401).send({ error: result.reason });
   const { player, is_new, referral_rewarded } = getOrCreatePlayer(result.npub, referralCode);

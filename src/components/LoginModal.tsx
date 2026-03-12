@@ -4,6 +4,7 @@ import { useAuth } from '../stores/authStore';
 import { hasExtension, loginWithExtension, signWithNsec, generateKeypair, signWithSecretKey } from '../lib/nostr';
 import { apiFetch } from '../lib/api';
 import { fetchNostrProfile } from '../lib/nostrProfile';
+import { fetchChallenge, solvePow } from '../lib/pow';
 import './LoginModal.css';
 
 type Tab = 'extension' | 'nsec' | 'new';
@@ -17,6 +18,7 @@ export default function LoginModal({ onClose }: Props) {
   const [nsecInput, setNsecInput] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [powStatus, setPowStatus] = useState('');
   const [generated, setGenerated] = useState<{ nsec: string; npub: string; secretKey: Uint8Array } | null>(null);
   const auth = useAuth();
 
@@ -25,10 +27,24 @@ export default function LoginModal({ onClose }: Props) {
     setError('');
     try {
       const referralCode = localStorage.getItem('jf_referral') || null;
-      const res = await apiFetch('/auth/nostr', {
+
+      // First try without PoW (existing accounts don't need it)
+      let res = await apiFetch('/auth/nostr', {
         method: 'POST',
         body: JSON.stringify({ event: signedEvent, referral_code: referralCode }),
       });
+
+      // If PoW required (new account), solve challenge and retry
+      if (!res.ok && res.error === 'Proof of work required') {
+        setPowStatus('Mining your access...');
+        const { challenge, difficulty } = await fetchChallenge();
+        const nonce = await solvePow(challenge, difficulty);
+        setPowStatus('');
+        res = await apiFetch('/auth/nostr', {
+          method: 'POST',
+          body: JSON.stringify({ event: signedEvent, referral_code: referralCode, pow_challenge: challenge, pow_nonce: nonce }),
+        });
+      }
       if (!res.ok) {
         setError(res.error || 'Login failed');
         return;
@@ -191,6 +207,11 @@ export default function LoginModal({ onClose }: Props) {
             </>
           )}
 
+          {/* Honeypot — invisible to humans, bots fill it */}
+          <input type="text" name="website" autoComplete="off" tabIndex={-1}
+            style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }} />
+
+          {powStatus && <p className="login-pow-status">{powStatus}</p>}
           {error && <p className="login-error">{error}</p>}
         </div>
 
