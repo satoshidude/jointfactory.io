@@ -14,7 +14,7 @@ interface PlayerInfo {
 }
 
 const COLORS = ['#ffd700', '#39ff14', '#cc44ff', '#00d4ff', '#ff6b6b', '#ff69b4', '#ff8c00']
-const PER_PAGE = 10
+const PER_PAGE = 11
 
 function fmtSats(n: number): string {
   if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B'

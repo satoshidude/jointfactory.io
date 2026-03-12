@@ -1,12 +1,23 @@
 /* ── Mobile Info Page ─────────────────────────────────────────────────────── */
 
 .mi-page {
-  max-width: 600px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 12px;
+}
+
+@media (min-width: 1100px) {
+  .mi-page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .mi-page > .ml-hero,
+  .mi-page > .mi-disclaimer,
+  .mi-page > .mi-card-welcome,
+  .mi-page > .mi-card-howto {
+    grid-column: 1 / -1;
+  }
 }
 
 .mi-card {
