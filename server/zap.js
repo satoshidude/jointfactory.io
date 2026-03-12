@@ -259,11 +259,11 @@ async function publishBotProfile() {
       kind: 0,
       created_at: Math.floor(Date.now() / 1000),
       content: JSON.stringify({
-        name: 'Joint Factory Bot',
+        name: 'jointfactory.io',
         about: 'Official bot for Joint Factory — Idle Tycoon on Nostr with Lightning Lottery ⚡\n\nhttps://jointfactory.io',
         picture: 'https://jointfactory.io/avatar.gif',
         banner: 'https://jointfactory.io/banner.jpg',
-        nip05: 'jf@nsnip.io',
+        nip05: 'jointfactory@nsnip.io',
         lud16: 'jf@nsnip.io',
         website: 'https://jointfactory.io',
       }),

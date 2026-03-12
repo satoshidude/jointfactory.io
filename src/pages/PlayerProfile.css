@@ -1,10 +1,8 @@
 .pp-page {
-  max-width: 600px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 24px 16px 40px;
+  padding: 12px;
 }
 
 .pp-page .info-back {

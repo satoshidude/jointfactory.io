@@ -11,16 +11,28 @@
   gap: 12px;
 }
 
+/* Mobile: flatten columns so all cards are direct grid items */
 .mgp-col {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: contents;
 }
 
-/* 3-col: Lottery+Factory+Courier left column, Plantations right */
+/* Leaderboard last on mobile */
+.mgp-col-left > .lb-card {
+  order: 99;
+}
+
+/* Desktop: restore column containers */
 @media (min-width: 1024px) {
   .mobile-game-page {
     grid-template-columns: 1fr 2fr;
+  }
+  .mgp-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .mgp-col-left > .lb-card {
+    order: unset;
   }
 }
 
@@ -111,12 +123,11 @@
 
 /* Mobile Wallet */
 .mobile-wallet {
-  max-width: 600px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
+
 
 .mobile-wallet-login-btn {
   margin-top: 20px;
@@ -140,8 +151,6 @@
 /* ── Mobile Profile ────────────────────────────────────────────────────────── */
 
 .mobile-profile {
-  max-width: 600px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;

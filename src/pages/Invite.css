@@ -1,11 +1,20 @@
 .invite-page {
-  max-width: 600px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 24px 16px 40px;
+  padding: 12px;
 }
+
+@media (min-width: 700px) {
+  .invite-page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .invite-page > .invite-hero {
+    grid-column: 1 / -1;
+  }
+}
+
 
 .invite-page .info-back {
   display: flex;
