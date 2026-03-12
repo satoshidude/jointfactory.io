@@ -46,7 +46,7 @@ export default function InfoPage() {
                   or any Nostr signer. Your progress is tied to your key.
                   {auth.isLoggedIn && auth.npub && (
                     <>{' '}Check out your profile on{' '}
-                      <a href={`https://nostr.nsnip.io/#/p/${auth.npub}`} target="_blank" rel="noopener noreferrer" className="info-link green">
+                      <a href={`https://nostr.nsnip.io/users/${auth.npub}`} target="_blank" rel="noopener noreferrer" className="info-link green">
                         Jumble <ExternalLink size={10} />
                       </a>.
                     </>
@@ -147,7 +147,7 @@ export default function InfoPage() {
           <div className="info-contact">
             <Mail size={16} className="info-contact-icon" />
             <span>Nostr / Mail / Zap:{' '}
-              <a href="https://nostr.nsnip.io/#/p/satoshidude@nsnip.io" target="_blank" rel="noopener noreferrer" className="info-link gold">
+              <a href="https://nostr.nsnip.io/users/satoshidude@nsnip.io" target="_blank" rel="noopener noreferrer" className="info-link gold">
                 satoshidude@nsnip.io <ExternalLink size={10} />
               </a>
             </span>
