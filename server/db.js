@@ -98,6 +98,14 @@ try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_players_invite_code ON play
 // Track total Lightning deposits per player
 try { db.exec(`ALTER TABLE players ADD COLUMN total_deposited INTEGER DEFAULT 0`); } catch(_) {}
 
+// Key-value store for bot state (e.g. nostr event IDs)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS kv_store (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
+`);
+
 // Ensure there's always an open lottery round
 // Lottery draw schedule: 6 times daily in Europe/Berlin
 const DRAW_HOURS_BERLIN = [0, 5, 11, 16, 19, 21];

@@ -151,6 +151,17 @@
   animation: cycle-flash 0.4s ease-out;
 }
 
+/* ── Pulse Ring ───────────────────────────────────────────────────────────── */
+
+.pulse-ring-stroke {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% { opacity: 0.6; stroke-width: 4; }
+  50% { opacity: 1; stroke-width: 5; }
+}
+
 /* ── Station Info ──────────────────────────────────────────────────────────── */
 
 .station-info {

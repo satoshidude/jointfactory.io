@@ -27,12 +27,50 @@ function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5,
   const clamped = Math.max(0, Math.min(1, progress))
   const offset = circ * (1 - clamped)
   const prevRef = useRef(clamped)
-  const flashRef = useRef(0)
+  const arcRef = useRef<SVGCircleElement>(null)
+  const fadingRef = useRef(false)
 
-  if (prevRef.current > 0.7 && clamped < 0.3) {
-    flashRef.current++
-  }
-  prevRef.current = clamped
+  useEffect(() => {
+    const el = arcRef.current
+    if (!el) return
+    const jumped = prevRef.current - clamped > 0.3
+    prevRef.current = clamped
+
+    if (jumped) {
+      // Cycle reset — ring should already be fading/faded
+      if (!fadingRef.current) {
+        // Fallback: instant reset if fade didn't trigger
+        el.style.transition = 'none'
+        el.setAttribute('stroke-dashoffset', String(offset))
+        el.getBoundingClientRect()
+        el.style.transition = 'stroke-dashoffset 0.15s linear'
+      }
+      return
+    }
+
+    if (clamped > 0.97 && !fadingRef.current) {
+      // Near end of cycle — snap to full, then fade out
+      fadingRef.current = true
+      el.style.transition = 'stroke-dashoffset 0.05s linear'
+      el.setAttribute('stroke-dashoffset', '0')
+      setTimeout(() => {
+        el.style.transition = 'opacity 0.3s ease-out'
+        el.style.opacity = '0'
+        setTimeout(() => {
+          // Reset to empty while invisible
+          el.style.transition = 'none'
+          el.setAttribute('stroke-dashoffset', String(circ))
+          el.getBoundingClientRect()
+          // Fade back in
+          el.style.transition = 'opacity 0.2s ease-in, stroke-dashoffset 0.15s linear'
+          el.style.opacity = '1'
+          fadingRef.current = false
+        }, 300)
+      }, 100)
+    } else if (!fadingRef.current) {
+      el.setAttribute('stroke-dashoffset', String(offset))
+    }
+  })
 
   const glowIntensity = Math.min(1, speed / 4)
   const isClickable = onClick && !disabled
@@ -48,18 +86,12 @@ function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5,
       }}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none"
           stroke={trackColor} strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+        <circle ref={arcRef} cx={size / 2} cy={size / 2} r={r} fill="none"
           stroke={color} strokeWidth={stroke + glowIntensity * 2}
-          strokeDasharray={circ} strokeDashoffset={offset}
+          strokeDasharray={circ} strokeDashoffset={circ}
           strokeLinecap="round"
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: 'stroke-dashoffset 0.05s linear' }} />
-        <circle key={flashRef.current} cx={size / 2} cy={size / 2} r={r} fill="none"
-          stroke={color} strokeWidth={stroke}
-          strokeDasharray={circ} strokeDashoffset={0}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          className="cycle-ring-flash" />
+          style={{ transition: 'stroke-dashoffset 0.15s linear' }} />
       </svg>
       <div className="station-ring-center">
         {blow ? (
@@ -70,6 +102,28 @@ function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5,
             {label && <span className="station-ring-label">{label}</span>}
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Pulsing Ring (no glow, no cycle) ────────────────────────────────────────
+
+function PulseRing({ color, trackColor, size = 100, stroke = 5, value }: {
+  color: string; trackColor: string; size?: number; stroke?: number; value?: string
+}) {
+  const r = (size - stroke) / 2
+  return (
+    <div className="station-ring-wrap" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="pulse-ring">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={trackColor} strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={color} strokeWidth={stroke}
+          className="pulse-ring-stroke" />
+      </svg>
+      <div className="station-ring-center">
+        {value && <span className="station-ring-value" style={{ color }}>{value}</span>}
       </div>
     </div>
   )
@@ -129,6 +183,7 @@ function PlantRow({ p, i, joints, managerCount, isLoggedIn, totalDeposited, onUp
         trackColor="rgba(57, 255, 20, .15)"
         size={88}
         stroke={4}
+
         value={fmtNum(output)}
         label={isAuto ? undefined : (p.timer < p.cycleTime ? '...' : 'Grow')}
         onClick={isAuto ? undefined : () => onGrow(i)}
@@ -207,12 +262,10 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
 
       {/* Summary row */}
       <div className="station-card-top">
-        <CycleRing
-          progress={plantagen.length > 0 ? 1 - (plantagen[0].timer / plantagen[0].cycleTime) : 0}
-          speed={plantagen.length > 0 ? plantagen[0].speed : 1}
+        <PulseRing
           color="rgba(57, 255, 20, .9)"
           trackColor="rgba(57, 255, 20, .15)"
-          value={fmtNum(totalOutput)}
+          value={fmtNum(cannabis)}
         />
         <div className="station-info">
           <div className="station-stats">
@@ -306,6 +359,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
           speed={courier.speed}
           color="rgba(255, 105, 180, .9)"
           trackColor="rgba(255, 105, 180, .15)"
+
           value={courier.state === 'toPlant' ? 'rest' : isMoving ? fmtNum(courier.carrying) : fmtNum(courier.capacity)}
           label={isAuto ? undefined : (isMoving ? 'En route...' : 'Send')}
           onClick={isAuto ? undefined : onSend}
@@ -393,6 +447,7 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
           speed={fabrik.speed}
           color="rgba(204, 68, 255, .9)"
           trackColor="rgba(204, 68, 255, .15)"
+
           value={fabrik.processing ? fmtNum(fabrik._currentCharge) : fmtNum(fabrik.capacity)}
           label={isAuto ? undefined : (fabrik.processing ? 'Rolling...' : 'Roll')}
           onClick={isAuto ? undefined : onRoll}
