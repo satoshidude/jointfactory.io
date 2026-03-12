@@ -179,8 +179,40 @@ export async function publishReferralReward() {}
 // Lottery win note — public announcement
 // ---------------------------------------------------------------------------
 
+const MAX_WIN_NOTES = 6;
+const KV_WIN_NOTES_KEY = 'win_note_ids';
+
+function loadWinNoteIds(db) {
+  const row = db.prepare('SELECT value FROM kv_store WHERE key=?').get(KV_WIN_NOTES_KEY);
+  try { return row ? JSON.parse(row.value) : []; } catch { return []; }
+}
+
+function saveWinNoteIds(db, ids) {
+  db.prepare('INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)').run(KV_WIN_NOTES_KEY, JSON.stringify(ids));
+}
+
+async function deleteOldestWinNote(db, ids) {
+  while (ids.length > MAX_WIN_NOTES) {
+    const oldId = ids.shift();
+    try {
+      const deleteEvent = finalizeEvent({
+        kind: 5,
+        created_at: Math.floor(Date.now() / 1000),
+        content: 'Rotating old winner announcement',
+        tags: [['e', oldId]],
+      }, serverSecretKey);
+      await publishToAllRelays(deleteEvent);
+      console.log(`[nostr] Deleted old win note ${oldId}`);
+    } catch (err) {
+      console.error('[nostr] Failed to delete old win note:', err.message);
+    }
+  }
+  saveWinNoteIds(db, ids);
+}
+
 export async function publishLotteryWinNote(roundId, winners) {
   if (!winners || winners.length === 0) return;
+  if (!_reminderDb) return;
   const winnerLines = winners.map(w => {
     const npubEncoded = nip19.npubEncode(w.npub);
     return `nostr:${npubEncoded} — ${w.payout_sats.toLocaleString()} sats`;
@@ -188,10 +220,14 @@ export async function publishLotteryWinNote(roundId, winners) {
   const totalPot = winners.reduce((s, w) => s + w.payout_sats, 0);
   const tags = winners.map(w => ['p', w.npub]);
 
-  await publishNote(
+  const note = await publishNote(
     `Lightning Lottery Round #${roundId} — ${totalPot.toLocaleString()} sats paid out! ⚡🎰\n\nWinners:\n${winnerLines}\n\n${SITE_URL}`,
     tags
   );
+
+  const ids = loadWinNoteIds(_reminderDb);
+  ids.push(note.id);
+  await deleteOldestWinNote(_reminderDb, ids);
 }
 
 // ---------------------------------------------------------------------------
