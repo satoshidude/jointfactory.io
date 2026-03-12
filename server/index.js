@@ -45,7 +45,8 @@ const distDir = path.join(__dirname, '../dist');
 const distDevDir = path.join(__dirname, '../dist-dev');
 
 function isDevHost(req) {
-  return (req.headers.host || '').split(':')[0] === 'dev.jointfactory.io';
+  // Serve dev (mobile) build for all hosts
+  return true;
 }
 
 await fastify.register(fastifyStatic, { root: distDir, prefix: '/', serve: false });
