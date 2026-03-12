@@ -21,7 +21,7 @@ export default function MobileInfo() {
       </div>
 
       {/* ── Welcome ──────────────────────────────────── */}
-      <div className="mi-card">
+      <div className="mi-card mi-card-welcome">
         <p className="mi-intro">
           Joint Factory is a real-time idle factory game built on{' '}
           <a href="https://nostr.how/en/what-is-nostr" target="_blank" rel="noopener noreferrer" className="mi-link purple">Nostr</a> and Bitcoin Lightning. Grow cannabis, roll joints, and earn real sats.
@@ -41,7 +41,7 @@ export default function MobileInfo() {
       </div>
 
       {/* ── How to Play ──────────────────────────────── */}
-      <div className="mi-card">
+      <div className="mi-card mi-card-howto">
         <h2 className="mi-card-title">How to Play</h2>
         <div className="mi-features">
           <div className="mi-feature">

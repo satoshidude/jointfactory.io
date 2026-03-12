@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Zap, Ticket, Users, Timer, Trophy, TrendingUp, ExternalLink, ChevronLeft, ChevronRight, Cannabis } from 'lucide-react'
+import { Zap, Ticket, TicketPlus, Users, Timer, Trophy, TrendingUp, ExternalLink, ChevronLeft, ChevronRight, Cannabis } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { nip19 } from 'nostr-tools'
 import './MobileLottery.css'
+import '../../components/mobile/LotteryMini.css'
 
 const JUMBLE_URL = 'https://jumble.nsnip.io'
 
@@ -215,6 +216,10 @@ export default function MobileLottery() {
               <span className="ml-countdown-remaining">{fmtCountdown(countdown)}</span>
             </div>
 
+            {auth.isLoggedIn && (
+              <span className="ml-my-tickets"><Ticket size={24} /> My Tickets: {myTickets}</span>
+            )}
+
             <div className="ml-stats">
               <div className="ml-stat">
                 <span className="ml-stat-label">Pot</span>
@@ -250,11 +255,12 @@ export default function MobileLottery() {
               <p className="ml-login-hint">Log in to buy tickets</p>
             ) : (
               <div className="ml-buy">
-                {myTickets > 0 && (
-                  <span className="ml-my-tickets">Your tickets: {myTickets}</span>
-                )}
-                <button className="ml-buy-btn" onClick={handleBuy} disabled={!canBuy}>
-                  {buying ? 'Buying...' : `Buy Ticket — ${fmtSats(nextCost)} Joints`}
+                <button className="lottery-mini-buy-btn" onClick={handleBuy} disabled={!canBuy}>
+                  {buying ? 'Buying...' : <>
+                    <TicketPlus size={14} /> Ticket — <Cannabis size={12} /> {fmtSats(nextCost)}
+                    <span className="lottery-mini-pipe">|</span>
+                    <span className="lottery-mini-avail"><Cannabis size={12} /> {fmtSats(Math.floor(auth.joints))}</span>
+                  </>}
                 </button>
                 {!gd.eligible && (
                   <span className="ml-hint">

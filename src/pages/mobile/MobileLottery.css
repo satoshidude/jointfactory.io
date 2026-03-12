@@ -7,6 +7,7 @@
   padding: 12px;
 }
 
+
 /* ── Hero ─────────────────────────────────────────────────────────────────── */
 
 .ml-hero {
@@ -137,7 +138,7 @@
   gap: 12px;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1100px) {
   .ml-two-col {
     flex-direction: row;
   }
@@ -335,10 +336,14 @@
 }
 
 .ml-my-tickets {
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--neon-purple);
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  color: var(--neon-gold);
+  text-shadow: 0 0 8px rgba(255, 215, 0, .4);
 }
 
 .ml-buy-btn {
@@ -370,6 +375,7 @@
   font-family: var(--font-body);
   font-size: 12px;
   color: var(--text-secondary);
+  text-align: center;
 }
 
 .ml-error {
