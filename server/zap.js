@@ -9,7 +9,7 @@ import { webcrypto } from 'crypto';
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
 import { finalizeEvent, getPublicKey, generateSecretKey } from 'nostr-tools/pure';
-import { nip19 } from 'nostr-tools';
+import { nip04, nip19 } from 'nostr-tools';
 import WebSocket from 'ws';
 
 // ---------------------------------------------------------------------------
@@ -511,3 +511,57 @@ cron.schedule('* * * * *', async () => {
     console.error('[nostr] Lottery reminder error:', err.message);
   }
 });
+
+// ---------------------------------------------------------------------------
+// New user report DM to satoshidude (3x daily)
+// ---------------------------------------------------------------------------
+
+const OWNER_HEX = '661419f8f48b1b496e2249aee97a6ad9d5bea907149dc7bf3eb7479f2bce555e';
+const KV_LAST_REPORT_KEY = 'last_user_report_ts';
+
+// Runs at 08:00, 16:00, 22:00 Berlin time
+cron.schedule('0 8,16,22 * * *', async () => {
+  if (!_reminderDb) return;
+  try {
+    const db = _reminderDb;
+
+    // Get last report timestamp
+    const lastRow = db.prepare('SELECT value FROM kv_store WHERE key=?').get(KV_LAST_REPORT_KEY);
+    const lastTs = lastRow ? parseInt(lastRow.value, 10) : 0;
+    const now = Math.floor(Date.now() / 1000);
+
+    // Find new players since last report (exclude fake players and bot)
+    const fakePubs = [...FAKE_PLAYERS, 'f77c382998682053'];
+    const newPlayers = db.prepare(
+      `SELECT npub, display_name, created_at FROM players WHERE created_at > ? ORDER BY created_at ASC`
+    ).all(lastTs);
+
+    const realNew = newPlayers.filter(p => !fakePubs.some(f => p.npub.startsWith(f)));
+
+    if (realNew.length === 0) return; // nothing to report
+
+    const lines = realNew.map(p => {
+      const npubEncoded = nip19.npubEncode(p.npub);
+      const name = p.display_name || 'anon';
+      return `- ${name}: ${SITE_URL}/u/${npubEncoded}`;
+    });
+
+    const msg = `New player${realNew.length > 1 ? 's' : ''} (${realNew.length}) since last report:\n\n${lines.join('\n')}`;
+
+    // Encrypt and send NIP-04 DM
+    const encrypted = await nip04.encrypt(serverSecretKey, OWNER_HEX, msg);
+    const dm = finalizeEvent({
+      kind: 4,
+      created_at: now,
+      content: encrypted,
+      tags: [['p', OWNER_HEX]],
+    }, serverSecretKey);
+    await publishToAllRelays(dm);
+    console.log(`[nostr] DM sent to owner: ${realNew.length} new player(s)`);
+
+    // Update last report timestamp
+    db.prepare('INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)').run(KV_LAST_REPORT_KEY, String(now));
+  } catch (err) {
+    console.error('[nostr] User report DM error:', err.message);
+  }
+}, { timezone: 'Europe/Berlin' });
