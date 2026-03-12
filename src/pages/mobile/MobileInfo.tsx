@@ -114,7 +114,7 @@ export default function MobileInfo() {
               <a href="https://getalby.com" target="_blank" rel="noopener noreferrer" className="mi-link gold">Alby</a>.
               {auth.isLoggedIn && auth.npub && (
                 <>{' '}Your profile on{' '}
-                  <a href={`https://nostr.nsnip.io/#/p/${auth.npub}`} target="_blank" rel="noopener noreferrer" className="mi-link purple">Nostr</a>.
+                  <a href={`https://nostr.nsnip.io/users/${auth.npub}`} target="_blank" rel="noopener noreferrer" className="mi-link purple">Nostr</a>.
                 </>
               )}
             </p>
@@ -140,7 +140,7 @@ export default function MobileInfo() {
         <div className="mi-contact">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--neon-purple)" style={{ flexShrink: 0 }}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15.5c-2.49 0-4.5-2.01-4.5-4.5S8.51 8.5 11 8.5c1.73 0 3.23.98 3.98 2.41l-1.73 1c-.47-.89-1.39-1.41-2.25-1.41-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5c.87 0 1.65-.44 2.11-1.11l1.78.89C14.17 16.64 12.72 17.5 11 17.5zm5.5-3h-1.5v-1.5H13V11.5h1.5V10H16v1.5h1.5V13H16v1.5z"/></svg>
           <span>
-            <a href="https://nostr.nsnip.io/#/p/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="mi-link purple">
+            <a href="https://nostr.nsnip.io/users/npub17a7rs2vcdqs9xhsl2w4qeydafaflllh5475su48y0utes9tufffqs83r9s" target="_blank" rel="noopener noreferrer" className="mi-link purple">
               Joint Factory on Nostr</a>
           </span>
         </div>
