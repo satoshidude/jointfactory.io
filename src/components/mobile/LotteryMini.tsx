@@ -149,7 +149,7 @@ export default function LotteryMini() {
         <span className="lottery-mini-stat"><span className="lottery-mini-stat-label">Pot</span> <Zap size={14} /> {fmtSats(round.pot_sats)}</span>
         <span className="lottery-mini-stat"><Ticket size={14} /> {round.total_tickets}</span>
         <span className="lottery-mini-stat"><Users size={14} /> {round.unique_players}</span>
-        {auth.isLoggedIn && myTickets > 0 && (
+        {auth.isLoggedIn && (
           <span className="lottery-mini-stat lottery-mini-my"><Ticket size={14} /> {myTickets}</span>
         )}
       </div>
