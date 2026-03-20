@@ -93,6 +93,7 @@ function ProgressCircle({ progress, size = 36, stroke = 3, color = 'var(--neon-g
 }
 
 function fmtNum(n: number): string {
+  if (n >= 1e15) return (n / 1e15).toFixed(1) + 'Qa'
   if (n >= 1e12) return (n / 1e12).toFixed(1) + 'T'
   if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B'
   if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
