@@ -169,6 +169,7 @@ fastify.post('/api/auth/nostr', async (req, reply) => {
 fastify.get('/api/game/state',    { preHandler: requireAuth }, async (req) => loadState(req.user.npub) || { error: 'not found' });
 fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
   const result = saveState(req.user.npub, req.body);
+  if (!result.ok) return result;
   const { joints, total_joints_earned, joints_per_sec } = req.body;
   if (joints !== undefined) {
     wsHub.broadcastPlayerUpdate(req.user.npub, Math.floor(joints || 0), Math.floor(total_joints_earned || 0), joints_per_sec || 0);
@@ -210,6 +211,7 @@ fastify.post('/api/game/beacon', async (req, reply) => {
   try {
     const decoded = fastify.jwt.verify(token);
     const result = saveState(decoded.npub, payload);
+    if (!result.ok) return result;
     const { joints, total_joints_earned, joints_per_sec } = payload;
     if (joints !== undefined) {
       wsHub.broadcastPlayerUpdate(decoded.npub, Math.floor(joints || 0), Math.floor(total_joints_earned || 0), joints_per_sec || 0);

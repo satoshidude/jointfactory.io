@@ -53,6 +53,16 @@ const _saveStateTx = db.transaction((npub, payload) => {
     }
   }
 
+  // Guard: reject saves that would reset a player's progress to zero
+  const incomingTotal = Math.floor(total_joints_earned || 0);
+  if (incomingTotal === 0) {
+    const existing = db.prepare('SELECT total_joints_earned FROM players WHERE npub = ?').get(npub);
+    if (existing && existing.total_joints_earned > 0) {
+      console.warn(`[Game] BLOCKED state reset for ${npub.slice(0, 12)}… (server: ${existing.total_joints_earned}, incoming: 0)`);
+      return { ok: false, reason: 'state_reset_blocked' };
+    }
+  }
+
   // Save game state — sats is NEVER written from client
   db.prepare(`
     UPDATE players SET
