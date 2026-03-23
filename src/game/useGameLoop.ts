@@ -212,22 +212,29 @@ function saveLocal(gs: GameState) {
   localStorage.setItem(SAVE_KEY, JSON.stringify(gs))
 }
 
-async function loadFromServer(): Promise<{ gs: GameState | null; joints: number; sats: number; totalJointsEarned: number } | null> {
+type LoadResult =
+  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number }
+  | { status: 'no-auth' }
+  | { status: 'error' }
+
+async function loadFromServer(): Promise<LoadResult> {
   try {
     const auth = JSON.parse(localStorage.getItem('jf_auth') || '{}')
-    if (!auth.token) return null
+    if (!auth.token) return { status: 'no-auth' }
     const res = await fetch('/api/game/state', { headers: { Authorization: `Bearer ${auth.token}` } })
+    if (!res.ok) return { status: 'error' }
     const data = await res.json()
-    if (!data || data.error) return null
+    if (!data || data.error) return { status: 'error' }
     const gs = data.gameState && Object.keys(data.gameState).length > 0 ? data.gameState as GameState : null
     if (gs) migrateSpeedLevels(gs)
     return {
+      status: 'ok',
       gs,
       joints: data.joints ?? 0,
       sats: data.sats ?? 0,
       totalJointsEarned: data.total_joints_earned ?? 0,
     }
-  } catch { return null }
+  } catch { return { status: 'error' } }
 }
 
 let _pendingManagerSats = 0
@@ -402,7 +409,7 @@ export function useGameLoop(
       } else {
         // ── EXISTING ACCOUNT: always load from server, discard guest ──
         loadFromServer().then(result => {
-          if (result) {
+          if (result.status === 'ok') {
             if (result.gs) {
               gsRef.current = result.gs
               // Offline catch-up: produce with speed=1
@@ -421,15 +428,17 @@ export function useGameLoop(
             onJointsChange(result.joints)
             onSatsChange?.(result.sats)
             saveLocal(gsRef.current)
+            canSaveRef.current = true
           } else {
-            // Server unreachable — use auth values, fresh game state
+            // Server error or auth failure — do NOT enable saves to protect server data
+            console.warn('[JF] Login load failed:', result.status, '— server saves disabled')
             gsRef.current = initialState()
             jointsRef.current = authJoints
             satsRef.current = authSats
             totalEarnedRef.current = 0
+            canSaveRef.current = false
           }
           inTransitionRef.current = false
-          canSaveRef.current = true
           readyRef.current = true
           setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current))
         })
@@ -443,7 +452,7 @@ export function useGameLoop(
     if (canSaveRef.current) return
     loadFromServer().then(result => {
       if (canSaveRef.current) return // loaded by transition while we waited
-      if (result) {
+      if (result.status === 'ok') {
         // Logged in on page load — always use server data
         if (result.gs) {
           gsRef.current = result.gs
@@ -464,8 +473,31 @@ export function useGameLoop(
         onJointsChange?.(result.joints)
         onSatsChange?.(result.sats)
         canSaveRef.current = true
+      } else if (result.status === 'error') {
+        // Server/auth error — fall back to localStorage but do NOT enable server saves
+        console.warn('[JF] Mount load failed — server saves disabled until next successful load')
+        const saved = localStorage.getItem(SAVE_KEY)
+        if (saved) {
+          try {
+            const gs = JSON.parse(saved) as GameState
+            migrateSpeedLevels(gs)
+            gsRef.current = gs
+            const elapsed = gs._ts ? (Date.now() - gs._ts) / 1000 : 0
+            if (elapsed > 2) {
+              const earned = simulateOffline(gsRef.current, elapsed)
+              jointsRef.current += earned
+              totalEarnedRef.current += earned
+            }
+          } catch {
+            gsRef.current = initialState()
+          }
+        } else {
+          gsRef.current = initialState()
+        }
+        // Do NOT set canSaveRef = true — prevents overwriting server data
+        canSaveRef.current = false
       } else {
-        // Guest mode: load from localStorage if available
+        // no-auth: Guest mode — load from localStorage
         const saved = localStorage.getItem(SAVE_KEY)
         if (saved) {
           try {
