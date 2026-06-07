@@ -331,7 +331,24 @@ import cron from 'node-cron';
 
 let _reminderDb = null;
 const _postedReminders = new Set(); // tracks "roundId-hours" keys
-const _reminderEventIds = new Map(); // roundId -> [eventId, ...]
+
+// DB-backed reminder event tracking (survives restarts)
+const KV_REMINDER_PREFIX = 'reminder_events_';
+
+function loadReminderEventIds(roundId) {
+  if (!_reminderDb) return [];
+  const row = _reminderDb.prepare('SELECT value FROM kv_store WHERE key=?').get(KV_REMINDER_PREFIX + roundId);
+  try { return row ? JSON.parse(row.value) : []; } catch { return []; }
+}
+
+function saveReminderEventIds(roundId, ids) {
+  if (!_reminderDb) return;
+  if (ids.length === 0) {
+    _reminderDb.prepare('DELETE FROM kv_store WHERE key=?').run(KV_REMINDER_PREFIX + roundId);
+  } else {
+    _reminderDb.prepare('INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)').run(KV_REMINDER_PREFIX + roundId, JSON.stringify(ids));
+  }
+}
 
 export function initLotteryReminder(db) {
   _reminderDb = db;
@@ -339,7 +356,7 @@ export function initLotteryReminder(db) {
 }
 
 async function deleteReminderEvents(roundId) {
-  const eventIds = _reminderEventIds.get(roundId);
+  const eventIds = loadReminderEventIds(roundId);
   if (!eventIds || eventIds.length === 0) return;
 
   try {
@@ -354,7 +371,7 @@ async function deleteReminderEvents(roundId) {
   } catch (err) {
     console.error('[nostr] Failed to delete reminders:', err.message);
   }
-  _reminderEventIds.delete(roundId);
+  saveReminderEventIds(roundId, []);
 }
 
 async function postReminder(round, hoursLabel) {
@@ -372,9 +389,10 @@ async function postReminder(round, hoursLabel) {
     []
   );
 
-  // Track event ID for deletion after draw
-  if (!_reminderEventIds.has(round.id)) _reminderEventIds.set(round.id, []);
-  _reminderEventIds.get(round.id).push(note.id);
+  // Track event ID for deletion after draw (persisted in DB)
+  const existingIds = loadReminderEventIds(round.id);
+  existingIds.push(note.id);
+  saveReminderEventIds(round.id, existingIds);
 
   console.log(`[nostr] Lottery reminder (${hoursLabel}) posted for round ${round.id}`);
 }
@@ -497,11 +515,12 @@ cron.schedule('* * * * *', async () => {
 
     // Delete reminders for recently completed draws
     const recentlyDrawn = _reminderDb.prepare(
-      `SELECT id FROM lottery_rounds WHERE status='drawn' AND draws_at >= ? AND draws_at <= ?`
-    ).all(now - 10 * 60, now);
+      `SELECT id FROM lottery_rounds WHERE status='closed' AND draws_at >= ? AND draws_at <= ?`
+    ).all(now - 60 * 60, now);
 
     for (const round of recentlyDrawn) {
-      if (_reminderEventIds.has(round.id)) {
+      const ids = loadReminderEventIds(round.id);
+      if (ids.length > 0) {
         await deleteReminderEvents(round.id);
       }
     }
