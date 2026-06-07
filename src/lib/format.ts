@@ -12,7 +12,7 @@ const TIERS: ReadonlyArray<readonly [number, string]> = [
   [1e24, 'Sp'], // Septillion
   [1e21, 'Sx'], // Sextillion
   [1e18, 'Qi'], // Quintillion
-  [1e15, 'Qa'], // Quadrillion
+  [1e15, 'Q'],  // Quadrillion
   [1e12, 'T'],  // Trillion
   [1e9, 'B'],   // Billion
   [1e6, 'M'],   // Million
