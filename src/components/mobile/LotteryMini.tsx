@@ -5,6 +5,7 @@ import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import './LotteryMini.css'
+import { fmtNum as fmtSats } from '../../lib/format'
 
 interface MiniRound {
   id: number
@@ -12,15 +13,6 @@ interface MiniRound {
   pot_sats: number
   total_tickets: number
   unique_players: number
-}
-
-function fmtSats(n: number): string {
-  if (n >= 1e15) return (n / 1e15).toFixed(1) + 'Qa'
-  if (n >= 1e12) return (n / 1e12).toFixed(1) + 'T'
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B'
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'
-  return n.toLocaleString()
 }
 
 function fmtCountdown(seconds: number): string {

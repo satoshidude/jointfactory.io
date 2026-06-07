@@ -20,8 +20,6 @@ const RELAY_URLS = [
   'wss://relay.nsnip.io/',
   'wss://relay.damus.io/',
   'wss://nos.lol/',
-  'wss://relay.snort.social/',
-  'wss://relay.nostr.band/',
 ];
 const RELAY_URL = RELAY_URLS[0]; // for deletePlayerEvents
 const SITE_URL = 'https://jointfactory.io';

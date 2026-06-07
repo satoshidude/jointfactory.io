@@ -4,6 +4,7 @@ import { nip19 } from 'nostr-tools'
 import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import './GrowthRace.css'
+import { fmtNum } from '../../lib/format'
 
 interface PlayerInfo {
   npub: string
@@ -31,15 +32,6 @@ const CHART_COLORS = [
 ]
 
 const CHART_POINTS = 48
-
-function fmtNum(n: number): string {
-  if (n >= 1e15) return (n / 1e15).toFixed(1) + 'Qa'
-  if (n >= 1e12) return (n / 1e12).toFixed(1) + 'T'
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B'
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'
-  return Math.floor(n).toLocaleString()
-}
 
 export default function GrowthRace() {
   const auth = useAuth()

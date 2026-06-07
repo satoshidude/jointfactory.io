@@ -8,6 +8,7 @@ import {
   ArrowDownToLine, ArrowUpFromLine, Wallet,
 } from 'lucide-react'
 import { apiFetch } from '../lib/api'
+import { fmtNum } from '../lib/format'
 import { useAuth } from '../stores/authStore'
 import { nip19 } from 'nostr-tools'
 import './Dashboard.css'
@@ -59,19 +60,8 @@ interface ZapRecord {
   created_at: number
 }
 
-function fmtNum(n: number): string {
-  if (n >= 1e15) return (n / 1e15).toFixed(1) + '\u2009Qa'
-  if (n >= 1e12) return (n / 1e12).toFixed(1) + '\u2009T'
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + '\u2009B'
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + '\u2009M'
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + '\u2009K'
-  return Math.floor(n).toLocaleString()
-}
-
 function fmtSats(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + '\u2009M'
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + '\u2009K'
-  return n.toLocaleString()
+  return fmtNum(n, 1)
 }
 
 

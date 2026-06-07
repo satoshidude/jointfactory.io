@@ -7,6 +7,7 @@ import { useGameLoop, PLANTATION_DEFS,
 } from '../game/useGameLoop'
 import { useAuth } from '../stores/authStore'
 import { apiFetch } from '../lib/api'
+import { fmtNum } from '../lib/format'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Factory, Cannabis, Footprints, PersonStanding, Zap, Timer, Ticket, Sprout, Trophy, ChevronLeft, ChevronRight, ExternalLink, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { nip19 } from 'nostr-tools'
@@ -91,16 +92,6 @@ function ProgressCircle({ progress, size = 36, stroke = 3, color = 'var(--neon-g
     </svg>
   )
 }
-
-function fmtNum(n: number): string {
-  if (n >= 1e15) return (n / 1e15).toFixed(1) + 'Qa'
-  if (n >= 1e12) return (n / 1e12).toFixed(1) + 'T'
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B'
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'
-  return Math.floor(n).toLocaleString()
-}
-
 
 const HIGHLIGHT_COLORS: Record<string, string> = {
   green: 'text-[var(--neon-green)]',

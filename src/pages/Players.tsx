@@ -3,6 +3,7 @@ import { Trophy, ChevronLeft, ChevronRight, Circle, Ticket } from 'lucide-react'
 import { apiFetch } from '../lib/api';
 import { nip19 } from 'nostr-tools';
 import './Players.css';
+import { fmtNum as fmtNumBase } from '../lib/format';
 
 interface Player {
   npub: string;
@@ -41,21 +42,11 @@ interface LivePlayer extends Player {
 const PER_PAGE = 100;
 
 function fmtShort(n: number): string {
-  if (n >= 1e15) return (n / 1e15).toFixed(1) + '\u2009Qa';
-  if (n >= 1e12) return (n / 1e12).toFixed(1) + '\u2009T';
-  if (n >= 1e9)  return (n / 1e9).toFixed(1) + '\u2009B';
-  if (n >= 1e6)  return (n / 1e6).toFixed(1) + '\u2009M';
-  if (n >= 1e3)  return (n / 1e3).toFixed(1) + '\u2009K';
-  return Math.floor(n).toLocaleString();
+  return fmtNumBase(n, 1);
 }
 
 function fmtNum(n: number): string {
-  if (n >= 1e15) return (n / 1e15).toFixed(6) + '\u2009Qa';
-  if (n >= 1e12) return (n / 1e12).toFixed(6) + '\u2009T';
-  if (n >= 1e9)  return (n / 1e9).toFixed(6) + '\u2009B';
-  if (n >= 1e6)  return (n / 1e6).toFixed(6) + '\u2009M';
-  if (n >= 1e3)  return (n / 1e3).toFixed(6) + '\u2009K';
-  return Math.floor(n).toLocaleString();
+  return fmtNumBase(n, 6);
 }
 
 

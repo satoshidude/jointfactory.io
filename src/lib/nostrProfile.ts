@@ -2,8 +2,6 @@ const RELAYS = [
   'wss://relay.nsnip.io/',
   'wss://relay.damus.io/',
   'wss://nos.lol/',
-  'wss://relay.snort.social/',
-  'wss://relay.nostr.band/',
 ]
 
 export interface NostrProfile {
