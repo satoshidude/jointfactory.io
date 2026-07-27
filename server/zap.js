@@ -24,6 +24,13 @@ const RELAY_URLS = [
 const RELAY_URL = RELAY_URLS[0]; // for deletePlayerEvents
 const SITE_URL = 'https://jointfactory.io';
 
+// Set JF_NOSTR_OFFLINE=1 for local development. Without it a dev server posts
+// bot profiles, lottery reminders, win notes and owner DMs to the real relays
+// under the production identity — and a run without NOSTR_ZAP_NSEC would spam
+// them from a throwaway keypair instead.
+const NOSTR_OFFLINE = process.env.JF_NOSTR_OFFLINE === '1';
+if (NOSTR_OFFLINE) console.log('[nostr] OFFLINE mode — no relay traffic');
+
 // ---------------------------------------------------------------------------
 // Server keypair
 // ---------------------------------------------------------------------------
@@ -116,6 +123,10 @@ function publishToSingleRelay(event, relayUrl) {
 }
 
 async function publishToAllRelays(event) {
+  if (NOSTR_OFFLINE) {
+    console.log(`[nostr] OFFLINE — skipped broadcast of kind ${event.kind}`);
+    return;
+  }
   const results = await Promise.allSettled(
     RELAY_URLS.map(url => publishToSingleRelay(event, url))
   );
@@ -238,6 +249,10 @@ export function getServerPubkey() {
 
 // Delete all bot events that mention a player (p-tagged) from the relay
 export async function deletePlayerEvents(hexPubkey) {
+  if (NOSTR_OFFLINE) {
+    console.log('[nostr] OFFLINE — skipped relay cleanup');
+    return [];
+  }
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(RELAY_URL);
     const collected = [];
