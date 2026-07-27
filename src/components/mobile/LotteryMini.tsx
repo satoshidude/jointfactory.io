@@ -5,7 +5,7 @@ import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import './LotteryMini.css'
-import { fmtNum as fmtSats } from '../../lib/format'
+import { fmtNum as fmtSats, fmtCountdown, fmtDrawTime } from '../../lib/format'
 
 interface MiniRound {
   id: number
@@ -13,14 +13,6 @@ interface MiniRound {
   pot_sats: number
   total_tickets: number
   unique_players: number
-}
-
-function fmtCountdown(seconds: number): string {
-  if (seconds <= 0) return '00:00:00'
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
 export default function LotteryMini() {
@@ -124,9 +116,7 @@ export default function LotteryMini() {
 
   if (!round) return null
 
-  const drawTime = drawAtRef.current
-    ? new Date(drawAtRef.current * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : '--:--'
+  const drawTime = fmtDrawTime(drawAtRef.current)
 
   return (
     <div className="lottery-mini" onClick={() => navigate('/lottery')}>

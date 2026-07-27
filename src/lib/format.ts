@@ -38,3 +38,32 @@ export function fmtNum(n: number, decimals = 1, sep: string = THIN_SPACE): strin
   }
   return (neg ? '-' : '') + Math.floor(abs).toLocaleString()
 }
+
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/**
+ * Countdown to the next draw. Draws run Tue/Thu/Sat, so the gap reaches three
+ * days — the old HH:MM:SS-only copies in four components rendered that as
+ * "71:14:03". Days are split out above 24h.
+ */
+export function fmtCountdown(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '00:00:00'
+  const total = Math.floor(seconds)
+  const d = Math.floor(total / 86400)
+  const h = Math.floor((total % 86400) / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  const clock = `${pad(h)}:${pad(m)}:${pad(s)}`
+  return d > 0 ? `${d}d ${clock}` : clock
+}
+
+/**
+ * Absolute draw time. A bare "21:00" was unambiguous at six draws a day but is
+ * not when the next one may be three days out, so the weekday comes along.
+ */
+export function fmtDrawTime(unixSeconds: number): string {
+  if (!unixSeconds) return '--:--'
+  return new Date(unixSeconds * 1000).toLocaleString([], {
+    weekday: 'short', hour: '2-digit', minute: '2-digit',
+  })
+}

@@ -1,5 +1,6 @@
 import { randomInt } from 'crypto';
 import { db, ensureOpenRound } from './db.js';
+import { DRAW_LABEL } from '../shared/schedule.js';
 import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
@@ -188,5 +189,5 @@ export function startCron() {
     });
   }, 1000);
 
-  console.log('[Lottery] Cron active — draws at 0h, 5h, 11h, 16h, 19h, 21h Berlin + WS tick every second');
+  console.log(`[Lottery] Cron active — draws ${DRAW_LABEL} Berlin + WS tick every second`);
 }

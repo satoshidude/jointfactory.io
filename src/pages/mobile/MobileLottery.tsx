@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Zap, Ticket, TicketPlus, Users, Timer, Trophy, TrendingUp, ExternalLink, ChevronLeft, ChevronRight, Cannabis } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
+import { fmtCountdown, fmtDrawTime } from '../../lib/format'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { nip19 } from 'nostr-tools'
@@ -48,14 +49,6 @@ function fmtSats(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + '\u2009M'
   if (n >= 1_000) return (n / 1_000).toFixed(1) + '\u2009K'
   return n.toLocaleString()
-}
-
-function fmtCountdown(seconds: number): string {
-  if (seconds <= 0) return '00:00:00'
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
 function shortenNpub(npub: string): string {
@@ -175,9 +168,7 @@ export default function MobileLottery() {
   }
 
   const canBuy = auth.isLoggedIn && auth.joints >= nextCost && nextCost > 0 && !buying && gd.eligible
-  const drawTime = drawAtRef.current
-    ? new Date(drawAtRef.current * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : '--:--'
+  const drawTime = fmtDrawTime(drawAtRef.current)
 
   if (loading) return <div className="ml-page"><div className="ml-card"><p className="ml-empty">Loading Lottery...</p></div></div>
 
@@ -195,7 +186,7 @@ export default function MobileLottery() {
         <p className="ml-hero-subtitle">Buy tickets with Joints, win real sats</p>
         <div className="ml-hero-perks">
           <div className="ml-hero-perk gold"><Zap size={20} /> 80% payout</div>
-          <div className="ml-hero-perk gold"><Timer size={20} /> 6 draws daily</div>
+          <div className="ml-hero-perk gold"><Timer size={20} /> Tue · Thu · Sat, 21:00</div>
         </div>
       </div>
 

@@ -80,7 +80,7 @@ export default function MobileInfo() {
             <Ticket size={22} className="mi-feat-icon gold" />
             <div>
               <h3 className="mi-feat-title">Lottery</h3>
-              <p className="mi-feat-desc">Spend joints on lottery tickets for a chance to win the pot in real sats. 6 draws daily.</p>
+              <p className="mi-feat-desc">Spend joints on lottery tickets for a chance to win the pot in real sats. Draws Tue, Thu & Sat at 21:00.</p>
             </div>
           </div>
 
