@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Trophy, ChevronLeft, ChevronRight, Circle, Ticket } from 'lucide-react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, wsUrl } from '../lib/api';
 import { nip19 } from 'nostr-tools';
 import './Players.css';
 import { fmtNum as fmtNumBase } from '../lib/format';
@@ -113,9 +113,7 @@ export default function LeaderboardPage() {
 
   // WebSocket for live updates
   useEffect(() => {
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = location.hostname === 'localhost' ? 'localhost:3420' : location.host;
-    const ws = new WebSocket(`${proto}//${host}/ws`);
+    const ws = new WebSocket(wsUrl());
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);

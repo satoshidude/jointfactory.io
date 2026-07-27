@@ -1,0 +1,118 @@
+.boost-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+
+.boost-bar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.boost-bar-icon {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, .4));
+}
+
+.boost-bar-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--neon-gold);
+  text-shadow: 0 0 10px rgba(255, 215, 0, .35);
+}
+
+.boost-bar-error {
+  margin-left: auto;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: #ff6b6b;
+  text-align: right;
+}
+
+/* Two columns at 393px, four across once there is room. */
+.boost-bar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 560px) {
+  .boost-bar-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.boost-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border: 1px solid rgba(255, 215, 0, .25);
+  border-radius: 8px;
+  background: rgba(255, 215, 0, .05);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, opacity .15s;
+}
+
+.boost-btn:hover:not(:disabled) {
+  border-color: rgba(255, 215, 0, .5);
+  background: rgba(255, 215, 0, .1);
+}
+
+.boost-btn:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+/* Running: green like the production chain, not gold like the price. */
+.boost-btn.active {
+  border-color: rgba(57, 255, 20, .55);
+  background: rgba(57, 255, 20, .1);
+}
+
+.boost-btn.active .boost-btn-meta {
+  color: var(--neon-green);
+}
+
+.boost-btn.insufficient {
+  opacity: .55;
+}
+
+.boost-btn-name {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.boost-btn-effect {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.boost-btn-meta {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--neon-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.boost-bar-note {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+}

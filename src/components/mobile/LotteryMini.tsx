@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Zap, Ticket, TicketPlus, Users, Timer, Cannabis } from 'lucide-react'
-import { apiFetch } from '../../lib/api'
+import { apiFetch, wsUrl } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import './LotteryMini.css'
@@ -76,9 +76,7 @@ export default function LotteryMini() {
   }, [fetchCurrent, fetchLastResult])
 
   useEffect(() => {
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = location.hostname === 'localhost' ? 'localhost:3420' : location.host
-    const ws = new WebSocket(`${proto}//${host}/ws`)
+    const ws = new WebSocket(wsUrl())
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data)
@@ -126,8 +124,8 @@ export default function LotteryMini() {
         <span className="lottery-mini-title">Lightning Lottery</span>
       </div>
       <div className="lottery-mini-time">
-        <span className="lottery-mini-countdown"><Timer size={18} /> {fmtCountdown(countdown)}</span>
-        <span className="lottery-mini-draw">{drawTime}</span>
+        <span className="lottery-mini-draw"><Timer size={18} /> {drawTime}</span>
+        <span className="lottery-mini-countdown">{fmtCountdown(countdown)}</span>
       </div>
       <div className="lottery-mini-stats">
         <span className="lottery-mini-stat"><span className="lottery-mini-stat-label">Pot</span> <Zap size={14} /> {fmtSats(round.pot_sats)}</span>

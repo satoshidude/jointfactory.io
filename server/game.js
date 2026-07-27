@@ -45,9 +45,9 @@ const _saveStateTx = db.transaction((npub, payload) => {
     // the client keeps the amount pending and retries on the next save.
     const deducted = db.prepare(`UPDATE players SET sats = sats - ? WHERE npub = ? AND sats >= ?`).run(mgrSpent, npub, mgrSpent);
     if (deducted.changes > 0) {
-      const toPot = Math.floor(mgrSpent * 0.8);
-      db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE status = 'open'`).run(toPot);
-      console.log(`[Lottery] Adding ${toPot} sats (80% of ${mgrSpent}) from ${npub.slice(0, 8)}... to pot`);
+      // Gross into the pot — the house cut is taken once, at payout.
+      db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE status = 'open'`).run(mgrSpent);
+      console.log(`[Lottery] Adding ${mgrSpent} sats from ${npub.slice(0, 8)}... to pot`);
       potUpdated = true;
     } else {
       console.warn(`[Game] Spend of ${mgrSpent} sats by ${npub.slice(0, 12)}… exceeds balance — not deducted`);

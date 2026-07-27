@@ -7,7 +7,7 @@ import {
   UserPlus, Copy, Check, Gift, Shield, Clock,
   ArrowDownToLine, ArrowUpFromLine, Wallet,
 } from 'lucide-react'
-import { apiFetch } from '../lib/api'
+import { apiFetch, wsUrl } from '../lib/api'
 import { fmtNum } from '../lib/format'
 import { useAuth } from '../stores/authStore'
 import { nip19 } from 'nostr-tools'
@@ -303,9 +303,7 @@ export default function Dashboard() {
   }, [auth.isLoggedIn])
 
   useEffect(() => {
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.hostname === 'localhost' ? 'localhost:3420' : window.location.host
-    const ws = new WebSocket(`${proto}//${host}/ws?npub=${auth.npub || ''}`)
+    const ws = new WebSocket(`${wsUrl()}?npub=${auth.npub || ''}`)
     wsRef.current = ws
     ws.onmessage = (e) => {
       try {

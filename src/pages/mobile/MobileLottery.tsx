@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Zap, Ticket, TicketPlus, Users, Timer, Trophy, TrendingUp, ExternalLink, ChevronLeft, ChevronRight, Cannabis } from 'lucide-react'
-import { apiFetch } from '../../lib/api'
+import { apiFetch, wsUrl } from '../../lib/api'
 import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime } from '../../lib/format'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
@@ -120,9 +120,7 @@ export default function MobileLottery() {
   }, [])
 
   useEffect(() => {
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = location.hostname === 'localhost' ? 'localhost:3420' : location.host
-    const ws = new WebSocket(`${proto}//${host}/ws`)
+    const ws = new WebSocket(wsUrl())
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data)
@@ -198,8 +196,8 @@ export default function MobileLottery() {
           <>
             <div className="ml-countdown">
               <Timer size={16} className="ml-icon-muted" />
-              <span className="ml-countdown-time">{fmtCountdown(countdown)}</span>
-              <span className="ml-countdown-remaining">{drawTime}</span>
+              <span className="ml-countdown-time">{drawTime}</span>
+              <span className="ml-countdown-remaining">{fmtCountdown(countdown)}</span>
             </div>
 
             {auth.isLoggedIn && (

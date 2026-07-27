@@ -97,12 +97,39 @@ bleiben, beide gedeckt:
 Sats einzahlt — ebenfalls aus dem Nichts. Sollte aus dem House-Ledger gebucht
 werden statt gemintet. Nicht Teil von Phase 1, gehört zu Phase 5.
 
-## Phase 2 — Sats-Sink wiederkehrend machen
-- [ ] Tabelle `active_boosts` + Migration in `server/db.js`
-- [ ] `POST /api/game/boost` (atomarer Abzug + 80 % Pot)
-- [ ] Boosts in `GET /api/game/state` ausliefern
-- [ ] Client wendet Boosts im Loop an
-- [ ] Speed-Upgrades neu skalieren (60 Level, 1×→3×, 21–210 Sats)
+## Phase 2 — Sats-Sink wiederkehrend machen — erledigt 2026-07-27
+- [x] Tabelle `active_boosts` (PK npub+type) in `server/db.js`
+- [x] `server/boosts.js` — atomarer Abzug, Pot-Gutschrift, Verlängerung statt
+      Stapelung; Ablauf liegt serverseitig
+- [x] `POST /api/game/boost`, Boosts in `GET /api/game/state`
+- [x] Client wendet die Multiplikatoren im Loop an (Plantage, Kurier, Fabrik)
+- [x] `BoostBar` in der Spielseite, für Gäste gesperrt
+- [x] `scripts/test-boosts.mjs` — 15 Checks
+- [ ] **Speed-Upgrades verschoben zu Phase 5.** Die neue Kurve (60 Level, 1×→3×)
+      würde bestehende `speedLevel`-Werte auf der neuen Skala interpretieren:
+      das höchste Einzellevel (11) spränge von 1,08× auf 1,37× — ein stiller
+      Buff mitten in der Season. Gehört zum Season-Reset, wo
+      `migrateSpeedLevel()` atomar umrechnet.
+
+### Dabei gefunden und behoben
+- **Hausanteil wurde doppelt abgezogen.** Sats-Ausgaben flossen bereits um 20 %
+  gekürzt in `total_sats_collected`, die Ziehung nahm nochmals 20 % — beworben
+  sind 80 %, zurück kamen 57–64 %. Jetzt fließt der Bruttobetrag in den Pot, der
+  Schnitt fällt einmal bei der Auszahlung. Die 0.8 lag an sechs Stellen
+  hartcodiert; jetzt `POT_PAYOUT_SHARE` / `potPayout()` in `shared/economy.js`.
+- **WebSocket zeigte auf Port 3420**, der Server läuft auf 3421 — in sechs
+  Dateien kopiert. Live-Updates funktionierten lokal nie. Jetzt `wsUrl()` in
+  `src/lib/api.ts` über den Vite-Proxy.
+- **Stationskarten zeigten ungeboostete Raten**, während der Loop bereits
+  geboostet produzierte. Karten bekommen die Boosts und rechnen mit.
+- `courierTripTime`/`fabrikCycleTime` doppelt vorhanden — `useGameLoop`
+  re-exportiert jetzt die gemeinsame Version.
+
+### Phase-0-Rest miterledigt
+- [x] `totalJointsPerSec` nutzt `throughput()` — echter Bottleneck statt
+      Plantagensumme, Boosts eingerechnet. Verifiziert: Testspieler mit
+      Plantagenrate 225/s meldet 2,5/s, weil der Kurier (Kapazität 20 / 8 s)
+      der Flaschenhals ist. Vorher hätte dort 225/s gestanden.
 
 ## Phase 3 — Joints-Sink an Produktion koppeln
 - [ ] `ticketPrice(n, jps)` in shared, `server/lottery.js` umstellen

@@ -204,7 +204,7 @@
 
 /* ── Countdown ───────────────────────────────────────────────────────────── */
 
-/* Same hierarchy as the mini widget: time remaining leads, date supports. */
+/* Stacked like the mini widget so the fuller date string fits at 393px. */
 .ml-countdown {
   display: flex;
   flex-direction: column;

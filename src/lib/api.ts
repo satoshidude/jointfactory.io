@@ -13,3 +13,16 @@ export async function apiFetch(path: string, opts: RequestInit = {}) {
   try { return JSON.parse(text); }
   catch { return { error: 'Invalid response' }; }
 }
+
+/**
+ * WebSocket endpoint for live lottery and player updates.
+ *
+ * Six components each carried `location.hostname === 'localhost' ? 'localhost:3420'
+ * : location.host`, but the API server listens on 3421 — so live updates never
+ * arrived in local development. The dev server proxies /ws to the API, so the
+ * page host is right in both environments.
+ */
+export function wsUrl(): string {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${location.host}/ws`;
+}

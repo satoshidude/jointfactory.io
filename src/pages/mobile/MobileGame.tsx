@@ -6,6 +6,7 @@ import { nextObjective } from '../../game/objectives'
 import { countLotteryManagers, REQUIRED_MANAGERS, TICKET_PRICE_CURVE } from '../../../shared/economy.js'
 import { PlantationsCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
 import LotteryMini from '../../components/mobile/LotteryMini'
+import BoostBar from '../../components/mobile/BoostBar'
 import GrowthRace from '../../components/mobile/GrowthRace'
 import Leaderboard from '../../components/mobile/Leaderboard'
 import './MobilePages.css'
@@ -65,12 +66,20 @@ export default function MobileGame() {
       <div className="mgp-col mgp-col-left">
         <LotteryMini />
 
+        <BoostBar
+          boosts={state.boosts}
+          sats={state.sats}
+          isLoggedIn={auth.isLoggedIn}
+          onBuy={actions.buyBoost}
+        />
+
         <FactoryCard
           fabrik={state.fabrik}
           cannabisAtFactory={state.cannabisAtFactory}
           joints={state.joints}
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
+          boosts={state.boosts}
           onUpgradeCap={actions.upgradeFabrikCap}
           onUpgradeSpeed={actions.upgradeFabrikSpeed}
           onBuyManager={actions.buyFabrikManager}
@@ -83,6 +92,7 @@ export default function MobileGame() {
           joints={state.joints}
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
+          boosts={state.boosts}
           onUpgradeCap={actions.upgradeCourierCap}
           onUpgradeSpeed={actions.upgradeCourierSpeed}
           onBuyManager={actions.buyCourierManager}
@@ -99,6 +109,7 @@ export default function MobileGame() {
           joints={state.joints}
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
+          boosts={state.boosts}
           onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
           onUpgradeSpeed={(i) => actions.upgradePlantSpeed(i)}
           onBuyManager={(i) => actions.buyPlantManager(i)}

@@ -15,7 +15,8 @@ import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         startCron, getTicketPrice, getMyTicketCount, getPriceCurvePreview,
         MAX_WINNERS, SAT_PER_TICKET, TICKET_PRICE_CURVE } from './lottery.js';
 import { db, logRateChange } from './db.js';
-import { countLotteryManagers, REQUIRED_MANAGERS } from '../shared/economy.js';
+import { countLotteryManagers, REQUIRED_MANAGERS, potPayout } from '../shared/economy.js';
+import { buyBoost, getActiveBoosts } from './boosts.js';
 import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder } from './zap.js';
 import { nip19 } from 'nostr-tools';
 
@@ -79,7 +80,7 @@ await fastify.register(async function wsRoutes(fastify) {
           type: 'lottery_tick',
           draws_at: round.draws_at,
           remaining_ms: remaining,
-          pot_sats: Math.floor(round.total_sats_collected * 0.8),
+          pot_sats: potPayout(round.total_sats_collected),
           total_tickets: tickets.length,
           unique_players: uniquePlayers,
         }));
@@ -167,7 +168,29 @@ fastify.post('/api/auth/nostr', async (req, reply) => {
 });
 
 // ── Game state ────────────────────────────────────────────────────────────────
-fastify.get('/api/game/state',    { preHandler: requireAuth }, async (req) => loadState(req.user.npub) || { error: 'not found' });
+
+/** Push the current pot to every connected client. Fired whenever sats spend
+ *  feeds the open round — manager purchases, speed upgrades, boosts. */
+function broadcastPotUpdate() {
+  const round = getCurrentRound();
+  if (!round) return;
+  const tickets = getRoundTickets(round.id);
+  wsHub.broadcastLotteryTick({
+    draws_at: round.draws_at,
+    remaining_ms: Math.max(0, round.draws_at * 1000 - Date.now()),
+    pot_sats: potPayout(round.total_sats_collected),
+    total_tickets: tickets.length,
+    unique_players: new Set(tickets.map(t => t.npub)).size,
+  });
+}
+
+fastify.get('/api/game/state', { preHandler: requireAuth }, async (req) => {
+  const state = loadState(req.user.npub);
+  if (!state) return { error: 'not found' };
+  // Boost expiry is server state — the client applies the multipliers but never
+  // decides when they end.
+  return { ...state, boosts: getActiveBoosts(req.user.npub) };
+});
 fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
   const result = saveState(req.user.npub, req.body);
   if (!result.ok) return result;
@@ -176,23 +199,21 @@ fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
     wsHub.broadcastPlayerUpdate(req.user.npub, Math.floor(joints || 0), Math.floor(total_joints_earned || 0), joints_per_sec || 0);
     logRateChange(req.user.npub, joints_per_sec || 0, total_joints_earned || 0);
   }
-  if (result.potUpdated) {
-    const round = getCurrentRound();
-    if (round) {
-      const tickets = getRoundTickets(round.id);
-      const uniquePlayers = new Set(tickets.map(t => t.npub)).size;
-      wsHub.broadcastLotteryTick({
-        draws_at: round.draws_at,
-        remaining_ms: Math.max(0, round.draws_at * 1000 - Date.now()),
-        pot_sats: Math.floor(round.total_sats_collected * 0.8),
-        total_tickets: tickets.length,
-        unique_players: uniquePlayers,
-      });
-    }
-  }
+  if (result.potUpdated) broadcastPotUpdate();
   return result;
 });
 fastify.post('/api/game/profile', { preHandler: requireAuth }, async (req) => updateProfile(req.user.npub, req.body));
+
+// Boosts: the recurring sats sink. 80 % of the price feeds the lottery pot,
+// same split as every other sats spend.
+fastify.post('/api/game/boost', { preHandler: requireAuth }, async (req, reply) => {
+  const { type } = req.body || {};
+  const result = buyBoost(req.user.npub, type);
+  if (!result.ok) return reply.code(400).send({ error: result.reason });
+  broadcastPotUpdate();
+  wsHub.notifySatsUpdate(req.user.npub, result.sats);
+  return result;
+});
 
 // Delete own account
 fastify.delete('/api/game/profile', { preHandler: requireAuth }, async (req) => {
@@ -218,20 +239,7 @@ fastify.post('/api/game/beacon', async (req, reply) => {
       wsHub.broadcastPlayerUpdate(decoded.npub, Math.floor(joints || 0), Math.floor(total_joints_earned || 0), joints_per_sec || 0);
       logRateChange(decoded.npub, joints_per_sec || 0, total_joints_earned || 0);
     }
-    if (result.potUpdated) {
-      const round = getCurrentRound();
-      if (round) {
-        const tickets = getRoundTickets(round.id);
-        const uniquePlayers = new Set(tickets.map(t => t.npub)).size;
-        wsHub.broadcastLotteryTick({
-          draws_at: round.draws_at,
-          remaining_ms: Math.max(0, round.draws_at * 1000 - Date.now()),
-          pot_sats: Math.floor(round.total_sats_collected * 0.8),
-          total_tickets: tickets.length,
-          unique_players: uniquePlayers,
-        });
-      }
-    }
+    if (result.potUpdated) broadcastPotUpdate();
     return result;
   } catch(e) { return reply.code(401).send({ error: 'Invalid token' }); }
 });
@@ -282,7 +290,7 @@ fastify.get('/api/lottery/current', async (req) => {
       total_sats_collected: round.total_sats_collected,
       total_tickets: tickets.length,
       unique_players: uniquePlayers,
-      pot_sats: Math.floor(round.total_sats_collected * 0.8),
+      pot_sats: potPayout(round.total_sats_collected),
       max_winners: MAX_WINNERS,
       sat_per_ticket: SAT_PER_TICKET,
     },

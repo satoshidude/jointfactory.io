@@ -101,11 +101,13 @@ export function migrateSpeedLevel(oldLevel) {
 
 export const COST_SCALE = 2.5 // courier/fabrik capacity upgrade cost multiplier
 
+/** @param {any} c @param {number} [boostMult] @returns {number} */
 export function courierTripTime(c, boostMult = 1) {
   const speed = c.speed * boostMult
   return speed > 0 ? c.tripDuration / speed : c.tripDuration
 }
 
+/** @param {any} f @param {number} [boostMult] @returns {number} */
 export function fabrikCycleTime(f, boostMult = 1) {
   const speed = f.speed * boostMult
   return speed > 0 ? f.processTime / speed : f.processTime
@@ -119,6 +121,7 @@ export const FREE_MANAGERS = 3
 export const REQUIRED_MANAGERS = 3
 
 /** Total managers hired across all stations. Accepts a state object or JSON string. */
+/** @param {any} gameState @returns {number} */
 export function countManagers(gameState) {
   if (!gameState) return 0
   let gs = gameState
@@ -133,6 +136,7 @@ export function countManagers(gameState) {
 }
 
 /** Managers on the three stations the lottery requires (plant #1, courier, factory). */
+/** @param {any} gameState @returns {number} */
 export function countLotteryManagers(gameState) {
   if (!gameState) return 0
   let gs = gameState
@@ -151,13 +155,20 @@ export function countLotteryManagers(gameState) {
 // through pot → winners → boosts → pot, burning the 20 % house cut each lap.
 
 export const BOOSTS = {
-  fertilizer:   { id: 'fertilizer',   name: 'Dünger',         cost: 21,  durationSec: 1800, plant: 2 },
-  express:      { id: 'express',      name: 'Express-Kurier', cost: 21,  durationSec: 1800, courier: 3 },
-  doubleshift:  { id: 'doubleshift',  name: 'Doppelschicht',  cost: 21,  durationSec: 1800, fabrik: 2 },
-  fullthrottle: { id: 'fullthrottle', name: 'Vollgas',        cost: 100, durationSec: 3600, plant: 2, courier: 2, fabrik: 2 },
+  fertilizer:   { id: 'fertilizer',   name: 'Fertilizer',   short: '2x Grow',    cost: 21,  durationSec: 1800, plant: 2 },
+  express:      { id: 'express',      name: 'Express Run',  short: '3x Courier', cost: 21,  durationSec: 1800, courier: 3 },
+  doubleshift:  { id: 'doubleshift',  name: 'Double Shift', short: '2x Factory', cost: 21,  durationSec: 1800, fabrik: 2 },
+  fullthrottle: { id: 'fullthrottle', name: 'Full Throttle', short: '2x Everything', cost: 100, durationSec: 3600, plant: 2, courier: 2, fabrik: 2 },
 }
 
-/** Fold a list of `{ type, expires_at }` rows into per-station multipliers. */
+/**
+ * Fold a list of `{ type, expires_at }` rows into per-station multipliers.
+ * Same type extends its expiry (see server/boosts.js); different types combine.
+ *
+ * @param {Array<{ type: string, expires_at: number }> | null | undefined} activeBoosts
+ * @param {number} nowSec
+ * @returns {{ plant: number, courier: number, fabrik: number }}
+ */
 export function boostMultipliers(activeBoosts, nowSec) {
   const m = { plant: 1, courier: 1, fabrik: 1 }
   for (const b of activeBoosts || []) {
@@ -212,6 +223,11 @@ export function prestigeGain(lifetimeJoints, currentSeeds) {
 // Reporting the plantation sum made the leaderboard and growth race show numbers
 // players never actually earned — a player without a factory manager earns zero.
 
+/**
+ * @param {any} gs
+ * @param {{ seeds?: number, boosts?: Array<{ type: string, expires_at: number }>, nowSec?: number }} [opts]
+ * @returns {{ plant: number, courier: number, fabrik: number, jointsPerSec: number }}
+ */
 export function throughput(gs, { seeds = 0, boosts = [], nowSec = 0 } = {}) {
   const empty = { plant: 0, courier: 0, fabrik: 0, jointsPerSec: 0 }
   if (!gs || !gs.plantagen) return empty
@@ -235,6 +251,24 @@ export function throughput(gs, { seeds = 0, boosts = [], nowSec = 0 } = {}) {
   const fabrik = f && f.mgrLevel > 0 ? prestige * f.capacity / fabrikCycleTime(f, m.fabrik) : 0
 
   return { plant, courier, fabrik, jointsPerSec: Math.min(plant, courier, fabrik) }
+}
+
+// ── Lottery pot ──────────────────────────────────────────────────────────────
+
+/**
+ * Share of the pot paid out to winners; the rest is the house cut.
+ *
+ * `lottery_rounds.total_sats_collected` holds the **gross** sats a round has
+ * collected. The cut is taken exactly once, at payout. It used to be applied
+ * twice — sats spend entered the pot already reduced by 20 %, and the draw took
+ * another 20 % off that — so a player got 57–64 % back from a loop advertised
+ * as 80 %. Anything writing to or reading from the pot uses this constant.
+ */
+export const POT_PAYOUT_SHARE = 0.8
+
+/** Sats paid out to winners for a given gross pot. */
+export function potPayout(grossSats) {
+  return Math.floor((grossSats || 0) * POT_PAYOUT_SHARE)
 }
 
 // ── Lottery tickets (the scaling joints sink) ────────────────────────────────
@@ -315,6 +349,7 @@ export function initialState() {
  * Only genuine player state survives: level, timer, speed, speedLevel,
  * managerLevel, totalProduced, capacity, capCost.
  */
+/** @template T @param {T} gs @returns {T} */
 export function rehydrate(gs) {
   if (!gs || !gs.plantagen) return gs
 

@@ -1,6 +1,7 @@
 import { randomInt } from 'crypto';
 import { db, ensureOpenRound } from './db.js';
 import { DRAW_LABEL } from '../shared/schedule.js';
+import { potPayout } from '../shared/economy.js';
 import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
@@ -77,7 +78,7 @@ export function buyTicket(npub) {
   wsHub.broadcastLotteryTick({
     draws_at: round.draws_at,
     remaining_ms: Math.max(0, round.draws_at * 1000 - Date.now()),
-    pot_sats: Math.floor(updatedRound.total_sats_collected * 0.8),
+    pot_sats: potPayout(updatedRound.total_sats_collected),
     total_tickets: allTickets.length,
     unique_players: uniquePlayers,
   });
@@ -118,7 +119,7 @@ export async function runDraw(roundId) {
   }
 
   // Calculate payout proportional to tickets held by each winner
-  const payoutPool = Math.floor(round.total_sats_collected * 0.8);
+  const payoutPool = potPayout(round.total_sats_collected);
   const winnerTickets = winners.reduce((sum, npub) => sum + ticketsByPlayer[npub], 0);
   const payouts = {}; // { npub: sats }
   let distributed = 0;
@@ -183,7 +184,7 @@ export function startCron() {
     wsHub.broadcastLotteryTick({
       draws_at: round.draws_at,
       remaining_ms: remaining,
-      pot_sats: Math.floor(round.total_sats_collected * 0.8),
+      pot_sats: potPayout(round.total_sats_collected),
       total_tickets: tickets.length,
       unique_players: uniquePlayers,
     });

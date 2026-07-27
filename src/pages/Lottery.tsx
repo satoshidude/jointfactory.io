@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Ticket, Trophy, Zap, Timer, Users, TrendingUp, ExternalLink } from 'lucide-react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, wsUrl } from '../lib/api';
 import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime } from '../lib/format';
 import { useAuth } from '../stores/authStore';
 import { useGameDisplay } from '../stores/gameDisplayStore';
@@ -142,9 +142,7 @@ export default function LotteryPage() {
 
   // WebSocket for real-time lottery updates
   useEffect(() => {
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = location.hostname === 'localhost' ? 'localhost:3420' : location.host;
-    const ws = new WebSocket(`${proto}//${host}/ws`);
+    const ws = new WebSocket(wsUrl());
 
     ws.onmessage = (e) => {
       try {

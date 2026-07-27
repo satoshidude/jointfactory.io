@@ -1,12 +1,12 @@
 import { useRef, useState, useEffect } from 'react'
 import { Sprout, Footprints, Factory, Lock, Cannabis, Zap } from 'lucide-react'
-import type { PlantationState, CourierState, FabrikState } from '../../game/useGameLoop'
+import type { PlantationState, CourierState, FabrikState, ActiveBoost } from '../../game/useGameLoop'
 import {
   plantLevelCost, plantMilestoneInfo, plantOutput, plantEffectiveCycle, plantRate,
   courierTripTime, fabrikCycleTime,
   getSpeedUpgrade, PLANTATION_DEFS,
 } from '../../game/useGameLoop'
-import { FREE_MANAGERS } from '../../../shared/economy.js'
+import { FREE_MANAGERS, boostMultipliers } from '../../../shared/economy.js'
 import './StationCard.css'
 import { fmtNum } from '../../lib/format'
 
@@ -151,15 +151,16 @@ function useMilestoneBlow(level: number) {
 
 // ── Plant Row ───────────────────────────────────────────────────────────────
 
-function PlantRow({ p, i, joints, managerCount, isLoggedIn, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow }: {
+function PlantRow({ p, i, joints, managerCount, isLoggedIn, boostMult, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow }: {
   p: PlantationState; i: number; joints: number; managerCount: number
-  isLoggedIn: boolean
+  isLoggedIn: boolean; boostMult: number
   onUpgradeLevel: (i: number) => void; onUpgradeSpeed: (i: number) => void
   onBuyManager: (i: number) => void; onGrow: (i: number) => void
 }) {
   const cycle = plantEffectiveCycle(p)
-  const output = plantOutput(p)
-  const rate = plantRate(p)
+  // Boosted values, so the card matches what the loop actually produces.
+  const output = plantOutput(p) * boostMult
+  const rate = plantRate(p) * boostMult
   const lvCost = plantLevelCost(p)
   const milestone = plantMilestoneInfo(p.level)
   const speedUpg = getSpeedUpgrade(p.speedLevel)
@@ -225,12 +226,13 @@ function PlantRow({ p, i, joints, managerCount, isLoggedIn, onUpgradeLevel, onUp
 
 // ── Plantations Group Card ──────────────────────────────────────────────────
 
-export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isLoggedIn, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow, onUnlock }: {
+export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isLoggedIn, boosts = [], onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow, onUnlock }: {
   plantagen: PlantationState[]
   cannabis: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
+  boosts?: ActiveBoost[]
   onUpgradeLevel: (i: number) => void
   onUpgradeSpeed: (i: number) => void
   onBuyManager: (i: number) => void
@@ -238,11 +240,12 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
   onUnlock: () => void
 }) {
   // Summary stats
+  const plantBoost = boostMultipliers(boosts, Math.floor(Date.now() / 1000)).plant
   let totalRate = 0
   let totalOutput = 0
   for (const p of plantagen) {
     totalOutput += plantOutput(p)
-    if (p.managerLevel > 0) totalRate += plantRate(p)
+    if (p.managerLevel > 0) totalRate += plantRate(p) * plantBoost
   }
 
   return (
@@ -278,7 +281,7 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
       <div className="plant-list">
         {plantagen.map((p, i) => (
           <PlantRow key={p.id} p={p} i={i} joints={joints} managerCount={managerCount}
-            isLoggedIn={isLoggedIn}
+            isLoggedIn={isLoggedIn} boostMult={plantBoost}
             onUpgradeLevel={onUpgradeLevel} onUpgradeSpeed={onUpgradeSpeed}
             onBuyManager={onBuyManager} onGrow={onGrow} />
         ))}
@@ -319,18 +322,19 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
 
 // ── Courier Station Card ────────────────────────────────────────────────────
 
-export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedIn, onUpgradeCap, onUpgradeSpeed, onBuyManager, onSend }: {
+export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedIn, boosts = [], onUpgradeCap, onUpgradeSpeed, onBuyManager, onSend }: {
   courier: CourierState
   cannabis: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
+  boosts?: ActiveBoost[]
   onUpgradeCap: () => void
   onUpgradeSpeed: () => void
   onBuyManager: () => void
   onSend: () => void
 }) {
-  const tripTime = courierTripTime(courier)
+  const tripTime = courierTripTime(courier, boostMultipliers(boosts, Math.floor(Date.now() / 1000)).courier)
   const isMoving = courier.state !== 'idle'
   const rawProgress = isMoving ? 1 - (courier.tripTimer / tripTime) : 0
   const progress = courier.state === 'toPlant' ? 1 - rawProgress : rawProgress
@@ -408,18 +412,19 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
 
 // ── Factory Station Card ────────────────────────────────────────────────────
 
-export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, isLoggedIn, onUpgradeCap, onUpgradeSpeed, onBuyManager, onRoll }: {
+export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, isLoggedIn, boosts = [], onUpgradeCap, onUpgradeSpeed, onBuyManager, onRoll }: {
   fabrik: FabrikState
   cannabisAtFactory: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
+  boosts?: ActiveBoost[]
   onUpgradeCap: () => void
   onUpgradeSpeed: () => void
   onBuyManager: () => void
   onRoll: () => void
 }) {
-  const cycleTime = fabrikCycleTime(fabrik)
+  const cycleTime = fabrikCycleTime(fabrik, boostMultipliers(boosts, Math.floor(Date.now() / 1000)).fabrik)
   const progress = fabrik.processing ? 1 - (fabrik.timer / fabrik.processTime) : 0
   const speedUpg = getSpeedUpgrade(fabrik.speedLevel)
   const isAuto = fabrik.mgrLevel > 0
