@@ -107,6 +107,20 @@ db.exec(`
   );
 `);
 
+// Timed production boosts — the recurring sats sink.
+// One row per player and type; buying an active boost again extends its expiry
+// instead of inserting a second row, so the table stays bounded and the
+// multiplier cannot stack into absurd rates.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS active_boosts (
+    npub TEXT NOT NULL,
+    type TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    PRIMARY KEY (npub, type)
+  );
+  CREATE INDEX IF NOT EXISTS idx_active_boosts_expiry ON active_boosts(expires_at);
+`);
+
 // Draw schedule lives in shared/schedule.js — pure date math, no DB, testable.
 
 export function ensureOpenRound() {

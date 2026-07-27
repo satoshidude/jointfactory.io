@@ -204,13 +204,16 @@
 
 /* ── Countdown ───────────────────────────────────────────────────────────── */
 
+/* Same hierarchy as the mini widget: time remaining leads, date supports. */
 .ml-countdown {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
 }
 
 .ml-countdown-time {
+  white-space: nowrap;
   font-family: var(--font-body);
   font-size: 22px;
   font-weight: 700;
@@ -219,6 +222,7 @@
 }
 
 .ml-countdown-remaining {
+  white-space: nowrap;
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--text-secondary);

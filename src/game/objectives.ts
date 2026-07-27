@@ -23,36 +23,36 @@ export function nextObjective(state: DisplayState, isLoggedIn: boolean, canAffor
 
   // Stage 1: nothing harvested yet.
   if (state.cannabis <= 0 && state.cannabisAtFactory <= 0 && plantReady) {
-    return 'Tippe auf Grow — deine erste Ernte wartet'
+    return 'Tap Grow — your first harvest is ready'
   }
   // Stage 2: weed sitting in the field with an idle courier.
   if (state.cannabis > 0 && courierIdle) {
-    return 'Schick den Kurier los — er bringt das Weed zur Fabrik'
+    return 'Send the courier — he hauls the weed to the factory'
   }
   // Stage 3: weed delivered, factory idle.
   if (state.cannabisAtFactory > 0 && factoryIdle) {
-    return 'Roll die Joints — die Fabrik hat Nachschub'
+    return 'Roll the joints — the factory has supply waiting'
   }
   // Automate what is still manual, while it is free.
   if (managers < FREE_MANAGERS) {
     const left = FREE_MANAGERS - managers
-    return `Stell ${left === 1 ? 'noch einen Manager' : `noch ${left} Manager`} ein — gratis, dann läuft die Station allein`
+    return `Hire ${left === 1 ? 'one more manager' : `${left} more managers`} — free, and the station runs itself`
   }
   // Free managers spent, but not on the three stations the chain needs.
   if (chainManagers < REQUIRED_MANAGERS) {
     const missing = [
-      state.plantagen?.[0]?.managerLevel === 0 ? 'die Plantage' : null,
-      state.courier?.mgrLevel === 0 ? 'den Kurier' : null,
-      state.fabrik?.mgrLevel === 0 ? 'die Fabrik' : null,
+      state.plantagen?.[0]?.managerLevel === 0 ? 'the plantation' : null,
+      state.courier?.mgrLevel === 0 ? 'the courier' : null,
+      state.fabrik?.mgrLevel === 0 ? 'the factory' : null,
     ].filter(Boolean)
-    return `Für die Lotterie fehlt ein Manager auf ${missing.join(' und ')}`
+    return `The lottery needs a manager on ${missing.join(' and ')}`
   }
   // Chain runs — the reward loop needs an identity the server can pay out to.
   if (!isLoggedIn) {
-    return 'Melde dich an und spiel mit deinen Joints um echte Sats'
+    return 'Log in to play your joints for real sats'
   }
   if (canAffordTicket) {
-    return 'Du hast genug Joints für ein Los'
+    return 'You have enough joints for a ticket'
   }
   return null
 }

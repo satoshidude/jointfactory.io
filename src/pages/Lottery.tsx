@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Ticket, Trophy, Zap, Timer, Users, TrendingUp, ExternalLink } from 'lucide-react';
 import { apiFetch } from '../lib/api';
-import { fmtCountdown, fmtDrawTime } from '../lib/format';
+import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime } from '../lib/format';
 import { useAuth } from '../stores/authStore';
 import { useGameDisplay } from '../stores/gameDisplayStore';
 import { nip19 } from 'nostr-tools';
@@ -63,12 +63,6 @@ function shortenNpub(npub: string, pre = 10, post = 6): string {
   return npub.slice(0, pre) + '...' + npub.slice(-post);
 }
 
-function fmtTime(ts: number): string {
-  const d = new Date(ts * 1000);
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
-    + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-}
-
 // -- Component --
 
 export default function LotteryPage() {
@@ -101,6 +95,7 @@ export default function LotteryPage() {
         setNextCost(res.next_ticket_cost ?? 0);
         setPricePreview(res.price_preview ?? []);
         drawAtRef.current = res.round.draws_at;
+        setCountdown(Math.max(0, res.round.draws_at - Math.floor(Date.now() / 1000)));
       }
       setLoading(false);
     }).catch(() => setLoading(false));

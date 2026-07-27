@@ -57,13 +57,28 @@ export function fmtCountdown(seconds: number): string {
   return d > 0 ? `${d}d ${clock}` : clock
 }
 
+// The UI is English throughout, so dates are formatted in English rather than
+// the visitor's locale — a German browser rendered "Di., 21:00" next to
+// "Hire Manager" and "Ready".
+const LOCALE = 'en-GB'
+
 /**
- * Absolute draw time. A bare "21:00" was unambiguous at six draws a day but is
- * not when the next one may be three days out, so the weekday comes along.
+ * Absolute draw time. A bare "21:00" was unambiguous at six draws a day; with
+ * draws on Tue/Thu/Sat the next one can be three days out, so it carries the
+ * weekday and the date.
  */
 export function fmtDrawTime(unixSeconds: number): string {
   if (!unixSeconds) return '--:--'
-  return new Date(unixSeconds * 1000).toLocaleString([], {
-    weekday: 'short', hour: '2-digit', minute: '2-digit',
+  return new Date(unixSeconds * 1000).toLocaleString(LOCALE, {
+    weekday: 'short', day: '2-digit', month: 'short',
+    hour: '2-digit', minute: '2-digit', hour12: false,
   })
+}
+
+/** Short date + time for lottery history rows. */
+export function fmtDateTime(unixSeconds: number): string {
+  if (!unixSeconds) return '--'
+  const d = new Date(unixSeconds * 1000)
+  return d.toLocaleDateString(LOCALE, { day: '2-digit', month: 'short' })
+    + ' ' + d.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false })
 }

@@ -36,33 +36,38 @@
 }
 
 /* Row 2: draw time + countdown */
+/* Time to the draw leads, the calendar date supports it. With draws on
+   Tue/Thu/Sat the remaining time is what a player acts on, and the two values
+   side by side no longer fit the card once the date carries a weekday. */
 .lottery-mini-time {
   display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
 }
 
-.lottery-mini-draw {
+.lottery-mini-countdown {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-family: var(--font-heading);
   font-size: 18px;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.lottery-mini-draw svg {
+.lottery-mini-countdown svg {
   color: var(--neon-gold);
   filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
 }
 
-.lottery-mini-countdown {
+.lottery-mini-draw {
   font-family: var(--font-body);
   font-size: 12px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* Row 3: pot, tickets, players */

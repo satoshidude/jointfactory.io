@@ -35,6 +35,7 @@ export default function LotteryMini() {
         setMyTickets(res.my_tickets ?? 0)
         setNextCost(res.next_ticket_cost ?? 0)
         drawAtRef.current = res.round.draws_at
+        setCountdown(Math.max(0, res.round.draws_at - Math.floor(Date.now() / 1000)))
       }
     }).catch(() => {})
   }, [])
@@ -125,8 +126,8 @@ export default function LotteryMini() {
         <span className="lottery-mini-title">Lightning Lottery</span>
       </div>
       <div className="lottery-mini-time">
-        <span className="lottery-mini-draw"><Timer size={18} /> {drawTime}</span>
-        <span className="lottery-mini-countdown">{fmtCountdown(countdown)}</span>
+        <span className="lottery-mini-countdown"><Timer size={18} /> {fmtCountdown(countdown)}</span>
+        <span className="lottery-mini-draw">{drawTime}</span>
       </div>
       <div className="lottery-mini-stats">
         <span className="lottery-mini-stat"><span className="lottery-mini-stat-label">Pot</span> <Zap size={14} /> {fmtSats(round.pot_sats)}</span>
