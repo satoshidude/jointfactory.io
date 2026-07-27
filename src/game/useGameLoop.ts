@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { rehydrate } from '../../shared/economy.js'
 
 // ── Plantation definitions (matching production) ─────────────────────────────
 
@@ -207,6 +208,19 @@ function migrateSpeedLevels(gs: GameState) {
   localStorage.setItem(SPEED_MIGRATION_KEY, '1')
 }
 
+/**
+ * Every path that loads a saved state runs through here. rehydrate() restores
+ * the definition fields (name, icon, baseProd, upgMult …) from PLANTATION_DEFS,
+ * because newPlantation() persists them into the save and they then never
+ * update — the oldest account still displayed the Lightning-Mines station names
+ * months after the theme changed.
+ */
+function hydrate(gs: GameState): GameState {
+  migrateSpeedLevels(gs)
+  rehydrate(gs)
+  return gs
+}
+
 function saveLocal(gs: GameState) {
   gs._ts = Date.now()
   localStorage.setItem(SAVE_KEY, JSON.stringify(gs))
@@ -226,7 +240,7 @@ async function loadFromServer(): Promise<LoadResult> {
     const data = await res.json()
     if (!data || data.error) return { status: 'error' }
     const gs = data.gameState && Object.keys(data.gameState).length > 0 ? data.gameState as GameState : null
-    if (gs) migrateSpeedLevels(gs)
+    if (gs) hydrate(gs)
     return {
       status: 'ok',
       gs,
@@ -479,8 +493,7 @@ export function useGameLoop(
         const saved = localStorage.getItem(SAVE_KEY)
         if (saved) {
           try {
-            const gs = JSON.parse(saved) as GameState
-            migrateSpeedLevels(gs)
+            const gs = hydrate(JSON.parse(saved) as GameState)
             gsRef.current = gs
             const elapsed = gs._ts ? (Date.now() - gs._ts) / 1000 : 0
             if (elapsed > 2) {
@@ -501,8 +514,7 @@ export function useGameLoop(
         const saved = localStorage.getItem(SAVE_KEY)
         if (saved) {
           try {
-            const gs = JSON.parse(saved) as GameState
-            migrateSpeedLevels(gs)
+            const gs = hydrate(JSON.parse(saved) as GameState)
             gsRef.current = gs
             // Offline catch-up for guests too
             const elapsed = gs._ts ? (Date.now() - gs._ts) / 1000 : 0

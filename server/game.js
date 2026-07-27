@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { rehydrate } from '../shared/economy.js';
 
 function countManagers(gameState) {
   if (!gameState) return 0;
@@ -17,6 +18,9 @@ export function loadState(npub) {
 
   let gameState = {};
   try { gameState = JSON.parse(player.game_state || '{}'); } catch(e) {}
+  // Definition fields (name, icon, baseProd, upgMult …) come from the defs, not
+  // from the save — see rehydrate() in shared/economy.js.
+  rehydrate(gameState);
 
   return {
     npub: player.npub,
