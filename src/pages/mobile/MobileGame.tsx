@@ -3,7 +3,7 @@ import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { useGameLoop } from '../../game/useGameLoop'
 import { nextObjective } from '../../game/objectives'
-import { countLotteryManagers, REQUIRED_MANAGERS, TICKET_PRICE_CURVE } from '../../../shared/economy.js'
+import { countLotteryManagers, REQUIRED_MANAGERS, ticketPrice, throughput } from '../../../shared/economy.js'
 import { PlantationsCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
 import LotteryMini from '../../components/mobile/LotteryMini'
 import BoostBar from '../../components/mobile/BoostBar'
@@ -46,9 +46,12 @@ export default function MobileGame() {
     })
   }, [state.joints, state.sats, state.cannabis, state.cannabisAtFactory, state.courier.carrying, state.managerCount, eligible]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cheapest a ticket can ever be — enough for a nudge; LotteryMini knows the
-  // player's actual next price and gates the buy button on it.
-  const objective = nextObjective(state, auth.isLoggedIn, state.joints >= TICKET_PRICE_CURVE[0])
+  // Ticket prices scale with production, so the floor price is no longer a
+  // useful yardstick — an endgame player pays ~5 minutes of output for their
+  // first ticket. Priced the same way the server does; LotteryMini still owns
+  // the exact next price and gates the buy button on it.
+  const firstTicketCost = ticketPrice(0, throughput(state).jointsPerSec)
+  const objective = nextObjective(state, auth.isLoggedIn, state.joints >= firstTicketCost)
 
   // Sync total earned
   useEffect(() => {

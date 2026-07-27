@@ -1,7 +1,7 @@
 import { randomInt } from 'crypto';
 import { db, ensureOpenRound } from './db.js';
 import { DRAW_LABEL } from '../shared/schedule.js';
-import { potPayout } from '../shared/economy.js';
+import { potPayout, ticketPrice, TICKET_PRICE_CURVE, throughput } from '../shared/economy.js';
 import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
@@ -9,33 +9,28 @@ import { publishLotteryWinNote } from './zap.js';
 export const MAX_WINNERS = 21;
 export const SAT_PER_TICKET = 100;
 
-// Fesselnde Preiskurve: easy start → peak → surprise dip → ramp → endgame
-export const TICKET_PRICE_CURVE = [
-  500,     // #1  — easy, sofort kaufbar
-  1200,    // #2  — easy
-  2500,    // #3  — etwas mehr
-  4000,    // #4  — medium
-  7000,    // #5  — peak early
-  5000,    // #6  — ⬇ DIP! "noch einer!"
-  3500,    // #7  — ⬇ noch günstiger!
-  9000,    // #8  — zurück rauf
-  15000,   // #9  — hard
-  25000,   // #10 — in 24h erreichbar mit Strategie
-  40000,   // #11
-  70000,   // #12
-  120000,  // #13
-  200000,  // #14
-  350000,  // #15
-  600000,  // #16
-  1000000, // #17
-  1700000, // #18
-  2800000, // #19
-  4500000, // #20
-  7500000, // #21+
-];
+// Absolute floor prices; the real price scales with the player's own output.
+export { TICKET_PRICE_CURVE };
 
-export function getTicketPrice(myCount) {
-  return TICKET_PRICE_CURVE[Math.min(myCount, TICKET_PRICE_CURVE.length - 1)];
+/**
+ * Production rate a ticket price is measured against.
+ *
+ * Computed from the stored game state, not from players.joints_per_sec — that
+ * column holds whatever the client last reported, so pricing off it would let a
+ * player post a rate of 0 and buy every ticket at the floor price forever.
+ *
+ * Boosts are deliberately excluded: the price follows base capability, so
+ * buying a boost never makes tickets more expensive.
+ */
+function playerRate(npub) {
+  const row = db.prepare('SELECT game_state FROM players WHERE npub = ?').get(npub);
+  if (!row?.game_state) return 0;
+  try { return throughput(JSON.parse(row.game_state)).jointsPerSec; }
+  catch { return 0; }
+}
+
+export function getTicketPrice(npub, myCount) {
+  return ticketPrice(myCount, playerRate(npub));
 }
 export function getMyTicketCount(npub, roundId) {
   return db.prepare(`SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=? AND npub=?`).get(roundId, npub)?.n || 0;
@@ -46,14 +41,16 @@ export function getCurrentRound() {
 export function getRoundTickets(roundId) {
   return db.prepare(`SELECT * FROM lottery_tickets WHERE round_id=?`).all(roundId);
 }
-export function getPriceCurvePreview(currentCount) {
-  return [0,1,2].map(i => ({ n: currentCount+i+1, cost: getTicketPrice(currentCount+i) }));
+export function getPriceCurvePreview(npub, currentCount) {
+  const rate = playerRate(npub);
+  return [0,1,2].map(i => ({ n: currentCount+i+1, cost: ticketPrice(currentCount+i, rate) }));
 }
 
 // Atomic ticket purchase transaction
 const _buyTicketTx = db.transaction((npub, roundId) => {
   const myCount = getMyTicketCount(npub, roundId);
-  const cost = getTicketPrice(myCount);
+  // Priced inside the transaction, from the same state the deduction reads.
+  const cost = getTicketPrice(npub, myCount);
   // Atomic deduct joints — WHERE joints >= cost prevents overspend
   const deducted = db.prepare('UPDATE players SET joints = joints - ? WHERE npub = ? AND joints >= ?').run(cost, npub, cost);
   if (deducted.changes === 0) return { ok: false, reason: `Not enough Joints (${cost} needed)` };
@@ -85,7 +82,7 @@ export function buyTicket(npub) {
 
   return { ok:true, round_id:round.id, my_tickets:result.myCount, total_tickets:allTickets.length,
     pool_sats:updatedRound.total_sats_collected, draws_at:round.draws_at,
-    next_ticket_cost:getTicketPrice(result.myCount), price_curve:getPriceCurvePreview(result.myCount) };
+    next_ticket_cost:getTicketPrice(npub, result.myCount), price_curve:getPriceCurvePreview(npub, result.myCount) };
 }
 
 export async function runDraw(roundId) {

@@ -11,6 +11,7 @@ if (!globalThis.crypto) globalThis.crypto = webcrypto;
 import { finalizeEvent, getPublicKey, generateSecretKey } from 'nostr-tools/pure';
 import { nip04, nip19 } from 'nostr-tools';
 import WebSocket from 'ws';
+import { ticketPrice, throughput } from '../shared/economy.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -457,19 +458,22 @@ function scheduleFakePlayers(round) {
         if (!currentRound || currentRound.status !== 'open') return;
 
         // Find full npub
-        const player = db.prepare(`SELECT npub, joints FROM players WHERE npub LIKE ?`).get(npub + '%');
+        const player = db.prepare(`SELECT npub, joints, game_state FROM players WHERE npub LIKE ?`).get(npub + '%');
         if (!player) return;
 
         let myCount = db.prepare(`SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=? AND npub=?`).get(round.id, player.npub)?.n || 0;
         if (myCount > 0) return; // already bought this round
 
-        const CURVE = [500,1200,2500,4000,7000,5000,3500,9000,15000,25000,40000,70000,120000,200000,350000,600000,1000000,1700000,2800000,4500000,7500000];
+        // Same pricing as a real purchase — this used to carry its own copy of
+        // the curve, which would now silently diverge from the scaled prices.
+        let rate = 0;
+        try { rate = throughput(JSON.parse(player.game_state || '{}')).jointsPerSec; } catch { /* floor price */ }
+
         const targetTickets = 3 + Math.floor(Math.random() * 10); // 3-12
         let bought = 0;
 
         for (let t = 0; t < targetTickets; t++) {
-          const costIdx = Math.min(myCount, CURVE.length - 1);
-          const cost = CURVE[costIdx];
+          const cost = ticketPrice(myCount, rate);
           const currentJoints = db.prepare('SELECT joints FROM players WHERE npub=?').get(player.npub)?.joints || 0;
           if (currentJoints < cost) break;
 

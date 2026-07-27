@@ -277,10 +277,11 @@ fastify.get('/api/lottery/current', async (req) => {
   try {
     await req.jwtVerify();
     myTickets = getMyTicketCount(req.user.npub, round.id);
-    nextCost  = getTicketPrice(myTickets);
-    preview   = getPriceCurvePreview(myTickets);
+    nextCost  = getTicketPrice(req.user.npub, myTickets);
+    preview   = getPriceCurvePreview(req.user.npub, myTickets);
   } catch(e) {
-    preview = getPriceCurvePreview(0);
+    // Anonymous visitor: no game state, so the floor curve is shown.
+    preview = getPriceCurvePreview(null, 0);
   }
 
   return {

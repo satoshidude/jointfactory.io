@@ -131,10 +131,32 @@ werden statt gemintet. Nicht Teil von Phase 1, gehört zu Phase 5.
       Plantagenrate 225/s meldet 2,5/s, weil der Kurier (Kapazität 20 / 8 s)
       der Flaschenhals ist. Vorher hätte dort 225/s gestanden.
 
-## Phase 3 — Joints-Sink an Produktion koppeln
-- [ ] `ticketPrice(n, jps)` in shared, `server/lottery.js` umstellen
-- [ ] `/api/lottery/current` + Preview auf neue Preise
-- [ ] Hartcodierte Kurvenkopie in `server/zap.js:451` entfernen
+## Phase 3 — Joints-Sink an Produktion koppeln — erledigt 2026-07-27
+- [x] `ticketPrice(n, rate)` in shared; Preis = max(Bodenkurve, Rate × Sekunden)
+- [x] `server/lottery.js` rechnet die Rate **serverseitig** aus `game_state`
+      statt aus `players.joints_per_sec` — die Spalte hält, was der Client
+      zuletzt gemeldet hat; ein Spieler könnte 0 melden und ewig zum
+      Bodenpreis kaufen. Boosts zählen bewusst nicht mit, damit ein Boost die
+      Lose nicht verteuert.
+- [x] Preis wird innerhalb der Kauf-Transaktion aus demselben Zustand berechnet
+- [x] `/api/lottery/current` + Preview; anonyme Besucher sehen die Bodenkurve
+- [x] Hartcodierte Kurvenkopie in `server/zap.js` entfernt — Bots zahlen jetzt
+      denselben skalierten Preis
+- [x] Zielhinweis prüft gegen den eigenen skalierten Preis statt gegen den Boden
+- [x] `scripts/test-ticket-price.mjs` — 9 Checks
+
+### Wirkung auf die Bestandsspieler (Ticket #1)
+| Spieler | Rate | alt | neu | Anteil seines Bestands |
+|---|---|---|---|---|
+| Hakuna | 1,6 Mrd/s | 500 | 467,3 Mrd | 0,03 % |
+| SpookyPayment | 1,6 Mrd/s | 500 | 486,8 Mrd | 89,9 % |
+| satoshidude | 1,6 Mrd/s | 500 | 477,4 Mrd | 1,8 % |
+| boyscout | 1,5 Mrd/s | 500 | 447,1 Mrd | **642 %** |
+
+Die Skalierung greift an der *Rate*, die Altbestände an *Joints* stammen aber
+aus dem alten Regime — für Horter bleibt es billig, für andere wird es
+unbezahlbar. Der Season-Reset (Phase 5) setzt `players.joints` auf 0 und löst
+das; bis dahin ist die Verzerrung bekannt und gewollt in Kauf genommen.
 
 ## Phase 4 — Kurve senken + Prestige
 - [ ] `upgMult` 1.28 → 1.12
