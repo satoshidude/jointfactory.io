@@ -11,7 +11,7 @@ if (!globalThis.crypto) globalThis.crypto = webcrypto;
 import { finalizeEvent, getPublicKey, generateSecretKey } from 'nostr-tools/pure';
 import { nip04, nip19 } from 'nostr-tools';
 import WebSocket from 'ws';
-import { ticketPrice, throughput } from '../shared/economy.js';
+import { ticketPrice, throughput, MAX_TICKETS_PER_DAY } from '../shared/economy.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -464,16 +464,22 @@ function scheduleFakePlayers(round) {
         let myCount = db.prepare(`SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=? AND npub=?`).get(round.id, player.npub)?.n || 0;
         if (myCount > 0) return; // already bought this round
 
-        // Same pricing as a real purchase — this used to carry its own copy of
-        // the curve, which would now silently diverge from the scaled prices.
+        // Same pricing and the same daily cap as a real purchase — this used to
+        // carry its own copy of the curve and bought 3-12 tickets at once.
         let rate = 0;
-        try { rate = throughput(JSON.parse(player.game_state || '{}')).jointsPerSec; } catch { /* floor price */ }
+        try { rate = throughput(JSON.parse(player.game_state || '{}')).jointsPerSec; } catch { /* no output */ }
 
-        const targetTickets = 3 + Math.floor(Math.random() * 10); // 3-12
+        const boughtToday = db.prepare(
+          `SELECT COUNT(*) AS n FROM lottery_tickets WHERE npub = ? AND purchased_at > unixepoch() - 86400`
+        ).get(player.npub)?.n || 0;
+        const targetTickets = Math.max(0, Math.min(
+          MAX_TICKETS_PER_DAY - boughtToday,
+          1 + Math.floor(Math.random() * MAX_TICKETS_PER_DAY)
+        ));
         let bought = 0;
 
         for (let t = 0; t < targetTickets; t++) {
-          const cost = ticketPrice(myCount, rate);
+          const cost = ticketPrice(boughtToday + t, rate);
           const currentJoints = db.prepare('SELECT joints FROM players WHERE npub=?').get(player.npub)?.joints || 0;
           if (currentJoints < cost) break;
 

@@ -13,9 +13,10 @@ import { loadState, saveState, updateProfile, deletePlayer } from './game.js';
 import { createInvoice, handleWebhook, payToLightningAddress, SAT_PACKS } from './lightning.js';
 import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         startCron, getTicketPrice, getMyTicketCount, getPriceCurvePreview,
-        MAX_WINNERS, SAT_PER_TICKET, TICKET_PRICE_CURVE } from './lottery.js';
+        MAX_WINNERS, SAT_PER_TICKET, ticketsBoughtToday } from './lottery.js';
 import { db, logRateChange } from './db.js';
-import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount } from '../shared/economy.js';
+import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount,
+         MAX_TICKETS_PER_DAY } from '../shared/economy.js';
 import { buyBoost, getActiveBoosts } from './boosts.js';
 import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder } from './zap.js';
 import { nip19 } from 'nostr-tools';
@@ -273,15 +274,16 @@ fastify.get('/api/lottery/current', async (req) => {
   const tickets = getRoundTickets(round.id);
   const uniquePlayers = new Set(tickets.map(t => t.npub)).size;
 
-  let myTickets = 0, nextCost = TICKET_PRICE_CURVE[0], preview = [];
+  let myTickets = 0, nextCost = 0, preview = [], ticketsToday = 0;
   try {
     await req.jwtVerify();
-    myTickets = getMyTicketCount(req.user.npub, round.id);
-    nextCost  = getTicketPrice(req.user.npub, myTickets);
-    preview   = getPriceCurvePreview(req.user.npub, myTickets);
+    myTickets    = getMyTicketCount(req.user.npub, round.id);
+    ticketsToday = ticketsBoughtToday(req.user.npub);
+    nextCost     = getTicketPrice(req.user.npub);
+    preview      = getPriceCurvePreview(req.user.npub);
   } catch(e) {
-    // Anonymous visitor: no game state, so the floor curve is shown.
-    preview = getPriceCurvePreview(null, 0);
+    // Anonymous visitor: no game state, so no meaningful price to quote.
+    preview = [];
   }
 
   return {
@@ -297,6 +299,8 @@ fastify.get('/api/lottery/current', async (req) => {
       sat_per_ticket: SAT_PER_TICKET,
     },
     my_tickets: myTickets,
+    tickets_today: ticketsToday,
+    max_tickets_per_day: MAX_TICKETS_PER_DAY,
     next_ticket_cost: nextCost,
     price_preview: preview,
     my_total_won_sats: req.user ? (() => {

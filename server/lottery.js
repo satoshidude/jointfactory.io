@@ -1,7 +1,8 @@
 import { randomInt } from 'crypto';
 import { db, ensureOpenRound } from './db.js';
 import { DRAW_LABEL } from '../shared/schedule.js';
-import { potPayout, ticketPrice, TICKET_PRICE_CURVE, throughput, winnerCount, MAX_WINNERS } from '../shared/economy.js';
+import { potPayout, ticketPrice, ticketPreview, throughput, winnerCount,
+         MAX_WINNERS, MAX_TICKETS_PER_DAY } from '../shared/economy.js';
 import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
@@ -9,8 +10,7 @@ import { publishLotteryWinNote } from './zap.js';
 export { MAX_WINNERS };
 export const SAT_PER_TICKET = 100;
 
-// Absolute floor prices; the real price scales with the player's own output.
-export { TICKET_PRICE_CURVE };
+export { MAX_TICKETS_PER_DAY };
 
 /**
  * Production rate a ticket price is measured against.
@@ -29,8 +29,17 @@ function playerRate(npub) {
   catch { return 0; }
 }
 
-export function getTicketPrice(npub, myCount) {
-  return ticketPrice(myCount, playerRate(npub));
+/** Tickets this player bought in the last 24 hours. */
+export function ticketsBoughtToday(npub) {
+  if (!npub) return 0;
+  return db.prepare(
+    `SELECT COUNT(*) AS n FROM lottery_tickets
+     WHERE npub = ? AND purchased_at > unixepoch() - 86400`
+  ).get(npub)?.n || 0;
+}
+
+export function getTicketPrice(npub) {
+  return ticketPrice(ticketsBoughtToday(npub), playerRate(npub));
 }
 export function getMyTicketCount(npub, roundId) {
   return db.prepare(`SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=? AND npub=?`).get(roundId, npub)?.n || 0;
@@ -41,21 +50,24 @@ export function getCurrentRound() {
 export function getRoundTickets(roundId) {
   return db.prepare(`SELECT * FROM lottery_tickets WHERE round_id=?`).all(roundId);
 }
-export function getPriceCurvePreview(npub, currentCount) {
-  const rate = playerRate(npub);
-  return [0,1,2].map(i => ({ n: currentCount+i+1, cost: ticketPrice(currentCount+i, rate) }));
+export function getPriceCurvePreview(npub) {
+  return ticketPreview(ticketsBoughtToday(npub), playerRate(npub));
 }
 
 // Atomic ticket purchase transaction
 const _buyTicketTx = db.transaction((npub, roundId) => {
-  const myCount = getMyTicketCount(npub, roundId);
-  // Priced inside the transaction, from the same state the deduction reads.
-  const cost = getTicketPrice(npub, myCount);
+  // Counted and priced inside the transaction, from the same rows the deduction
+  // reads, so two concurrent purchases cannot both pass the daily check.
+  const boughtToday = ticketsBoughtToday(npub);
+  if (boughtToday >= MAX_TICKETS_PER_DAY) {
+    return { ok: false, reason: `Daily limit reached — ${MAX_TICKETS_PER_DAY} tickets per day` };
+  }
+  const cost = getTicketPrice(npub);
   // Atomic deduct joints — WHERE joints >= cost prevents overspend
   const deducted = db.prepare('UPDATE players SET joints = joints - ? WHERE npub = ? AND joints >= ?').run(cost, npub, cost);
   if (deducted.changes === 0) return { ok: false, reason: `Not enough Joints (${cost} needed)` };
   db.prepare('INSERT INTO lottery_tickets (round_id, npub, joints_cost) VALUES (?, ?, ?)').run(roundId, npub, cost);
-  return { ok: true, myCount: myCount + 1, cost };
+  return { ok: true, myCount: getMyTicketCount(npub, roundId), boughtToday: boughtToday + 1, cost };
 });
 
 export function buyTicket(npub) {
@@ -82,7 +94,8 @@ export function buyTicket(npub) {
 
   return { ok:true, round_id:round.id, my_tickets:result.myCount, total_tickets:allTickets.length,
     pool_sats:updatedRound.total_sats_collected, draws_at:round.draws_at,
-    next_ticket_cost:getTicketPrice(npub, result.myCount), price_curve:getPriceCurvePreview(npub, result.myCount) };
+    tickets_today: result.boughtToday, max_tickets_per_day: MAX_TICKETS_PER_DAY,
+    next_ticket_cost:getTicketPrice(npub), price_curve:getPriceCurvePreview(npub) };
 }
 
 export async function runDraw(roundId) {

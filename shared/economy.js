@@ -297,29 +297,70 @@ export function winnerCount(participants) {
 }
 
 // ── Lottery tickets (the scaling joints sink) ────────────────────────────────
-// Priced in *seconds of the player's own production* instead of absolute joints.
-// The absolute curve stays as a floor so beginners pay what they always paid,
-// while an endgame player no longer buys a full set for 17 ms of output.
+//
+// Two calibration points define the whole curve:
+//   a top player affords four tickets a day, a beginner one every two days.
+//
+// A single "seconds of production per ticket" figure cannot do that — it gives
+// everyone the same tickets per day whatever their rate. So the yardstick moves
+// with the player: a beginner pays many days of output per ticket, a top player
+// a few hours, interpolated on a log-rate axis between the two anchors.
+//
+// The daily cap exists on top of the pricing because it has to. Balances carry
+// over from the old economy — the largest is about thirteen days of production
+// banked — so price alone would let a hoarder empty the round on day one.
 
-export const TICKET_PRICE_CURVE = [
-  500, 1200, 2500, 4000, 7000, 5000, 3500, 9000, 15_000, 25_000, 40_000,
-  70_000, 120_000, 200_000, 350_000, 600_000, 1_000_000, 1_700_000,
-  2_800_000, 4_500_000, 7_500_000,
-]
+export const MAX_TICKETS_PER_DAY = 4
+export const DAY_SECONDS = 86400
 
-// Keeps the shape of the old curve: peak at #5, the "noch einer!" dip at #6/#7.
-const TICKET_DIP = [1, 1, 1, 1, 1.4, 0.7, 0.45]
+/**
+ * Share of one day's production each of the four daily tickets costs, for a
+ * player at the top anchor. Rising, so a further ticket the same day costs
+ * more; the four together are exactly one day of output.
+ */
+export const TICKET_DAY_SHARE = [0.15, 0.22, 0.28, 0.35]
 
-export const TICKET_SECONDS = TICKET_PRICE_CURVE.map(
-  (_, n) => Math.round(300 * Math.pow(1.25, n) * (TICKET_DIP[n] ?? 1))
-)
+/** A fresh plantation with the three free managers: 1.25 joints/s. */
+export const RATE_BEGINNER = 1.25
+/** Today's endgame players sit at ~1.6 billion joints/s. */
+export const RATE_TOP = 1.6e9
 
-export function ticketPrice(myCount, jointsPerSec) {
-  const n = Math.min(myCount, TICKET_PRICE_CURVE.length - 1)
-  return Math.max(
-    TICKET_PRICE_CURVE[n],
-    Math.round((jointsPerSec || 0) * TICKET_SECONDS[n])
-  )
+// Beginner target: the first ticket of the day costs two days of production.
+const BEGINNER_SCALE = (2 * DAY_SECONDS) / (DAY_SECONDS * TICKET_DAY_SHARE[0])
+
+/**
+ * Multiplier on the top-anchor price, by production rate.
+ * 1 at the top anchor, ~13.3 at the beginner anchor, log-interpolated between.
+ *
+ * @param {number} rate joints per second
+ * @returns {number}
+ */
+export function ticketScale(rate) {
+  if (!rate || rate <= RATE_BEGINNER) return BEGINNER_SCALE
+  if (rate >= RATE_TOP) return 1
+  const t = Math.log10(rate / RATE_BEGINNER) / Math.log10(RATE_TOP / RATE_BEGINNER)
+  return BEGINNER_SCALE + t * (1 - BEGINNER_SCALE)
+}
+
+/**
+ * Price of a player's next ticket.
+ *
+ * @param {number} boughtToday tickets bought in the last 24 h
+ * @param {number} rate joints per second
+ * @returns {number}
+ */
+export function ticketPrice(boughtToday, rate) {
+  const n = Math.min(Math.max(0, boughtToday), TICKET_DAY_SHARE.length - 1)
+  return Math.max(1, Math.round(rate * DAY_SECONDS * TICKET_DAY_SHARE[n] * ticketScale(rate)))
+}
+
+/** Prices for the rest of today's allowance. */
+export function ticketPreview(boughtToday, rate) {
+  const out = []
+  for (let n = boughtToday; n < MAX_TICKETS_PER_DAY; n++) {
+    out.push({ n: n + 1, cost: ticketPrice(n, rate) })
+  }
+  return out
 }
 
 // ── Initial / reset state ────────────────────────────────────────────────────

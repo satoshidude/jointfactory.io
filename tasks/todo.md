@@ -145,7 +145,27 @@ werden statt gemintet. Nicht Teil von Phase 1, gehört zu Phase 5.
 - [x] Zielhinweis prüft gegen den eigenen skalierten Preis statt gegen den Boden
 - [x] `scripts/test-ticket-price.mjs` — 9 Checks
 
-### Wirkung auf die Bestandsspieler (Ticket #1)
+### Nachgeschärft: Tageskontingent (Vorgabe 2026-07-27)
+Zielwerte: **Top-Spieler höchstens 4 Lose pro Tag, Einsteiger höchstens 1 alle
+2 Tage.** Eine feste Sekundenzahl pro Los kann das nicht leisten — sie gibt
+jedem dieselbe Anzahl pro Tag, egal wie groß er ist. Der Maßstab wandert daher
+mit der Spielgröße:
+
+- `ticketScale(rate)` — log-interpoliert zwischen den Ankern 1,25/s (Einsteiger)
+  und 1,6 Mrd/s (heutige Top-Spieler), Faktor 13,3 → 1,0
+- `TICKET_DAY_SHARE = [0.15, 0.22, 0.28, 0.35]` — die vier Tageslose steigen im
+  Preis und kosten zusammen genau einen Produktionstag des Top-Spielers
+- `MAX_TICKETS_PER_DAY = 4`, geprüft über ein rollendes 24-h-Fenster **innerhalb
+  der Kauf-Transaktion**, damit zwei gleichzeitige Käufe nicht beide durchgehen
+- Der Bot in `zap.js` kaufte 3–12 Lose am Stück — unterliegt jetzt demselben Limit
+
+Gemessen: Einsteiger 0,50 Lose/Tag, Top-Spieler exakt 4,00.
+
+Das harte Limit ist nötig, weil die Preisgestaltung allein nicht reicht: die
+Altbestände stammen aus dem alten Regime, der größte entspricht ~13
+Produktionstagen. Ohne Limit hätte ein Horter die Runde am ersten Tag leergekauft.
+
+### Wirkung auf die Bestandsspieler (Ticket #1, vor dem Tageskontingent)
 | Spieler | Rate | alt | neu | Anteil seines Bestands |
 |---|---|---|---|---|
 | Hakuna | 1,6 Mrd/s | 500 | 467,3 Mrd | 0,03 % |

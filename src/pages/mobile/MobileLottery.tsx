@@ -5,6 +5,7 @@ import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime } from '../../lib/for
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { nip19 } from 'nostr-tools'
+import { MAX_TICKETS_PER_DAY } from '../../../shared/economy.js'
 import './MobileLottery.css'
 import '../../components/mobile/LotteryMini.css'
 
@@ -62,6 +63,7 @@ export default function MobileLottery() {
 
   const [round, setRound] = useState<LotteryRound | null>(null)
   const [myTickets, setMyTickets] = useState(0)
+  const [ticketsToday, setTicketsToday] = useState(0)
   const [nextCost, setNextCost] = useState(0)
   const [pricePreview, setPricePreview] = useState<PricePreview[]>([])
   const [countdown, setCountdown] = useState(0)
@@ -82,6 +84,7 @@ export default function MobileLottery() {
         setRound(res.round as LotteryRound)
         setMyTickets(res.my_tickets ?? 0)
         setNextCost(res.next_ticket_cost ?? 0)
+        setTicketsToday(res.tickets_today ?? 0)
         setPricePreview(res.price_preview ?? [])
         drawAtRef.current = res.round.draws_at
         setCountdown(Math.max(0, res.round.draws_at - Math.floor(Date.now() / 1000)))
@@ -150,6 +153,7 @@ export default function MobileLottery() {
       } else if (res.ok) {
         setMyTickets(res.my_tickets || 0)
         setNextCost(res.next_ticket_cost || 0)
+        setTicketsToday(res.tickets_today || 0)
         if (res.price_curve) setPricePreview(res.price_curve)
         fetchCurrent()
       }
@@ -160,7 +164,10 @@ export default function MobileLottery() {
     }
   }
 
-  const canBuy = auth.isLoggedIn && auth.joints >= nextCost && nextCost > 0 && !buying && gd.eligible
+  // Four tickets per rolling day, so a hoarded balance cannot empty a round.
+  const dayLimitReached = ticketsToday >= MAX_TICKETS_PER_DAY
+  const canBuy = auth.isLoggedIn && auth.joints >= nextCost && nextCost > 0
+    && !buying && gd.eligible && !dayLimitReached
   const drawTime = fmtDrawTime(drawAtRef.current)
 
   if (loading) return <div className="ml-page"><div className="ml-card"><p className="ml-empty">Loading Lottery...</p></div></div>
@@ -222,7 +229,7 @@ export default function MobileLottery() {
             {pricePreview.length > 0 && (
               <div className="ml-price-curve">
                 <div className="ml-price-curve-header">
-                  <TrendingUp size={14} /> Price Curve
+                  <TrendingUp size={14} /> Today's tickets
                 </div>
                 <div className="ml-price-steps">
                   {pricePreview.map((p, i) => (
@@ -240,10 +247,12 @@ export default function MobileLottery() {
             ) : (
               <div className="ml-buy">
                 <button className="lottery-mini-buy-btn" onClick={handleBuy} disabled={!canBuy}>
-                  {buying ? 'Buying...' : <>
+                  {buying ? 'Buying...' : dayLimitReached ? <>
+                    <Ticket size={14} /> {MAX_TICKETS_PER_DAY}/{MAX_TICKETS_PER_DAY} today — back tomorrow
+                  </> : <>
                     <TicketPlus size={14} /> Ticket — <Cannabis size={12} /> {fmtSats(nextCost)}
                     <span className="lottery-mini-pipe">|</span>
-                    <span className="lottery-mini-avail"><Cannabis size={12} /> {fmtSats(Math.floor(auth.joints))}</span>
+                    <span className="lottery-mini-avail">{ticketsToday}/{MAX_TICKETS_PER_DAY} today</span>
                   </>}
                 </button>
                 {!gd.eligible && (
@@ -251,7 +260,10 @@ export default function MobileLottery() {
                     Hire {gd.upgradesNeeded} more manager{(gd.upgradesNeeded || 0) !== 1 ? 's' : ''} to unlock
                   </span>
                 )}
-                {nextCost > auth.joints && gd.eligible && (
+                {dayLimitReached && (
+                  <span className="ml-hint">Daily allowance used — the next tickets unlock 24 h after each purchase</span>
+                )}
+                {!dayLimitReached && nextCost > auth.joints && gd.eligible && (
                   <span className="ml-hint">Need {fmtSats(nextCost - Math.floor(auth.joints))} more Joints</span>
                 )}
                 {buyError && <span className="ml-error">{buyError}</span>}
