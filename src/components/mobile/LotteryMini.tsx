@@ -6,6 +6,7 @@ import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import './LotteryMini.css'
 import { fmtNum as fmtSats, fmtCountdown, fmtDrawTime } from '../../lib/format'
+import { potPayout } from '../../../shared/economy.js'
 
 interface MiniRound {
   id: number
@@ -49,7 +50,7 @@ export default function LotteryMini() {
           const payouts = last.winner_payouts || {}
           const firstWinner = last.winner_npub.split(',')[0]
           const name = names[firstWinner] || firstWinner.slice(0, 10) + '...'
-          const payout = payouts[firstWinner] || Math.floor(last.total_sats_collected * 0.8)
+          const payout = payouts[firstWinner] || potPayout(last.total_sats_collected)
           setLastResult({ winner: name, payout })
         } else {
           setLastResult({ winner: null, payout: 0 })

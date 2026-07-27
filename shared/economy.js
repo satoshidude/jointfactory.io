@@ -271,6 +271,31 @@ export function potPayout(grossSats) {
   return Math.floor((grossSats || 0) * POT_PAYOUT_SHARE)
 }
 
+/** Hard ceiling on winners per draw, whatever the turnout. */
+export const MAX_WINNERS = 21
+
+/** Fraction of participants that wins a draw. */
+export const WINNER_SHARE = 1 / 3
+
+/**
+ * How many of `participants` win a draw.
+ *
+ * The draw used to take min(21, participants), so with 21 or fewer entrants
+ * *everyone* won and the pot was split strictly by ticket count — no chance
+ * involved. Across 468 rounds with tickets the largest turnout was 8, so the
+ * ceiling never once applied: the game has never actually run a lottery.
+ *
+ * Scaling the winner count with turnout keeps real losers at any size, so a win
+ * stays an event. Odds remain proportional to tickets held.
+ *
+ * @param {number} participants
+ * @returns {number}
+ */
+export function winnerCount(participants) {
+  if (participants <= 0) return 0
+  return Math.min(MAX_WINNERS, Math.max(1, Math.ceil(participants * WINNER_SHARE)))
+}
+
 // ── Lottery tickets (the scaling joints sink) ────────────────────────────────
 // Priced in *seconds of the player's own production* instead of absolute joints.
 // The absolute curve stays as a floor so beginners pay what they always paid,

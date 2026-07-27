@@ -15,7 +15,7 @@ import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         startCron, getTicketPrice, getMyTicketCount, getPriceCurvePreview,
         MAX_WINNERS, SAT_PER_TICKET, TICKET_PRICE_CURVE } from './lottery.js';
 import { db, logRateChange } from './db.js';
-import { countLotteryManagers, REQUIRED_MANAGERS, potPayout } from '../shared/economy.js';
+import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount } from '../shared/economy.js';
 import { buyBoost, getActiveBoosts } from './boosts.js';
 import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder } from './zap.js';
 import { nip19 } from 'nostr-tools';
@@ -292,7 +292,8 @@ fastify.get('/api/lottery/current', async (req) => {
       total_tickets: tickets.length,
       unique_players: uniquePlayers,
       pot_sats: potPayout(round.total_sats_collected),
-      max_winners: MAX_WINNERS,
+      // Winners this round would produce, not the absolute ceiling.
+      max_winners: winnerCount(uniquePlayers),
       sat_per_ticket: SAT_PER_TICKET,
     },
     my_tickets: myTickets,

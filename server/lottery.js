@@ -1,12 +1,12 @@
 import { randomInt } from 'crypto';
 import { db, ensureOpenRound } from './db.js';
 import { DRAW_LABEL } from '../shared/schedule.js';
-import { potPayout, ticketPrice, TICKET_PRICE_CURVE, throughput } from '../shared/economy.js';
+import { potPayout, ticketPrice, TICKET_PRICE_CURVE, throughput, winnerCount, MAX_WINNERS } from '../shared/economy.js';
 import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
 
-export const MAX_WINNERS = 21;
+export { MAX_WINNERS };
 export const SAT_PER_TICKET = 100;
 
 // Absolute floor prices; the real price scales with the player's own output.
@@ -104,10 +104,11 @@ export async function runDraw(roundId) {
   }
   const totalTickets = tickets.length;
 
-  // Select winners (unique players drawn from ticket pool — more tickets = higher chance)
+  // Select winners (unique players drawn from ticket pool — more tickets = higher chance).
+  // Only a fraction of entrants wins; see winnerCount() for why.
   const pool = tickets.map(t => t.npub);
   const winners = []; const remaining = [...pool];
-  const maxW = Math.min(MAX_WINNERS, new Set(pool).size);
+  const maxW = winnerCount(new Set(pool).size);
   while (winners.length < maxW && remaining.length > 0) {
     const idx = randomInt(0, remaining.length);
     const w = remaining[idx];

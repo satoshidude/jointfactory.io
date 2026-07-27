@@ -158,6 +158,30 @@ aus dem alten Regime — für Horter bleibt es billig, für andere wird es
 unbezahlbar. Der Season-Reset (Phase 5) setzt `players.joints` auf 0 und löst
 das; bis dahin ist die Verzerrung bekannt und gewollt in Kauf genommen.
 
+## Ziehung — Gewinnerquote (Entscheidung 2026-07-27)
+
+**Befund:** Die Ziehung nahm `min(21, Teilnehmer)` Gewinner. Bei 21 oder weniger
+Teilnehmern gewann damit *jeder*, der Pot wurde streng nach Losanzahl geteilt —
+kein Zufall. In 468 Runden mit Losen lag die höchste Teilnehmerzahl bei **8**,
+die 21er-Grenze hat also nie gegriffen: es hat noch nie eine echte Ziehung
+gegeben. Die skalierten Ticketpreise verschärften das, weil gleich aktive
+Spieler nun gleich viele Lose kaufen und die Aufteilung dadurch immer flacher
+wird.
+
+- [x] `winnerCount(teilnehmer)` in `shared/economy.js`: ein Drittel, mindestens
+      einer, gedeckelt bei 21. 3 → 1, 10 → 4, 30 → 10, ab 63 → 21
+- [x] `runDraw` nutzt die Quote; Chance bleibt proportional zu den Losen
+- [x] `/api/lottery/current` meldet die Gewinnerzahl *dieser* Runde statt der
+      absoluten Obergrenze
+- [x] `scripts/test-draw.mjs` — inkl. 3000-Ziehungen-Stichprobe: Gewinnfrequenz
+      trifft den Losanteil auf unter 1 Prozentpunkt genau
+- [x] Letzte hartcodierte `* 0.8`-Kopie im Frontend durch `potPayout()` ersetzt
+
+Auszahlung unter den Gewinnern bleibt proportional zu deren Losen — bei einem
+Gewinner ohnehin identisch. Falls das später zu stark wirkt (Lose zählen dann
+doppelt: für die Chance *und* für den Anteil), wäre die gleichmäßige Teilung
+unter den Gewinnern die Alternative.
+
 ## Phase 4 — Kurve senken + Prestige
 - [ ] `upgMult` 1.28 → 1.12
 - [ ] `prestige_seeds` / `season_joints_earned` Spalten
