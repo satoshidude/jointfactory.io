@@ -1,17 +1,6 @@
 import { db } from './db.js';
 import { rehydrate } from '../shared/economy.js';
 
-function countManagers(gameState) {
-  if (!gameState) return 0;
-  let gs;
-  try { gs = typeof gameState === 'string' ? JSON.parse(gameState) : gameState; } catch { return 0; }
-  let count = 0;
-  if (gs.plantagen?.[0]?.managerLevel > 0) count++;
-  if (gs.courier?.mgrLevel > 0) count++;
-  if (gs.fabrik?.mgrLevel > 0) count++;
-  return count;
-}
-
 export function loadState(npub) {
   const player = db.prepare('SELECT * FROM players WHERE npub = ?').get(npub);
   if (!player) return null;
@@ -41,19 +30,27 @@ const _saveStateTx = db.transaction((npub, payload) => {
   const { gameState, joints, total_joints_earned, joints_per_sec, manager_sats_spent } = payload;
   let potUpdated = false;
 
-  // Manager purchase: deduct sats atomically, 80% feeds lottery pot
+  // Sats the client reports as spent this session — managers beyond the free
+  // quota and speed upgrades. Deducted unconditionally.
+  //
+  // This used to be gated on `countManagers(gameState) >= 3`, counting only
+  // plantation #1, courier and factory. Anyone who had not yet automated all
+  // three got their purchases for free: the upgrade persisted in game_state
+  // while the balance was never touched. The gate protected nothing — an
+  // over-reported amount only costs the player their own sats, whereas the
+  // skipped deduction handed out speed levels and managers for nothing.
   const mgrSpent = Math.floor(manager_sats_spent || 0);
   if (mgrSpent > 0) {
-    const mgrs = countManagers(gameState);
-    if (mgrs >= 3) {
-      // Atomic deduct — fails silently if not enough sats
-      const deducted = db.prepare(`UPDATE players SET sats = sats - ? WHERE npub = ? AND sats >= ?`).run(mgrSpent, npub, mgrSpent);
-      if (deducted.changes > 0) {
-        const toPot = Math.floor(mgrSpent * 0.8);
-        db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE status = 'open'`).run(toPot);
-        console.log(`[Lottery] Adding ${toPot} sats (80% of ${mgrSpent}) from ${npub.slice(0, 8)}... to pot`);
-        potUpdated = true;
-      }
+    // Atomic deduct — no-op when the balance does not cover it, in which case
+    // the client keeps the amount pending and retries on the next save.
+    const deducted = db.prepare(`UPDATE players SET sats = sats - ? WHERE npub = ? AND sats >= ?`).run(mgrSpent, npub, mgrSpent);
+    if (deducted.changes > 0) {
+      const toPot = Math.floor(mgrSpent * 0.8);
+      db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE status = 'open'`).run(toPot);
+      console.log(`[Lottery] Adding ${toPot} sats (80% of ${mgrSpent}) from ${npub.slice(0, 8)}... to pot`);
+      potUpdated = true;
+    } else {
+      console.warn(`[Game] Spend of ${mgrSpent} sats by ${npub.slice(0, 12)}… exceeds balance — not deducted`);
     }
   }
 

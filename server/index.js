@@ -15,6 +15,7 @@ import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         startCron, getTicketPrice, getMyTicketCount, getPriceCurvePreview,
         MAX_WINNERS, SAT_PER_TICKET, TICKET_PRICE_CURVE } from './lottery.js';
 import { db, logRateChange } from './db.js';
+import { countLotteryManagers, REQUIRED_MANAGERS } from '../shared/economy.js';
 import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder } from './zap.js';
 import { nip19 } from 'nostr-tools';
 
@@ -317,19 +318,12 @@ fastify.get('/api/lottery/current', async (req) => {
   };
 });
 
-// ── Eligibility: 3 auto-managers required ────────────────────────────────────
-const REQUIRED_MANAGERS = 3;
-
-function countManagers(gameState) {
-  if (!gameState) return 0;
-  let gs;
-  try { gs = typeof gameState === 'string' ? JSON.parse(gameState) : gameState; } catch { return 0; }
-  let count = 0;
-  if (gs.plantagen?.[0]?.managerLevel > 0) count++;
-  if (gs.courier?.mgrLevel > 0) count++;
-  if (gs.fabrik?.mgrLevel > 0) count++;
-  return count;
-}
+// ── Eligibility: the chain must actually run ─────────────────────────────────
+// countLotteryManagers counts plantation #1, courier and factory — the three
+// stations that have to be automated for joints to flow. Deliberately not the
+// same as countManagers (every station), which governs the free quota. Both
+// live in shared/economy.js so client and server agree on the numbers.
+const countManagers = countLotteryManagers;
 
 fastify.post('/api/lottery/buy', { preHandler: requireAuth }, async (req, reply) => {
   const player = db.prepare('SELECT game_state FROM players WHERE npub=?').get(req.user.npub);

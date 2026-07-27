@@ -6,6 +6,7 @@ import {
   courierTripTime, fabrikCycleTime,
   getSpeedUpgrade, PLANTATION_DEFS,
 } from '../../game/useGameLoop'
+import { FREE_MANAGERS } from '../../../shared/economy.js'
 import './StationCard.css'
 import { fmtNum } from '../../lib/format'
 
@@ -150,9 +151,9 @@ function useMilestoneBlow(level: number) {
 
 // ── Plant Row ───────────────────────────────────────────────────────────────
 
-function PlantRow({ p, i, joints, managerCount, isLoggedIn, totalDeposited, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow }: {
+function PlantRow({ p, i, joints, managerCount, isLoggedIn, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow }: {
   p: PlantationState; i: number; joints: number; managerCount: number
-  isLoggedIn: boolean; totalDeposited: number
+  isLoggedIn: boolean
   onUpgradeLevel: (i: number) => void; onUpgradeSpeed: (i: number) => void
   onBuyManager: (i: number) => void; onGrow: (i: number) => void
 }) {
@@ -196,17 +197,17 @@ function PlantRow({ p, i, joints, managerCount, isLoggedIn, totalDeposited, onUp
           <span className="plant-btn-line">Lvl {p.level + 1}</span>
           <span className="plant-btn-line"><Cannabis size={12} /> {fmtNum(lvCost)}</span>
         </button>
-        {!isAuto && managerCount < 2 && (
+        {!isAuto && managerCount < FREE_MANAGERS && (
           <button className="station-btn station-btn-manager station-btn-free plant-row-btn" onClick={() => onBuyManager(i)}>
             Manager — Free!
           </button>
         )}
-        {!isAuto && managerCount >= 2 && (!isLoggedIn || totalDeposited < 50) && (
+        {!isAuto && managerCount >= FREE_MANAGERS && !isLoggedIn && (
           <button className="station-btn station-btn-manager plant-row-btn" disabled>
-            {!isLoggedIn ? 'Login + 50 sats' : `${50 - totalDeposited} more sats`}
+            Log in
           </button>
         )}
-        {!isAuto && managerCount >= 2 && isLoggedIn && totalDeposited >= 50 && (
+        {!isAuto && managerCount >= FREE_MANAGERS && isLoggedIn && (
           <button className="station-btn station-btn-manager plant-row-btn" onClick={() => onBuyManager(i)}>
             Manager — {p.mgrCost} sats
           </button>
@@ -224,13 +225,12 @@ function PlantRow({ p, i, joints, managerCount, isLoggedIn, totalDeposited, onUp
 
 // ── Plantations Group Card ──────────────────────────────────────────────────
 
-export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isLoggedIn, totalDeposited, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow, onUnlock }: {
+export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isLoggedIn, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow, onUnlock }: {
   plantagen: PlantationState[]
   cannabis: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
-  totalDeposited: number
   onUpgradeLevel: (i: number) => void
   onUpgradeSpeed: (i: number) => void
   onBuyManager: (i: number) => void
@@ -278,7 +278,7 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
       <div className="plant-list">
         {plantagen.map((p, i) => (
           <PlantRow key={p.id} p={p} i={i} joints={joints} managerCount={managerCount}
-            isLoggedIn={isLoggedIn} totalDeposited={totalDeposited}
+            isLoggedIn={isLoggedIn}
             onUpgradeLevel={onUpgradeLevel} onUpgradeSpeed={onUpgradeSpeed}
             onBuyManager={onBuyManager} onGrow={onGrow} />
         ))}
@@ -319,13 +319,12 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
 
 // ── Courier Station Card ────────────────────────────────────────────────────
 
-export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedIn, totalDeposited, onUpgradeCap, onUpgradeSpeed, onBuyManager, onSend }: {
+export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedIn, onUpgradeCap, onUpgradeSpeed, onBuyManager, onSend }: {
   courier: CourierState
   cannabis: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
-  totalDeposited: number
   onUpgradeCap: () => void
   onUpgradeSpeed: () => void
   onBuyManager: () => void
@@ -382,17 +381,17 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
           disabled={joints < courier.capCost}>
           Cap x2 — <Cannabis size={12} /> {fmtNum(courier.capCost)}
         </button>
-        {!isAuto && managerCount < 2 && (
+        {!isAuto && managerCount < FREE_MANAGERS && (
           <button className="station-btn station-btn-manager station-btn-free" onClick={onBuyManager}>
             Hire Manager — Free!
           </button>
         )}
-        {!isAuto && managerCount >= 2 && (!isLoggedIn || totalDeposited < 50) && (
+        {!isAuto && managerCount >= FREE_MANAGERS && !isLoggedIn && (
           <button className="station-btn station-btn-manager" disabled>
-            {!isLoggedIn ? 'Login + Deposit 50 sats to unlock' : `Deposit ${50 - totalDeposited} more sats to unlock`}
+            Log in to hire more
           </button>
         )}
-        {!isAuto && managerCount >= 2 && isLoggedIn && totalDeposited >= 50 && (
+        {!isAuto && managerCount >= FREE_MANAGERS && isLoggedIn && (
           <button className="station-btn station-btn-manager" onClick={onBuyManager}>
             Hire Manager — {courier.mgrCost} sats
           </button>
@@ -409,13 +408,12 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
 
 // ── Factory Station Card ────────────────────────────────────────────────────
 
-export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, isLoggedIn, totalDeposited, onUpgradeCap, onUpgradeSpeed, onBuyManager, onRoll }: {
+export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, isLoggedIn, onUpgradeCap, onUpgradeSpeed, onBuyManager, onRoll }: {
   fabrik: FabrikState
   cannabisAtFactory: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
-  totalDeposited: number
   onUpgradeCap: () => void
   onUpgradeSpeed: () => void
   onBuyManager: () => void
@@ -449,6 +447,15 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
         />
         <div className="station-info">
           <div className="station-stats">
+            {/* Weed the courier has delivered, waiting to be rolled. Mirrors
+                "Waiting" on the courier card, which shows the stock still out
+                at the plantations — together they make the chain readable. */}
+            <div className="station-stat-row">
+              <span className="station-stat-label">Ready</span>
+              <span className="station-stat-value" style={{ color: 'var(--neon-green)' }}>
+                <Cannabis size={12} /> {fmtNum(cannabisAtFactory)}
+              </span>
+            </div>
             <div className="station-stat-row">
               <span className="station-stat-label">Processing</span>
               <span className="station-stat-value" style={{ color: 'var(--neon-purple)' }}>{fmtNum(fabrik._currentCharge)}</span>
@@ -470,17 +477,17 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
           disabled={joints < fabrik.capCost}>
           Cap x2 — <Cannabis size={12} /> {fmtNum(fabrik.capCost)}
         </button>
-        {!isAuto && managerCount < 2 && (
+        {!isAuto && managerCount < FREE_MANAGERS && (
           <button className="station-btn station-btn-manager station-btn-free" onClick={onBuyManager}>
             Hire Manager — Free!
           </button>
         )}
-        {!isAuto && managerCount >= 2 && (!isLoggedIn || totalDeposited < 50) && (
+        {!isAuto && managerCount >= FREE_MANAGERS && !isLoggedIn && (
           <button className="station-btn station-btn-manager" disabled>
-            {!isLoggedIn ? 'Login + Deposit 50 sats to unlock' : `Deposit ${50 - totalDeposited} more sats to unlock`}
+            Log in to hire more
           </button>
         )}
-        {!isAuto && managerCount >= 2 && isLoggedIn && totalDeposited >= 50 && (
+        {!isAuto && managerCount >= FREE_MANAGERS && isLoggedIn && (
           <button className="station-btn station-btn-manager" onClick={onBuyManager}>
             Hire Manager — {fabrik.mgrCost} sats
           </button>

@@ -22,9 +22,80 @@ Branch: `dev/mobile`
       Countdown zeigt jetzt Tage, Ziehungszeit den Wochentag
 - [x] Texte „6 draws daily" → „Tue · Thu · Sat, 21:00"
 
-## Phase 1 — Onboarding-Paywall entfernen
-- [ ] 3 Manager gratis statt 2 (Client + Server)
-- [ ] 21 Sats Startguthaben in `server/auth.js`
+## Phase 1 — Gast-Onboarding (Entscheidungen 2026-07-27)
+
+**Befund:** Der dritte Manager verlangt `isLoggedIn && totalDeposited >= 50` —
+eine echte Lightning-Einzahlung. Die Lotterie verlangt 3 Manager. Damit hängt die
+gesamte Belohnungsschleife an einer Einzahlung, **und die Registrierung selbst
+schaltet nichts frei** — der Funnel hat eine Stufe ohne Gegenleistung.
+
+**Zielmodell — drei Stufen, jede mit eigener Gegenleistung:**
+
+| Stufe | Bekommt |
+|---|---|
+| Gast | Volle Kette mit 3 Gratis-Managern, läuft automatisch. Fortschritt in localStorage. Sieht Pot, Countdown, Leaderboard. |
+| Angemeldet | + Lose kaufen (kosten **Joints**), + Leaderboard-Eintrag, + geräteübergreifend, + Invite-Links |
+| Eingezahlt | + Sats für Boosts/Speed, + Auszahlung |
+
+Einzahlung ist für nichts mehr zwingend, nur noch Beschleuniger.
+
+**Sats-Regel: keine geschenkten Sats.** Sats gelangen ausschließlich über eine
+echte Einzahlung oder einen Lotteriegewinn in ein Spielerguthaben. Kein
+Startzuschuss, kein Anmeldebonus. Der freie Weg in die Belohnungsschleife läuft
+über Joints: spielen → Joints → Los kaufen → ggf. Sats gewinnen. Damit erübrigt
+sich auch die Faucet-Absicherung — es gibt nichts abzuschöpfen.
+
+### Umsetzung — erledigt 2026-07-27
+- [x] `FREE_MANAGERS = 3` aus `shared/economy.js` statt hartcodierter `2`
+- [x] `totalDeposited >= 50`-Gate ersatzlos raus (3 Komponenten, je 2 Zweige)
+- [x] `totalDeposited`-Prop aus `StationCard`/`MobileGame` entfernt
+- [x] Gäste sehen ab dem 4. Manager „Log in" statt eines toten Sats-Buttons —
+      ein Gast kann nie Sats bekommen, der Button wäre eine Sackgasse
+- [x] `server/auth.js:70` unverändert bei `sats = 0`
+- [x] Vierte Kopie der Manager-Zählung in `MobileGame.tsx` durch
+      `countLotteryManagers` ersetzt; `server/index.js` nutzt dieselbe Funktion
+
+### Dabei gefunden und behoben: Sats-Abzug lief ins Leere
+`server/game.js:44` zog Sats nur ab, wenn `countManagers(gameState) >= 3` —
+gezählt wurden aber nur Plantage #1, Kurier und Fabrik. Wer die Kette noch nicht
+komplett automatisiert hatte, bekam **jeden Sats-Kauf geschenkt**: Speed-Level
+und bezahlte Manager landeten im Spielstand, das Guthaben blieb unberührt.
+Empirisch gegen eine DB-Kopie nachgewiesen (`probe.mjs`: 1000 Sats vorher,
+1000 Sats nachher, speedLevel 7 gespeichert), nach dem Fix korrekt 1000 → 900.
+Der Abzug ist jetzt bedingungslos und atomar; das Gate schützte nichts, denn ein
+zu hoch gemeldeter Betrag kostet nur den Spieler selbst.
+
+### Zielhinweise — erledigt
+- [x] `src/game/objectives.ts` mit `nextObjective(state, isLoggedIn, canAfford)`
+- [x] `.mgp-objective` über beiden Spalten, `grid-column: 1 / -1`
+- [x] Verifiziert: frischer Gast → „Tippe auf Grow" → nach dem Klick
+      „Schick den Kurier los" 
+
+### Zielhinweise (`src/game/objectives.ts`, reine Funktion)
+- [ ] `nextObjective(state, auth)` → eine Zeile über der Kette:
+      kein Cannabis → „Tippe Grow" · Cannabis liegt → „Schick den Kurier"
+      · Weed an der Fabrik → „Roll die Joints" · < 3 Manager → „Stell einen
+      Manager ein" · 3 Manager + nicht angemeldet → „Melde dich an und spiel um
+      echte Sats" · genug Joints → „Du kannst ein Los kaufen" · sonst `null`
+- [ ] Kein Overlay, kein Klickzwang; verschwindet dauerhaft nach dem ersten Los
+- [ ] Tote Buttons: gesperrte Zustände nennen die Bedingung, nicht „Deposit"
+
+### Folge der Sats-Regel: der Pot braucht eine gedeckte Quelle
+Ohne Startzuschuss kann ein Spieler ohne Einzahlung nur über einen Lotteriegewinn
+an Sats kommen. Der Pot speist sich aber aus 80 % der Sats-Ausgaben — eine Kohorte
+ohne Einzahlungen erzeugt also einen 0-Sats-Pot und gewinnt nichts. Zwei Quellen
+bleiben, beide gedeckt:
+
+1. **Echte Einzahlungen** anderer Spieler (über Boosts in den Pot)
+2. **House-Ledger-Seeding** aus dem 20-%-Cut (historisch ~4.900 Sats) — das ist
+   kein Geschenk an Spieler, sondern Rückführung des Hauseinbehalts; gewonnen
+   werden muss er trotzdem. Ersetzt das heutige Seeding aus dem Nichts (8/12/21
+   Sats pro Runde). Steht in Phase 5.
+
+### Weitere Stelle, die gegen die Sats-Regel verstößt
+`server/auth.js:101` schöpft 20 Sats für den Werber, sobald ein Geworbener 50+
+Sats einzahlt — ebenfalls aus dem Nichts. Sollte aus dem House-Ledger gebucht
+werden statt gemintet. Nicht Teil von Phase 1, gehört zu Phase 5.
 
 ## Phase 2 — Sats-Sink wiederkehrend machen
 - [ ] Tabelle `active_boosts` + Migration in `server/db.js`
@@ -57,9 +128,22 @@ Branch: `dev/mobile`
 - [ ] Joints-Zuwachs gegen `serverJps × elapsed × 1.5` klemmen
 - [ ] Offline-Simulation auf 24 h deckeln, `_ts` gegen `last_seen_at` klemmen
 
-## Verifikation
-- [ ] `scripts/sim-economy.mjs` — Kurven über 30 Tage durchrechnen
-- [ ] Lokaler Server + DB-Kopie (Vite-Proxy zeigt aktuell auf **Produktion**!)
+## Lokale Testumgebung
+- [x] DB-Snapshot von der VPS nach `data/jointfactory.db` (gitignored)
+- [x] `.env.example` + lokale `.env`, `JF_NOSTR_OFFLINE=1` gegen Relay-Posts
+- [x] Vite-Proxy auf `localhost:3421` (vorher: Produktion)
+- [x] Lokaler Server startet gegen die Kopie, Ziehungslabel korrekt
+
+Start: `npm run dev:server` (API 3421) + `npm run dev` (Vite)
+Live-Daten ansehen: `VITE_API_TARGET=https://jointfactory.io npm run dev`
+
+## Deployed 2026-07-27
+- [x] Ziehungsplan Di/Do/Sa 21:00 live, offene Runde 902 auf neuen Termin gezogen
+- [x] Miner-Namen live behoben (verifiziert im Browser)
+- [x] Countdown zeigt Wochentag + Tage („Di., 21:00 · 1d 04:33:59")
+
+## Verifikation (Phasen 1–6)
+- [x] `scripts/sim-economy.mjs` — trifft mit 1.28 die Live-Realität (1,39 B/s nach 30d)
 - [ ] Neuer Account bis zum ersten Ticket ohne Deposit
 - [ ] Durchsatz-Check, Bot-Check, Cheat-Check
 

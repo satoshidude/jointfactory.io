@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { rehydrate } from '../../shared/economy.js'
+import { rehydrate, FREE_MANAGERS } from '../../shared/economy.js'
 
 // ── Plantation definitions (matching production) ─────────────────────────────
 
@@ -842,13 +842,14 @@ export function useGameLoop(
     const p = gsRef.current.plantagen[index]
     if (!p || p.managerLevel > 0) return
     const mgrs = countManagers()
-    if (mgrs < 2) {
-      // First 2 managers are free
+    if (mgrs < FREE_MANAGERS) {
+      // Free quota — matches REQUIRED_MANAGERS, so the lottery is reachable
+      // without depositing bitcoin
       p.managerLevel = 1
       p.timer = 0.001
       flushAndSave()
     } else {
-      // 3rd+ manager costs sats
+      // Beyond the free quota: costs sats
       const cost = p.mgrCost
       if (spendSats(cost)) {
         p.managerLevel = 1
@@ -876,7 +877,7 @@ export function useGameLoop(
     const c = gsRef.current.courier
     if (c.mgrLevel > 0) return
     const mgrs = countManagers()
-    if (mgrs < 2) {
+    if (mgrs < FREE_MANAGERS) {
       c.mgrLevel = 1
       flushAndSave()
     } else {
@@ -893,7 +894,7 @@ export function useGameLoop(
     const f = gsRef.current.fabrik
     if (f.mgrLevel > 0) return
     const mgrs = countManagers()
-    if (mgrs < 2) {
+    if (mgrs < FREE_MANAGERS) {
       f.mgrLevel = 1
       flushAndSave()
     } else {

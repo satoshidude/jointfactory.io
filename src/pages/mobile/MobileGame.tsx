@@ -2,6 +2,8 @@ import { useEffect, useMemo } from 'react'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { useGameLoop } from '../../game/useGameLoop'
+import { nextObjective } from '../../game/objectives'
+import { countLotteryManagers, REQUIRED_MANAGERS, TICKET_PRICE_CURVE } from '../../../shared/economy.js'
 import { PlantationsCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
 import LotteryMini from '../../components/mobile/LotteryMini'
 import GrowthRace from '../../components/mobile/GrowthRace'
@@ -20,16 +22,14 @@ export default function MobileGame() {
     auth.isNewAccount,
   )
 
-  // Manager eligibility (3 required for lottery/withdraw)
-  const mgrCount = useMemo(() => {
-    let c = 0
-    if (state.plantagen?.[0]?.managerLevel > 0) c++
-    if (state.courier?.mgrLevel > 0) c++
-    if (state.fabrik?.mgrLevel > 0) c++
-    return c
-  }, [state.plantagen, state.courier?.mgrLevel, state.fabrik?.mgrLevel])
-  const eligible = mgrCount >= 3
-  const managersNeeded = 3 - mgrCount
+  // Lottery/withdraw eligibility: plantation #1, courier and factory automated.
+  // Same function the server checks against, so the two cannot drift apart.
+  const mgrCount = useMemo(
+    () => countLotteryManagers(state),
+    [state.plantagen, state.courier?.mgrLevel, state.fabrik?.mgrLevel] // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const eligible = mgrCount >= REQUIRED_MANAGERS
+  const managersNeeded = REQUIRED_MANAGERS - mgrCount
 
   // Sync display state for header stats + lottery eligibility
   useEffect(() => {
@@ -45,6 +45,10 @@ export default function MobileGame() {
     })
   }, [state.joints, state.sats, state.cannabis, state.cannabisAtFactory, state.courier.carrying, state.managerCount, eligible]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cheapest a ticket can ever be — enough for a nudge; LotteryMini knows the
+  // player's actual next price and gates the buy button on it.
+  const objective = nextObjective(state, auth.isLoggedIn, state.joints >= TICKET_PRICE_CURVE[0])
+
   // Sync total earned
   useEffect(() => {
     if (auth.isLoggedIn && state.totalJointsEarned > 0) {
@@ -54,6 +58,10 @@ export default function MobileGame() {
 
   return (
     <div className="mobile-page mobile-game-page">
+      {objective && (
+        <div className="mgp-objective" role="status">{objective}</div>
+      )}
+
       <div className="mgp-col mgp-col-left">
         <LotteryMini />
 
@@ -63,7 +71,6 @@ export default function MobileGame() {
           joints={state.joints}
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
-          totalDeposited={auth.totalDeposited}
           onUpgradeCap={actions.upgradeFabrikCap}
           onUpgradeSpeed={actions.upgradeFabrikSpeed}
           onBuyManager={actions.buyFabrikManager}
@@ -76,7 +83,6 @@ export default function MobileGame() {
           joints={state.joints}
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
-          totalDeposited={auth.totalDeposited}
           onUpgradeCap={actions.upgradeCourierCap}
           onUpgradeSpeed={actions.upgradeCourierSpeed}
           onBuyManager={actions.buyCourierManager}
@@ -93,7 +99,6 @@ export default function MobileGame() {
           joints={state.joints}
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
-          totalDeposited={auth.totalDeposited}
           onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
           onUpgradeSpeed={(i) => actions.upgradePlantSpeed(i)}
           onBuyManager={(i) => actions.buyPlantManager(i)}

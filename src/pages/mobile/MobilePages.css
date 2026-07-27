@@ -11,6 +11,22 @@
   gap: 12px;
 }
 
+/* Next-step hint. Spans the full width above both columns; .mgp-col children
+   are flattened into this grid on mobile, so it needs an explicit span to stay
+   out of the two-column layout on desktop. */
+.mgp-objective {
+  grid-column: 1 / -1;
+  padding: 9px 14px;
+  border: 1px solid rgba(57, 255, 20, .28);
+  border-radius: 8px;
+  background: rgba(57, 255, 20, .06);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--neon-green);
+  text-align: center;
+}
+
 /* Mobile: flatten columns so all cards are direct grid items */
 .mgp-col {
   display: contents;
