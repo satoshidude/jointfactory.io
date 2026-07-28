@@ -213,6 +213,18 @@ export function prestigeMultiplier(seeds) {
   return 1 + (seeds || 0) * PRESTIGE.seedBonus
 }
 
+/**
+ * All-time lifetime joints at which the next seed unlocks — the inverse of
+ * prestigeSeeds(), so the progress bar and the server agree on the target.
+ *
+ * @param {number} currentSeeds
+ * @returns {number}
+ */
+export function nextSeedAt(currentSeeds) {
+  const target = (currentSeeds || 0) + 1
+  return Math.ceil((Math.pow(10, target / PRESTIGE.seedScale) - 1) * 1e9)
+}
+
 /** Seeds a harvest right now would add on top of what the player already holds. */
 export function prestigeGain(lifetimeJoints, currentSeeds) {
   return Math.max(0, prestigeSeeds(lifetimeJoints) - (currentSeeds || 0))
@@ -444,6 +456,23 @@ export function rehydrate(gs) {
   }
 
   return gs
+}
+
+/**
+ * Sats-bought attributes a prestige reset parked for a plantation that has to be
+ * re-unlocked. Removes the entry, so it can only be restored once.
+ *
+ * @param {any} gs
+ * @param {number} defId
+ * @returns {{ id: number, speedLevel: number, speed: number, managerLevel: number } | null}
+ */
+export function takeParkedUpgrades(gs, defId) {
+  const list = gs?._parkedSpeed
+  if (!Array.isArray(list)) return null
+  const idx = list.findIndex(x => x.id === defId)
+  if (idx === -1) return null
+  const [entry] = list.splice(idx, 1)
+  return entry
 }
 
 /**

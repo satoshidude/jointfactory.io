@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   rehydrate, FREE_MANAGERS, throughput, boostMultipliers,
-  courierTripTime, fabrikCycleTime,
+  courierTripTime, fabrikCycleTime, PLANTATION_DEFS,
+  initialState, newPlantation, takeParkedUpgrades, prestigeMultiplier,
 } from '../../shared/economy.js'
 
 // ── Plantation definitions (matching production) ─────────────────────────────
@@ -13,14 +14,9 @@ export interface PlantationDef {
   unlockCost: number
 }
 
-export const PLANTATION_DEFS: PlantationDef[] = [
-  { id: 0, name: 'Balcony Grow',   icon: '\u{1F331}', baseProd: 5,       cycleTime: 4,   upgBase: 8,       upgMult: 1.28, mgrCost: 20,  unlockCost: 0 },
-  { id: 1, name: 'Outdoor Plot',   icon: '\u{1F331}', baseProd: 60,      cycleTime: 5,   upgBase: 400,     upgMult: 1.28, mgrCost: 30,  unlockCost: 50_000 },
-  { id: 2, name: 'Indoor Room',    icon: '\u{1F3E0}', baseProd: 400,     cycleTime: 4,   upgBase: 15_000,  upgMult: 1.28, mgrCost: 40,  unlockCost: 2_000_000 },
-  { id: 3, name: 'Hydroponic Lab', icon: '\u{1F4A7}', baseProd: 3_000,   cycleTime: 3,   upgBase: 100_000, upgMult: 1.28, mgrCost: 60,  unlockCost: 100_000_000 },
-  { id: 4, name: 'Greenhouse',     icon: '\u{1F333}', baseProd: 25_000,  cycleTime: 2.5, upgBase: 500_000, upgMult: 1.28, mgrCost: 100, unlockCost: 10_000_000_000 },
-  { id: 5, name: 'MegaFarm',       icon: '\u{1F3ED}', baseProd: 250_000, cycleTime: 2,   upgBase: 2_500_000, upgMult: 1.28, mgrCost: 200, unlockCost: 1_000_000_000_000 },
-]
+// Definitions live in shared/economy.js so client and server price, produce and
+// reset from the same numbers. Re-exported here to keep component imports.
+export { PLANTATION_DEFS }
 
 // ── State types (production DB format) ───────────────────────────────────────
 
@@ -64,6 +60,8 @@ export interface GameState {
   courier: CourierState
   fabrik: FabrikState
   _ts: number
+  /** Sats-bought upgrades of plantations a prestige reset locked again. */
+  _parkedSpeed?: { id: number; speedLevel: number; speed: number; managerLevel: number }[]
 }
 
 // ── Display state (for React rendering) ──────────────────────────────────────
@@ -80,6 +78,7 @@ export interface DisplayState {
   unlockIdx: number
   managerCount: number
   boosts: ActiveBoost[]
+  seeds: number
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -163,46 +162,14 @@ export { courierTripTime, fabrikCycleTime }
  * players.joints_per_sec, the leaderboard and the growth race. throughput()
  * takes the minimum across the chain and folds in active boosts.
  */
-export function totalJointsPerSec(g: GameState, boosts: ActiveBoost[] = []): number {
-  return throughput(g, { boosts, nowSec: Math.floor(Date.now() / 1000) }).jointsPerSec
+export function totalJointsPerSec(g: GameState, boosts: ActiveBoost[] = [], seeds = 0): number {
+  return throughput(g, { boosts, seeds, nowSec: Math.floor(Date.now() / 1000) }).jointsPerSec
 }
 
 // ── Initial state factory ────────────────────────────────────────────────────
 
-function newPlantation(def: PlantationDef): PlantationState {
-  return {
-    id: def.id, name: def.name, icon: def.icon,
-    level: 1, baseProd: def.baseProd, cycleTime: def.cycleTime,
-    timer: def.cycleTime, speed: 1, speedLevel: 0,
-    managerLevel: 0, mgrCost: def.mgrCost,
-    upgBase: def.upgBase, upgMult: def.upgMult,
-    totalProduced: 0,
-  }
-}
-
-function initialState(): GameState {
-  return {
-    cannabis: 0,
-    cannabisAtFactory: 0,
-    plantagen: [newPlantation(PLANTATION_DEFS[0])],
-    _unlockIdx: 0,
-    courier: {
-      state: 'idle', posX: 15, carrying: 0,
-      capacity: 20, speed: 1, speedLevel: 0,
-      tripTimer: 0, tripDuration: 4,
-      mgrLevel: 0, mgrCost: 20,
-      capCost: 200, speedCost: 0,
-    },
-    fabrik: {
-      capacity: 100, speed: 1, speedLevel: 0,
-      processing: false, timer: 0, processTime: 8,
-      autoTimer: 0, mgrLevel: 0, mgrCost: 20,
-      capCost: 400, speedCost: 0,
-      total: 0, _currentCharge: 0,
-    },
-    _ts: Date.now(),
-  }
-}
+// initialState/newPlantation also come from the shared module — the prestige
+// reset runs server-side and has to produce byte-identical starting state.
 
 // ── Persistence ──────────────────────────────────────────────────────────────
 
@@ -238,7 +205,7 @@ function saveLocal(gs: GameState) {
 }
 
 type LoadResult =
-  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number; boosts: ActiveBoost[] }
+  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number; boosts: ActiveBoost[]; seeds: number }
   | { status: 'no-auth' }
   | { status: 'error' }
 
@@ -259,6 +226,7 @@ async function loadFromServer(): Promise<LoadResult> {
       sats: data.sats ?? 0,
       totalJointsEarned: data.total_joints_earned ?? 0,
       boosts: (data.boosts ?? []) as ActiveBoost[],
+      seeds: data.prestige_seeds ?? 0,
     }
   } catch { return { status: 'error' } }
 }
@@ -269,7 +237,7 @@ export function addManagerSatsSpent(amount: number) {
   _pendingManagerSats += amount
 }
 
-async function saveToServer(gs: GameState, joints: number, sats: number, totalJointsEarned: number, _activeBoosts: ActiveBoost[] = []) {
+async function saveToServer(gs: GameState, joints: number, sats: number, totalJointsEarned: number, _activeBoosts: ActiveBoost[] = [], _seeds = 0) {
   try {
     const auth = JSON.parse(localStorage.getItem('jf_auth') || '{}')
     if (!auth.token) return
@@ -283,7 +251,7 @@ async function saveToServer(gs: GameState, joints: number, sats: number, totalJo
         joints: Math.floor(joints),
         sats: Math.floor(sats),
         total_joints_earned: Math.floor(totalJointsEarned),
-        joints_per_sec: totalJointsPerSec(gs, _activeBoosts),
+        joints_per_sec: totalJointsPerSec(gs, _activeBoosts, _seeds),
         manager_sats_spent: mgrSats,
       }),
     })
@@ -295,14 +263,22 @@ async function saveToServer(gs: GameState, joints: number, sats: number, totalJo
 
 // ── Offline catch-up (speed upgrades NOT applied) ───────────────────────────
 
-function simulateOffline(gs: GameState, elapsedSec: number): number {
+function simulateOffline(gs: GameState, elapsedSec: number, seeds = 0): number {
   if (elapsedSec <= 0) return 0
+
+  // Prestige is a permanent chain-wide multiplier, so it has to apply while
+  // away too — leaving it out would under-credit a returning player by the full
+  // multiplier, which reaches ~9x after a single harvest.
+  //
+  // Boosts are deliberately left out: they expire on a wall clock, so crediting
+  // them for an offline stretch would pay for time the boost was not running.
+  const prestige = prestigeMultiplier(seeds)
 
   // Calculate raw production rates at speed=1 (no speed upgrades)
   let stuffPerSec = 0
   for (const p of gs.plantagen) {
     if (p.managerLevel > 0) {
-      stuffPerSec += plantOutput(p) / p.cycleTime // speed=1
+      stuffPerSec += (plantOutput(p) * prestige) / p.cycleTime // speed=1
     }
   }
   if (stuffPerSec === 0) return 0
@@ -310,13 +286,13 @@ function simulateOffline(gs: GameState, elapsedSec: number): number {
   // Courier throughput at speed=1 (round trip = 2 × tripDuration)
   const c = gs.courier
   const courierRate = c.mgrLevel > 0
-    ? c.capacity / (c.tripDuration * 2) // speed=1
+    ? (c.capacity * prestige) / (c.tripDuration * 2) // speed=1
     : 0
 
   // Fabrik throughput at speed=1
   const f = gs.fabrik
   const fabrikRate = f.mgrLevel > 0
-    ? f.capacity / f.processTime // speed=1
+    ? (f.capacity * prestige) / f.processTime // speed=1
     : 0
 
   // The bottleneck determines actual joints/sec
@@ -362,6 +338,7 @@ export function useGameLoop(
   const satsRef = useRef(authSats)
   const totalEarnedRef = useRef(0)
   const boostsRef = useRef<ActiveBoost[]>([])
+  const seedsRef = useRef(0)
   const readyRef = useRef(false)
   const canSaveRef = useRef(false)
   const loggedOutRef = useRef(false) // prevents beforeunload from re-saving after logout
@@ -432,7 +409,7 @@ export function useGameLoop(
         inTransitionRef.current = false
         canSaveRef.current = true
         readyRef.current = true
-        setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current))
+        setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, seedsRef.current))
       } else {
         // ── EXISTING ACCOUNT: always load from server, discard guest ──
         loadFromServer().then(result => {
@@ -442,7 +419,7 @@ export function useGameLoop(
               // Offline catch-up: produce with speed=1
               const elapsed = result.gs._ts ? (Date.now() - result.gs._ts) / 1000 : 0
               if (elapsed > 2) {
-                const earned = simulateOffline(gsRef.current, elapsed)
+                const earned = simulateOffline(gsRef.current, elapsed, result.seeds)
                 result.joints += earned
                 result.totalJointsEarned += earned
               }
@@ -453,6 +430,7 @@ export function useGameLoop(
             satsRef.current = result.sats
             totalEarnedRef.current = result.totalJointsEarned
             boostsRef.current = result.boosts
+            seedsRef.current = result.seeds
             onJointsChange(result.joints)
             onSatsChange?.(result.sats)
             saveLocal(gsRef.current)
@@ -468,7 +446,7 @@ export function useGameLoop(
           }
           inTransitionRef.current = false
           readyRef.current = true
-          setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current))
+          setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, seedsRef.current))
         })
       }
     }
@@ -487,7 +465,7 @@ export function useGameLoop(
           // Offline catch-up: produce with speed=1
           const elapsed = result.gs._ts ? (Date.now() - result.gs._ts) / 1000 : 0
           if (elapsed > 2) {
-            const earned = simulateOffline(gsRef.current, elapsed)
+            const earned = simulateOffline(gsRef.current, elapsed, result.seeds)
             result.joints += earned
             result.totalJointsEarned += earned
           }
@@ -499,6 +477,7 @@ export function useGameLoop(
         satsRef.current = result.sats
         totalEarnedRef.current = result.totalJointsEarned
         boostsRef.current = result.boosts
+        seedsRef.current = result.seeds
         onJointsChange?.(result.joints)
         onSatsChange?.(result.sats)
         canSaveRef.current = true
@@ -512,7 +491,7 @@ export function useGameLoop(
             gsRef.current = gs
             const elapsed = gs._ts ? (Date.now() - gs._ts) / 1000 : 0
             if (elapsed > 2) {
-              const earned = simulateOffline(gsRef.current, elapsed)
+              const earned = simulateOffline(gsRef.current, elapsed, seedsRef.current)
               jointsRef.current += earned
               totalEarnedRef.current += earned
             }
@@ -534,7 +513,7 @@ export function useGameLoop(
             // Offline catch-up for guests too
             const elapsed = gs._ts ? (Date.now() - gs._ts) / 1000 : 0
             if (elapsed > 2) {
-              const earned = simulateOffline(gsRef.current, elapsed)
+              const earned = simulateOffline(gsRef.current, elapsed, seedsRef.current)
               jointsRef.current += earned
               totalEarnedRef.current += earned
             }
@@ -557,7 +536,7 @@ export function useGameLoop(
         canSaveRef.current = true
       }
       readyRef.current = true
-      setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current))
+      setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, seedsRef.current))
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -584,6 +563,10 @@ export function useGameLoop(
       // Active boosts, recomputed each frame so one expiring takes effect at
       // once. At most four entries, so the cost is irrelevant.
       const boost = boostMultipliers(boostsRef.current, now_s())
+      // Chain-wide, matching throughput(): plantation output, courier payload
+      // and factory batch all scale, so the bonus is never eaten by a stage
+      // that did not grow with it.
+      const prestige = prestigeMultiplier(seedsRef.current)
 
       // ── Plantations ──
       for (const p of g.plantagen) {
@@ -591,7 +574,7 @@ export function useGameLoop(
         if (isAuto || p.timer < p.cycleTime) {
           p.timer -= dt * p.speed
           while (p.timer <= 0) {
-            const output = plantOutput(p) * boost.plant
+            const output = plantOutput(p) * boost.plant * prestige
             g.cannabis += output
             p.totalProduced += output
             p.timer += p.cycleTime
@@ -609,7 +592,7 @@ export function useGameLoop(
 
       if (c.state === 'idle') {
         if (c.mgrLevel > 0 && g.cannabis > 0) {
-          c.carrying = Math.min(c.capacity, g.cannabis)
+          c.carrying = Math.min(c.capacity * prestige, g.cannabis)
           g.cannabis -= c.carrying
           c.state = 'toFactory'
           c.tripTimer = tripTime
@@ -645,7 +628,7 @@ export function useGameLoop(
       const f = g.fabrik
 
       if (!f.processing && f.mgrLevel > 0 && g.cannabisAtFactory > 0) {
-        f._currentCharge = Math.min(f.capacity, g.cannabisAtFactory)
+        f._currentCharge = Math.min(f.capacity * prestige, g.cannabisAtFactory)
         g.cannabisAtFactory -= f._currentCharge
         f.processing = true
         f.timer = f.processTime
@@ -666,7 +649,7 @@ export function useGameLoop(
 
       // ── Render at ~30fps ──
       if (now - lastRender > 33) {
-        setDisplay(makeDisplay(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current))
+        setDisplay(makeDisplay(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, seedsRef.current))
         lastRender = now
       }
 
@@ -687,7 +670,7 @@ export function useGameLoop(
 
       // ── Save to server every 30s ──
       if (canSaveRef.current && Date.now() - lastServerSave > 30000) {
-        saveToServer(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current)
+        saveToServer(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, seedsRef.current)
         lastServerSave = Date.now()
       }
 
@@ -720,7 +703,7 @@ export function useGameLoop(
             joints: Math.floor(jointsRef.current),
             sats: Math.floor(satsRef.current),
             total_joints_earned: Math.floor(totalEarnedRef.current),
-            joints_per_sec: totalJointsPerSec(gsRef.current, boostsRef.current),
+            joints_per_sec: totalJointsPerSec(gsRef.current, boostsRef.current, seedsRef.current),
             manager_sats_spent: mgrSats,
           })
           navigator.sendBeacon('/api/game/beacon', new Blob([beacon], { type: 'application/json' }))
@@ -734,7 +717,7 @@ export function useGameLoop(
       window.removeEventListener('beforeunload', handleBeforeUnload)
       if (canSaveRef.current && !loggedOutRef.current) {
         saveLocal(gsRef.current)
-        saveToServer(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current)
+        saveToServer(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, seedsRef.current)
         onJointsChangeRef.current?.(Math.floor(jointsRef.current))
       }
       readyRef.current = false
@@ -746,12 +729,12 @@ export function useGameLoop(
   // ── Actions ──
 
   const flush = useCallback(() => {
-    setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current))
+    setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, seedsRef.current))
   }, [])
 
   const flushAndSave = useCallback(() => {
     flush()
-    saveToServer(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current)
+    saveToServer(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, seedsRef.current)
   }, [flush])
 
   const grow = useCallback((index: number) => {
@@ -766,7 +749,7 @@ export function useGameLoop(
     const g = gsRef.current
     if (g.courier.state !== 'idle' || g.cannabis <= 0) return
     const c = g.courier
-    c.carrying = Math.min(c.capacity, g.cannabis)
+    c.carrying = Math.min(c.capacity * prestigeMultiplier(seedsRef.current), g.cannabis)
     g.cannabis -= c.carrying
     c.state = 'toFactory'
     c.tripTimer = courierTripTime(c)
@@ -778,7 +761,7 @@ export function useGameLoop(
     const g = gsRef.current
     const f = g.fabrik
     if (f.processing || g.cannabisAtFactory <= 0) return
-    f._currentCharge = Math.min(f.capacity, g.cannabisAtFactory)
+    f._currentCharge = Math.min(f.capacity * prestigeMultiplier(seedsRef.current), g.cannabisAtFactory)
     g.cannabisAtFactory -= f._currentCharge
     f.processing = true
     f.timer = f.processTime
@@ -951,6 +934,41 @@ export function useGameLoop(
     }
   }, [flush])
 
+  /**
+   * Harvest. The server owns the reset — it decides what a run was worth and
+   * writes the new state, the client only adopts the result.
+   */
+  const prestige = useCallback(async (): Promise<{ ok: boolean; gained?: number; error?: string }> => {
+    try {
+      const auth = JSON.parse(localStorage.getItem('jf_auth') || '{}')
+      if (!auth.token) return { ok: false, error: 'Log in to harvest' }
+      // Flush first, so the run's last joints count toward the lifetime total
+      // the server prices the harvest from.
+      await saveToServer(gsRef.current, jointsRef.current, satsRef.current,
+        totalEarnedRef.current, boostsRef.current, seedsRef.current)
+
+      const res = await fetch('/api/game/prestige', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+      if (!res.ok) return { ok: false, error: data?.error || 'Harvest failed' }
+
+      gsRef.current = data.gameState as GameState
+      jointsRef.current = 0
+      seedsRef.current = data.seeds ?? seedsRef.current
+      totalEarnedRef.current = data.total_joints_earned ?? totalEarnedRef.current
+      satsRef.current = data.sats ?? satsRef.current
+      onJointsChangeRef.current?.(0)
+      onSatsChangeRef.current?.(Math.floor(satsRef.current))
+      saveLocal(gsRef.current)
+      flush()
+      return { ok: true, gained: data.gained }
+    } catch {
+      return { ok: false, error: 'Network error' }
+    }
+  }, [flush])
+
   const unlockPlantation = useCallback(() => {
     const g = gsRef.current
     const nextIdx = g.plantagen.length
@@ -958,7 +976,15 @@ export function useGameLoop(
     const def = PLANTATION_DEFS[nextIdx]
     if (jointsRef.current >= def.unlockCost) {
       jointsRef.current -= def.unlockCost
-      g.plantagen.push(newPlantation(def))
+      const p = newPlantation(def)
+      // A prestige reset parks whatever sats paid for; re-unlocking gets it back.
+      const parked = takeParkedUpgrades(g, def.id)
+      if (parked) {
+        p.speedLevel = parked.speedLevel
+        p.speed = parked.speed
+        p.managerLevel = parked.managerLevel
+      }
+      g.plantagen.push(p)
       g._unlockIdx = nextIdx
       flush()
     }
@@ -971,14 +997,14 @@ export function useGameLoop(
       upgradePlantLevel, upgradePlantSpeed, buyPlantManager,
       upgradeCourierCap, upgradeCourierSpeed, buyCourierManager,
       upgradeFabrikCap, upgradeFabrikSpeed, buyFabrikManager,
-      unlockPlantation, buyBoost,
+      unlockPlantation, buyBoost, prestige,
     },
   }
 }
 
 // ── Display state builder ────────────────────────────────────────────────────
 
-function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: number, boosts: ActiveBoost[] = []): DisplayState {
+function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: number, boosts: ActiveBoost[] = [], seeds = 0): DisplayState {
   let mgrs = 0
   for (const p of g.plantagen) { if (p.managerLevel > 0) mgrs++ }
   if (g.courier.mgrLevel > 0) mgrs++
@@ -995,5 +1021,6 @@ function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: nu
     unlockIdx: g._unlockIdx,
     managerCount: mgrs,
     boosts,
+    seeds,
   }
 }

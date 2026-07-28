@@ -3,10 +3,14 @@ import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { useGameLoop } from '../../game/useGameLoop'
 import { nextObjective } from '../../game/objectives'
-import { countLotteryManagers, REQUIRED_MANAGERS, ticketPrice, throughput } from '../../../shared/economy.js'
+import {
+  countLotteryManagers, REQUIRED_MANAGERS, ticketPrice, throughput,
+  prestigeGain, nextSeedAt,
+} from '../../../shared/economy.js'
 import { PlantationsCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
 import LotteryMini from '../../components/mobile/LotteryMini'
 import BoostBar from '../../components/mobile/BoostBar'
+import HarvestCard from '../../components/mobile/HarvestCard'
 import GrowthRace from '../../components/mobile/GrowthRace'
 import Leaderboard from '../../components/mobile/Leaderboard'
 import './MobilePages.css'
@@ -53,6 +57,10 @@ export default function MobileGame() {
   const firstTicketCost = ticketPrice(0, throughput(state).jointsPerSec)
   const objective = nextObjective(state, auth.isLoggedIn, state.joints >= firstTicketCost)
 
+  // Derived with the same functions the server uses, so the card and the
+  // endpoint can never disagree about what a harvest is worth.
+  const seedGain = prestigeGain(state.totalJointsEarned, state.seeds)
+
   // Sync total earned
   useEffect(() => {
     if (auth.isLoggedIn && state.totalJointsEarned > 0) {
@@ -69,6 +77,15 @@ export default function MobileGame() {
       <div className="mgp-col mgp-col-left">
         <LotteryMini />
 
+        <HarvestCard
+          seeds={state.seeds}
+          gain={seedGain}
+          lifetime={state.totalJointsEarned}
+          nextAt={nextSeedAt(state.seeds + seedGain)}
+          isLoggedIn={auth.isLoggedIn}
+          onHarvest={actions.prestige}
+        />
+
         <BoostBar
           boosts={state.boosts}
           sats={state.sats}
@@ -83,6 +100,7 @@ export default function MobileGame() {
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
           boosts={state.boosts}
+          seeds={state.seeds}
           onUpgradeCap={actions.upgradeFabrikCap}
           onUpgradeSpeed={actions.upgradeFabrikSpeed}
           onBuyManager={actions.buyFabrikManager}
@@ -96,6 +114,7 @@ export default function MobileGame() {
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
           boosts={state.boosts}
+          seeds={state.seeds}
           onUpgradeCap={actions.upgradeCourierCap}
           onUpgradeSpeed={actions.upgradeCourierSpeed}
           onBuyManager={actions.buyCourierManager}
@@ -113,6 +132,7 @@ export default function MobileGame() {
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
           boosts={state.boosts}
+          seeds={state.seeds}
           onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
           onUpgradeSpeed={(i) => actions.upgradePlantSpeed(i)}
           onBuyManager={(i) => actions.buyPlantManager(i)}

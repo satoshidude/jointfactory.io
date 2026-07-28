@@ -6,7 +6,7 @@ import {
   courierTripTime, fabrikCycleTime,
   getSpeedUpgrade, PLANTATION_DEFS,
 } from '../../game/useGameLoop'
-import { FREE_MANAGERS, boostMultipliers } from '../../../shared/economy.js'
+import { FREE_MANAGERS, boostMultipliers, prestigeMultiplier } from '../../../shared/economy.js'
 import './StationCard.css'
 import { fmtNum } from '../../lib/format'
 
@@ -226,13 +226,14 @@ function PlantRow({ p, i, joints, managerCount, isLoggedIn, boostMult, onUpgrade
 
 // ── Plantations Group Card ──────────────────────────────────────────────────
 
-export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isLoggedIn, boosts = [], onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow, onUnlock }: {
+export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isLoggedIn, boosts = [], seeds = 0, onUpgradeLevel, onUpgradeSpeed, onBuyManager, onGrow, onUnlock }: {
   plantagen: PlantationState[]
   cannabis: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
   boosts?: ActiveBoost[]
+  seeds?: number
   onUpgradeLevel: (i: number) => void
   onUpgradeSpeed: (i: number) => void
   onBuyManager: (i: number) => void
@@ -240,7 +241,9 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
   onUnlock: () => void
 }) {
   // Summary stats
-  const plantBoost = boostMultipliers(boosts, Math.floor(Date.now() / 1000)).plant
+  // Prestige scales the whole chain, so the displayed rates have to carry it —
+  // otherwise the cards understate what the loop is actually producing.
+  const plantBoost = boostMultipliers(boosts, Math.floor(Date.now() / 1000)).plant * prestigeMultiplier(seeds)
   let totalRate = 0
   let totalOutput = 0
   for (const p of plantagen) {
@@ -322,19 +325,22 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
 
 // ── Courier Station Card ────────────────────────────────────────────────────
 
-export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedIn, boosts = [], onUpgradeCap, onUpgradeSpeed, onBuyManager, onSend }: {
+export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedIn, boosts = [], seeds = 0, onUpgradeCap, onUpgradeSpeed, onBuyManager, onSend }: {
   courier: CourierState
   cannabis: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
   boosts?: ActiveBoost[]
+  seeds?: number
   onUpgradeCap: () => void
   onUpgradeSpeed: () => void
   onBuyManager: () => void
   onSend: () => void
 }) {
   const tripTime = courierTripTime(courier, boostMultipliers(boosts, Math.floor(Date.now() / 1000)).courier)
+  // The loop hauls capacity x prestige per trip; show that, not the raw number.
+  const payload = courier.capacity * prestigeMultiplier(seeds)
   const isMoving = courier.state !== 'idle'
   const rawProgress = isMoving ? 1 - (courier.tripTimer / tripTime) : 0
   const progress = courier.state === 'toPlant' ? 1 - rawProgress : rawProgress
@@ -356,7 +362,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
           color="rgba(255, 105, 180, .9)"
           trackColor="rgba(255, 105, 180, .15)"
 
-          value={courier.state === 'toPlant' ? 'rest' : isMoving ? fmtNum(courier.carrying) : fmtNum(courier.capacity)}
+          value={courier.state === 'toPlant' ? 'rest' : isMoving ? fmtNum(courier.carrying) : fmtNum(payload)}
           label={isAuto ? undefined : (isMoving ? 'En route...' : 'Send')}
           onClick={isAuto ? undefined : onSend}
           disabled={isAuto ? undefined : !canSend}
@@ -366,7 +372,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
           <div className="station-stats">
             <div className="station-stat-row">
               <span className="station-stat-label">Capacity</span>
-              <span className="station-stat-value" style={{ color: '#ff69b4' }}>{fmtNum(courier.capacity)}</span>
+              <span className="station-stat-value" style={{ color: '#ff69b4' }}>{fmtNum(payload)}</span>
             </div>
             <div className="station-stat-row">
               <span className="station-stat-label">Trip</span>
@@ -412,19 +418,21 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
 
 // ── Factory Station Card ────────────────────────────────────────────────────
 
-export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, isLoggedIn, boosts = [], onUpgradeCap, onUpgradeSpeed, onBuyManager, onRoll }: {
+export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, isLoggedIn, boosts = [], seeds = 0, onUpgradeCap, onUpgradeSpeed, onBuyManager, onRoll }: {
   fabrik: FabrikState
   cannabisAtFactory: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
   boosts?: ActiveBoost[]
+  seeds?: number
   onUpgradeCap: () => void
   onUpgradeSpeed: () => void
   onBuyManager: () => void
   onRoll: () => void
 }) {
   const cycleTime = fabrikCycleTime(fabrik, boostMultipliers(boosts, Math.floor(Date.now() / 1000)).fabrik)
+  const batch = fabrik.capacity * prestigeMultiplier(seeds)
   const progress = fabrik.processing ? 1 - (fabrik.timer / fabrik.processTime) : 0
   const speedUpg = getSpeedUpgrade(fabrik.speedLevel)
   const isAuto = fabrik.mgrLevel > 0
@@ -444,7 +452,7 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
           color="rgba(204, 68, 255, .9)"
           trackColor="rgba(204, 68, 255, .15)"
 
-          value={fabrik.processing ? fmtNum(fabrik._currentCharge) : fmtNum(fabrik.capacity)}
+          value={fabrik.processing ? fmtNum(fabrik._currentCharge) : fmtNum(batch)}
           label={isAuto ? undefined : (fabrik.processing ? 'Rolling...' : 'Roll')}
           onClick={isAuto ? undefined : onRoll}
           disabled={isAuto ? undefined : !canRoll}

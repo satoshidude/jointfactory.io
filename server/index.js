@@ -18,6 +18,7 @@ import { db, logRateChange } from './db.js';
 import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount,
          MAX_TICKETS_PER_DAY } from '../shared/economy.js';
 import { buyBoost, getActiveBoosts } from './boosts.js';
+import { doPrestige, prestigeStatus } from './prestige.js';
 import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder } from './zap.js';
 import { nip19 } from 'nostr-tools';
 
@@ -190,7 +191,11 @@ fastify.get('/api/game/state', { preHandler: requireAuth }, async (req) => {
   if (!state) return { error: 'not found' };
   // Boost expiry is server state — the client applies the multipliers but never
   // decides when they end.
-  return { ...state, boosts: getActiveBoosts(req.user.npub) };
+  return {
+    ...state,
+    boosts: getActiveBoosts(req.user.npub),
+    prestige: prestigeStatus(req.user.npub),
+  };
 });
 fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
   const result = saveState(req.user.npub, req.body);
@@ -204,6 +209,22 @@ fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
   return result;
 });
 fastify.post('/api/game/profile', { preHandler: requireAuth }, async (req) => updateProfile(req.user.npub, req.body));
+
+// Harvest: trade a stalled run for a permanent multiplier. Server-authoritative
+// — the client never resets its own progress.
+fastify.post('/api/game/prestige', { preHandler: requireAuth }, async (req, reply) => {
+  const result = doPrestige(req.user.npub);
+  if (!result.ok) return reply.code(400).send({ error: result.reason });
+  const player = db.prepare('SELECT joints, sats, total_joints_earned FROM players WHERE npub=?').get(req.user.npub);
+  wsHub.broadcastPlayerUpdate(req.user.npub, 0, player?.total_joints_earned || 0, 0);
+  return {
+    ...result,
+    joints: 0,
+    sats: player?.sats || 0,
+    total_joints_earned: player?.total_joints_earned || 0,
+    prestige: prestigeStatus(req.user.npub),
+  };
+});
 
 // Boosts: the recurring sats sink. 80 % of the price feeds the lottery pot,
 // same split as every other sats spend.

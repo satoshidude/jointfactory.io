@@ -21,6 +21,7 @@ export function loadState(npub) {
     sats: player.sats,
     total_joints_earned: player.total_joints_earned,
     total_deposited: player.total_deposited || 0,
+    prestige_seeds: player.prestige_seeds || 0,
     gameState,
   };
 }

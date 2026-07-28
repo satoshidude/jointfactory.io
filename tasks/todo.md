@@ -202,11 +202,28 @@ Gewinner ohnehin identisch. Falls das später zu stark wirkt (Lose zählen dann
 doppelt: für die Chance *und* für den Anteil), wäre die gleichmäßige Teilung
 unter den Gewinnern die Alternative.
 
-## Phase 4 — Kurve senken + Prestige
-- [ ] `upgMult` 1.28 → 1.12
-- [ ] `prestige_seeds` / `season_joints_earned` Spalten
-- [ ] `POST /api/game/prestige` (serverautoritativ, resettet nur Joint-Gekauftes)
-- [ ] Prestige-Multiplikator im Produktionspfad
+## Phase 4 — Prestige — erledigt 2026-07-28
+- [x] Spalte `prestige_seeds`; `season_joints_earned` entfällt, weil die Seeds
+      aus dem All-Time-`total_joints_earned` abgeleitet werden und damit monoton
+      sind — Altkonten konvertieren beim Season-Reset von allein
+- [x] `server/prestige.js` + `POST /api/game/prestige`, serverautoritativ
+- [x] Reset-Regel: alles Joint-Gekaufte zurück (Level, Kapazitäten, Unlocks,
+      Joints), alles Sats-Gekaufte bleibt (Speed-Level, Manager, Wallet).
+      Sats-Upgrades gesperrter Plantagen werden geparkt und beim erneuten
+      Freischalten zurückgegeben (`takeParkedUpgrades`, genau einmal einlösbar)
+- [x] Multiplikator wirkt kettenweit — Plantagen-Output, Kurier-Ladung,
+      Fabrik-Charge — im Loop, in `throughput()` und in den Kartenanzeigen
+- [x] `simulateOffline` kennt die Seeds; Boosts bleiben dort bewusst außen vor,
+      weil sie an der Wanduhr ablaufen
+- [x] `HarvestCard` mit Bestätigungsschritt, der ausdrücklich benennt, was
+      erhalten bleibt
+- [x] `scripts/test-prestige.mjs` — 24 Checks
+- [x] Im Browser durchgespielt: 50 Mrd Joints → 0, Level 41 → 1, Sats 200
+      unverändert, Speed-Level erhalten, 169 Seeds = ×9,45, Rate 1/s → 14/s
+
+- [ ] **`upgMult` 1.28 → 1.12 weiterhin offen** — gehört zum Season-Reset
+      (Phase 5), weil `rehydrate()` die Defs auf jeden Spielstand schreibt und
+      die Änderung sonst 34 Konten mitten in der Season umpreist
 
 ## Phase 5 — Season-Reset, Bots, Deckung
 - [ ] `is_bot` Spalte + dedizierte Bot-Accounts
