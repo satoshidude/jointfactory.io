@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { houseDebit } from './house.js';
 import { verifyEvent } from 'nostr-tools';
 
 // Fantasy name generator (6-10 chars)
@@ -97,7 +98,13 @@ const _referralRewardTx = db.transaction((npub) => {
 
   const referrerNpub = player.referred_by;
 
-  // Reward: only the referrer gets 20 sats
+  // Reward: only the referrer gets 20 sats, funded from the house ledger.
+  // It used to be minted, which is one of the reasons more sats have been
+  // credited than were ever deposited. No cut banked, no reward.
+  if (!houseDebit(20, `referral reward to ${referrerNpub.slice(0, 8)}`)) {
+    console.warn('[Invite] Referral reward skipped — house ledger empty');
+    return { ok: false, reason: 'Reward unavailable' };
+  }
   db.prepare('UPDATE players SET sats = sats + 20 WHERE npub = ?').run(referrerNpub);
 
   const rewardedCount = db.prepare('SELECT COUNT(*) as c FROM players WHERE referred_by = ? AND referral_rewarded = 1').get(referrerNpub)?.c || 0;

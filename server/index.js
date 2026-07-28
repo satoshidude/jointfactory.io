@@ -19,6 +19,7 @@ import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount,
          MAX_TICKETS_PER_DAY } from '../shared/economy.js';
 import { buyBoost, getActiveBoosts } from './boosts.js';
 import { doPrestige, prestigeStatus } from './prestige.js';
+import { solvency, houseBalance } from './house.js';
 import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder } from './zap.js';
 import { nip19 } from 'nostr-tools';
 
@@ -462,12 +463,17 @@ fastify.get('/api/lottery/zaps', async () => {
 // ── Misc ──────────────────────────────────────────────────────────────────────
 fastify.get('/api/health', async () => ({ status: 'ok', ts: Date.now(), online: wsHub.getOnlineCount() }));
 
+// Is every sat a player holds actually backed by one that came in over
+// Lightning? A negative gap means sats were minted somewhere.
+fastify.get('/api/health/solvency', async () => solvency());
+
 // ── Players list ─────────────────────────────────────────────────────────────
 fastify.get('/api/players', async () => {
   // Get players
   const allPlayers = db.prepare(`
     SELECT npub, display_name, joints, total_joints_earned, joints_per_sec, last_seen_at, created_at, game_state
-    FROM players ORDER BY total_joints_earned DESC LIMIT 1000
+    FROM players WHERE COALESCE(is_bot, 0) = 0
+    ORDER BY total_joints_earned DESC LIMIT 1000
   `).all().map(p => {
     const mgrs = countManagers(p.game_state);
     const { game_state, ...rest } = p;
@@ -580,8 +586,10 @@ fastify.get('/api/player/:npub/public', async (req, reply) => {
 // ── Rate log for production race chart ───────────────────────────────────────
 fastify.get('/api/players/rate-log', async () => {
   const rows = db.prepare(`
-    SELECT npub, ts, rate, total FROM rate_log
-    ORDER BY ts ASC
+    SELECT r.npub, r.ts, r.rate, r.total FROM rate_log r
+    JOIN players p ON p.npub = r.npub
+    WHERE COALESCE(p.is_bot, 0) = 0
+    ORDER BY r.ts ASC
   `).all();
   return { logs: rows };
 });

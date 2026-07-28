@@ -6,6 +6,7 @@ import { potPayout, ticketPrice, ticketPreview, throughput, winnerCount,
 import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
+import { houseCredit, solvency } from './house.js';
 
 export { MAX_WINNERS };
 export const SAT_PER_TICKET = 100;
@@ -107,8 +108,18 @@ export async function runDraw(roundId) {
   db.prepare(`UPDATE lottery_rounds SET status='drawing' WHERE id=?`).run(round.id);
   const tickets = getRoundTickets(round.id);
   if (tickets.length === 0) {
+    // Nobody entered — carry the pot to the next round. The UI has always
+    // promised "pot rolls over"; the sats used to be stranded on the closed
+    // round instead, and the next one started at zero.
+    const carry = round.total_sats_collected || 0;
     db.prepare(`UPDATE lottery_rounds SET status='closed' WHERE id=?`).run(round.id);
-    ensureOpenRound(); return { ok:true, winners:[] };
+    ensureOpenRound();
+    if (carry > 0) {
+      db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ?
+                  WHERE status='open'`).run(carry);
+      console.log(`[Lottery] Round ${round.id} had no entries — ${carry} sats rolled over`);
+    }
+    return { ok:true, winners:[], rolled_over: carry };
   }
   // Count tickets per player
   const ticketsByPlayer = {};
@@ -130,7 +141,10 @@ export async function runDraw(roundId) {
   }
 
   // Calculate payout proportional to tickets held by each winner
-  const payoutPool = potPayout(round.total_sats_collected);
+  const gross = round.total_sats_collected || 0;
+  const payoutPool = potPayout(gross);
+  // The cut is what funds pot seeding and referral rewards; see server/house.js.
+  houseCredit(gross - payoutPool, `round ${round.id} cut`);
   const winnerTickets = winners.reduce((sum, npub) => sum + ticketsByPlayer[npub], 0);
   const payouts = {}; // { npub: sats }
   let distributed = 0;
@@ -146,10 +160,19 @@ export async function runDraw(roundId) {
   db.prepare(`UPDATE lottery_rounds SET status='closed',winner_npub=?,winner_payout_sats=? WHERE id=?`)
     .run(winners.join(','), payoutsJson, round.id);
 
-  // Credit winnings directly to player wallets
+  // Credit winnings directly to player wallets.
+  // A bot's share goes back into the next pot rather than into a balance —
+  // bots appear in the results so a round looks alive, but they must never
+  // accumulate sats a real player could otherwise have withdrawn.
+  let botShare = 0;
   for (const npub of winners) {
     const payout = payouts[npub];
-    if (payout > 0) {
+    if (payout <= 0) continue;
+    const isBot = db.prepare('SELECT COALESCE(is_bot, 0) AS b FROM players WHERE npub=?').get(npub)?.b;
+    if (isBot) {
+      botShare += payout;
+      console.log(`[Lottery] ${payout} sats won by bot ${npub.slice(0,12)} — returned to pot`);
+    } else {
       db.prepare('UPDATE players SET sats=sats+? WHERE npub=?').run(payout, npub);
       console.log(`[Lottery] Credited ${payout} sats to ${npub.slice(0,12)}`);
     }
@@ -173,7 +196,12 @@ export async function runDraw(roundId) {
     .catch(err => console.error('[Lottery] Nostr win note failed:', err.message));
 
   ensureOpenRound();
-  return { ok:true, round_id:round.id, winners: winnerList, total_tickets:tickets.length, pot_sats: payoutPool };
+  if (botShare > 0) {
+    db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ?
+                WHERE status='open'`).run(botShare);
+  }
+  return { ok:true, round_id:round.id, winners: winnerList, total_tickets:tickets.length,
+           pot_sats: payoutPool, bot_share_returned: botShare };
 }
 
 export function startCron() {
@@ -200,6 +228,15 @@ export function startCron() {
       unique_players: uniquePlayers,
     });
   }, 1000);
+
+  // Hourly solvency check. A shortfall means sats were credited that no
+  // deposit backs, so a withdrawal run could not be honoured.
+  cron.schedule('7 * * * *', () => {
+    const s = solvency();
+    if (s.gap < 0) {
+      console.error(`[House] SHORTFALL ${-s.gap} sats — players hold ${s.held}, ledger ${s.house}, backing ${s.backing}`);
+    }
+  });
 
   console.log(`[Lottery] Cron active — draws ${DRAW_LABEL} Berlin + WS tick every second`);
 }

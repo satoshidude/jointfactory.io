@@ -12,6 +12,7 @@ import { finalizeEvent, getPublicKey, generateSecretKey } from 'nostr-tools/pure
 import { nip04, nip19 } from 'nostr-tools';
 import WebSocket from 'ws';
 import { ticketPrice, throughput, MAX_TICKETS_PER_DAY } from '../shared/economy.js';
+import { houseDebit } from './house.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -417,15 +418,16 @@ async function postReminder(round, hoursLabel) {
 // Fake player activity — makes lottery feel alive
 // ---------------------------------------------------------------------------
 
-const FAKE_PLAYERS = [
-  '7bebd0175ed4a651', // Boyscout
-  '7bea3415250cd3c3', // nostr
-  '7bdf58828dfcad13', // gorilla
-  '7beb9ce8fd686641', // Akki
-  '7bdef1f1bd4c153c', // donation 4 nsnip
-  'b77d48c5a7e7615c', // Blazedale
-  '7be60abd4525c70a', // relaymaster
-];
+// Dedicated bot accounts, created by scripts/seed-bots.mjs and flagged is_bot.
+//
+// This list used to hold the pubkey prefixes of seven *real* players — Boyscout,
+// gorilla, Akki, Blazedale and others. The bot spent their joints and, when they
+// won, credited them withdrawable sats. Those accounts had not logged in for
+// months.
+function botNpubs(db) {
+  return db.prepare('SELECT npub FROM players WHERE is_bot = 1').all().map(r => r.npub);
+}
+
 const FAKE_POT_AMOUNTS = [8, 12, 21];
 const _scheduledFakeRounds = new Set();
 
@@ -443,7 +445,8 @@ function scheduleFakePlayers(round) {
   const db = _reminderDb;
   const drawsAt = round.draws_at * 1000; // ms
   const playerCount = Math.random() < 0.5 ? 2 : 3;
-  const players = pickRandom(FAKE_PLAYERS, playerCount);
+  const players = pickRandom(botNpubs(db), playerCount);
+  if (players.length === 0) return; // no bot accounts seeded
 
   // Schedule: last player at -5min, each previous +20min earlier
   // e.g. 3 players: -45min, -25min, -5min
@@ -457,8 +460,7 @@ function scheduleFakePlayers(round) {
         const currentRound = db.prepare(`SELECT id, status FROM lottery_rounds WHERE id=?`).get(round.id);
         if (!currentRound || currentRound.status !== 'open') return;
 
-        // Find full npub
-        const player = db.prepare(`SELECT npub, joints, game_state FROM players WHERE npub LIKE ?`).get(npub + '%');
+        const player = db.prepare(`SELECT npub, joints, game_state FROM players WHERE npub = ?`).get(npub);
         if (!player) return;
 
         let myCount = db.prepare(`SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=? AND npub=?`).get(round.id, player.npub)?.n || 0;
@@ -468,6 +470,12 @@ function scheduleFakePlayers(round) {
         // carry its own copy of the curve and bought 3-12 tickets at once.
         let rate = 0;
         try { rate = throughput(JSON.parse(player.game_state || '{}')).jointsPerSec; } catch { /* no output */ }
+
+        // A bot has no client accumulating joints for it, so top it up to one
+        // day of its own output before buying — the same budget the daily
+        // allowance is calibrated against for real players.
+        const budget = Math.round(rate * 86400);
+        if (budget > 0) db.prepare('UPDATE players SET joints = ? WHERE npub = ?').run(budget, player.npub);
 
         const boughtToday = db.prepare(
           `SELECT COUNT(*) AS n FROM lottery_tickets WHERE npub = ? AND purchased_at > unixepoch() - 86400`
@@ -489,9 +497,9 @@ function scheduleFakePlayers(round) {
           bought++;
         }
 
-        if (bought > 0) console.log(`[Fake] ${player.npub.slice(0,12)} bought ${bought} ticket(s) for round ${round.id}`);
+        if (bought > 0) console.log(`[Bot] ${player.npub.slice(0,12)} bought ${bought} ticket(s) for round ${round.id}`);
       } catch (err) {
-        console.error('[Fake] ticket buy error:', err.message);
+        console.error('[Bot] ticket buy error:', err.message);
       }
     }, delay);
   });
@@ -505,10 +513,14 @@ function scheduleFakePlayers(round) {
       if (!r || r.status !== 'open') return;
       if (r.total_sats_collected > 0) return;
       const amount = FAKE_POT_AMOUNTS[Math.floor(Math.random() * FAKE_POT_AMOUNTS.length)];
+      // Funded from the 20 % cut, so a seeded pot is backed by sats players
+      // really spent. No cut left, no seeding — better an empty pot than a
+      // credited balance nobody can pay out.
+      if (!houseDebit(amount, `pot seed round ${round.id}`)) return;
       db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE id=?`).run(amount, round.id);
-      console.log(`[Fake] Seeded pot with ${amount} sats for round ${round.id}`);
+      console.log(`[Bot] Seeded pot with ${amount} sats for round ${round.id}`);
     } catch (err) {
-      console.error('[Fake] pot seed error:', err.message);
+      console.error('[Bot] pot seed error:', err.message);
     }
   }, fillDelay);
 }
@@ -573,12 +585,11 @@ cron.schedule('0 8,16,22 * * *', async () => {
     const now = Math.floor(Date.now() / 1000);
 
     // Find new players since last report (exclude fake players and bot)
-    const fakePubs = [...FAKE_PLAYERS, 'f77c382998682053'];
-    const newPlayers = db.prepare(
-      `SELECT npub, display_name, created_at FROM players WHERE created_at > ? ORDER BY created_at ASC`
+    const realNew = db.prepare(
+      `SELECT npub, display_name, created_at FROM players
+       WHERE created_at > ? AND COALESCE(is_bot, 0) = 0 AND npub NOT LIKE 'f77c382998682053%'
+       ORDER BY created_at ASC`
     ).all(lastTs);
-
-    const realNew = newPlayers.filter(p => !fakePubs.some(f => p.npub.startsWith(f)));
 
     if (realNew.length === 0) return; // nothing to report
 

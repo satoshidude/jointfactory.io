@@ -14,16 +14,17 @@
 /**
  * Level-up cost growth per plantation.
  *
- * Still the live 1.28, which outruns output growth (~1.07/level from linear
- * level × milestone multipliers) by 19 % a level and walls every endgame player
- * at ~level 85 — Hakuna's next MegaFarm level costs 18 days of idling.
+ * The old 1.28 outran output growth (~1.07/level from linear level × milestone
+ * multipliers) by 19 % a level and walled every endgame player at ~level 85 —
+ * one more MegaFarm level cost the top account 18 days of idling, which is why
+ * all six endgame players sat at the same rate.
  *
- * The retune to ~1.12 ships with the season reset, not before: rehydrate()
- * pushes these defs onto every existing save, so changing the number here
- * silently reprices 34 live accounts mid-season. Simulate a candidate with
- *   node scripts/sim-economy.mjs 30 --upgmult=1.12
+ * 1.12 leaves a gentle wall that prestige is meant to break, rather than one no
+ * amount of play gets past. rehydrate() writes these defs onto every save, so
+ * this value only changes together with scripts/season-reset.mjs.
+ * Try a candidate with: node scripts/sim-economy.mjs 30 --upgmult=1.15
  */
-export const UPG_MULT = Number(globalThis.process?.env?.JF_UPG_MULT) || 1.28
+export const UPG_MULT = Number(globalThis.process?.env?.JF_UPG_MULT) || 1.12
 
 export const PLANTATION_DEFS = [
   { id: 0, name: 'Balcony Grow',   icon: '\u{1F331}', baseProd: 5,       cycleTime: 4,   upgBase: 8,         upgMult: UPG_MULT, mgrCost: 20,  unlockCost: 0 },
@@ -90,11 +91,38 @@ export function getSpeedUpgrade(currentLevel) {
   return { speed, cost, label: `+${pct}%` }
 }
 
-/** Old saves stored speedLevel on a 0–1000 scale. Used by the season migration. */
+/** Cost of one level on the retired 1000-level curve. */
+function legacySpeedCost(level) {
+  return Math.round(20 + 480 * Math.pow(level / 1000, 0.7))
+}
+
+/**
+ * Convert a speedLevel from the retired 1000-level scale, preserving the sats
+ * that were spent rather than the fraction of the maximum.
+ *
+ * A proportional mapping would wipe out nearly every purchase — the highest
+ * live level, 11 of 1000, becomes 1 of 60 — and speed levels are bought with
+ * sats. The same rule that governs a prestige harvest applies here: game logic
+ * must never destroy what real money paid for. So the old levels are priced up,
+ * and the budget is spent again on the new curve.
+ */
 export function migrateSpeedLevel(oldLevel) {
-  const lvl = Math.min(MAX_SPEED_LEVEL, Math.round((oldLevel || 0) / 1000 * MAX_SPEED_LEVEL))
+  let budget = 0
+  for (let l = 0; l < (oldLevel || 0); l++) budget += legacySpeedCost(l)
+
+  let lvl = 0
+  while (lvl < MAX_SPEED_LEVEL) {
+    const next = getSpeedUpgrade(lvl)
+    if (!next || next.cost > budget) break
+    budget -= next.cost
+    lvl++
+  }
+  // Anyone who bought a level keeps a level. The retired curve's first level
+  // cost 20 sats and the new one costs 21, so strict arithmetic would hand back
+  // nothing for a purchase that was really made.
+  if (lvl === 0 && (oldLevel || 0) >= 1) lvl = 1
   const speed = +(1 + (lvl / MAX_SPEED_LEVEL) * (MAX_SPEED - 1)).toFixed(2)
-  return { speedLevel: lvl, speed }
+  return { speedLevel: lvl, speed, satsCarried: budget }
 }
 
 // ── Courier / factory ────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import {
   rehydrate, FREE_MANAGERS, throughput, boostMultipliers,
   courierTripTime, fabrikCycleTime, PLANTATION_DEFS,
   initialState, newPlantation, takeParkedUpgrades, prestigeMultiplier,
+  MAX_SPEED_LEVEL, getSpeedUpgrade,
 } from '../../shared/economy.js'
 
 // ── Plantation definitions (matching production) ─────────────────────────────
@@ -85,19 +86,12 @@ export interface DisplayState {
 
 const COST_SCALE = 2.5          // courier/fabrik cap upgrade cost multiplier
 
-// ── Speed upgrade system: 1000 levels, 20-500 sats/level ────────────────────
-export const MAX_SPEED_LEVEL = 1000
-
-export function getSpeedUpgrade(currentLevel: number): { speed: number; cost: number; label: string } | null {
-  if (currentLevel >= MAX_SPEED_LEVEL) return null
-  const t = currentLevel / MAX_SPEED_LEVEL
-  const cost = Math.round(20 + 480 * Math.pow(t, 0.7))
-  const nextLevel = currentLevel + 1
-  const maxSpeed = 8
-  const speed = +(1 + (nextLevel / MAX_SPEED_LEVEL) * (maxSpeed - 1)).toFixed(2)
-  const pct = Math.round((speed - 1) * 100)
-  return { speed, cost, label: `+${pct}%` }
-}
+// Speed upgrades come from the shared module: 60 levels, 1x-3x, 21-210 sats.
+// The old 1000-level curve asked ~302k sats per station for +0.7 % a level and
+// the entire player base bought 132 of 8000 levels. Stored speedLevel values
+// are converted by scripts/season-reset.mjs, so this switch and that migration
+// have to go live in the same step.
+export { MAX_SPEED_LEVEL, getSpeedUpgrade }
 
 // ── Cost helpers (exported for UI) ───────────────────────────────────────────
 

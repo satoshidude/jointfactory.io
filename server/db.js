@@ -99,6 +99,12 @@ try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_players_invite_code ON play
 // Track total Lightning deposits per player
 try { db.exec(`ALTER TABLE players ADD COLUMN total_deposited INTEGER DEFAULT 0`); } catch(_) {}
 
+// Bot accounts that keep the lottery looking alive.
+// Marked so they can be excluded from leaderboards, reports and payouts —
+// the fake activity used to run on real players' accounts, spending their
+// joints and crediting them withdrawable sats.
+try { db.exec(`ALTER TABLE players ADD COLUMN is_bot INTEGER DEFAULT 0`); } catch(_) {}
+
 // Prestige seeds — permanent, chain-wide production multiplier.
 // Derived from all-time total_joints_earned, so no per-season counter is needed
 // and the value can only ever grow.

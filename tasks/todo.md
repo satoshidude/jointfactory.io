@@ -225,14 +225,50 @@ unter den Gewinnern die Alternative.
       (Phase 5), weil `rehydrate()` die Defs auf jeden Spielstand schreibt und
       die Änderung sonst 34 Konten mitten in der Season umpreist
 
-## Phase 5 — Season-Reset, Bots, Deckung
-- [ ] `is_bot` Spalte + dedizierte Bot-Accounts
-- [ ] `FAKE_PLAYERS` umstellen, Bot-Gewinne zurück in den Pot
-- [ ] `is_bot`-Filter in Leaderboard / rate-log / Nostr-Report
-- [ ] `house_sats` Ledger aus dem 20 %-Cut
-- [ ] Pot-Seeding + Startguthaben aus dem Ledger buchen
-- [ ] Solvenz-Check im Cron
-- [ ] Season-Reset-Migration inkl. Legacy-Bonus (erst nach lokaler Verifikation)
+## Phase 5 — Season-Reset, Bots, Deckung — erledigt 2026-07-28
+- [x] `is_bot` Spalte, `scripts/seed-bots.mjs` legt 6 dedizierte Konten an
+      (deterministische IDs, idempotent)
+- [x] `FAKE_PLAYERS` (7 echte Spieler-Präfixe) ersetzt durch `is_bot`-Abfrage
+- [x] Bot-Gewinne fließen in den Folge-Pot statt in ein auszahlbares Guthaben
+- [x] `is_bot`-Filter in Leaderboard, Growth Race und Owner-Report
+- [x] `server/house.js` — Ledger aus dem 20 %-Cut, atomarer Abzug
+- [x] Pot-Seeding und Referral-Prämie werden aus dem Ledger gebucht; reicht er
+      nicht, unterbleiben sie
+- [x] `/api/health/solvency` + stündlicher Cron
+- [x] `scripts/season-reset.mjs`, Dry-Run als Standard
+
+### Dabei gefunden und behoben
+- **Der Pot wurde nicht übertragen.** Die Oberfläche sagt „No winner — pot rolls
+  over!", der Code schloss die Runde und startete die nächste bei 0. Historisch
+  40 Sats verloren, bei 3 Ziehungen/Woche künftig deutlich mehr. Jetzt echter
+  Übertrag.
+- **`cp` auf eine WAL-Datenbank liefert einen veralteten Stand** — gelöschte
+  Zeilen tauchten in der Kopie wieder auf, weil die Änderung noch im `-wal` lag.
+  Für Snapshots ausschließlich `sqlite3 .backup` verwenden.
+- **Speed-Umrechnung war wertvernichtend.** Proportional (0–1000 → 0–60) hätte
+  das höchste Live-Level von 11 auf 1 gedrückt. Speed-Level werden mit Sats
+  gekauft, also gilt dieselbe Regel wie beim Prestige: jetzt wird der bezahlte
+  Betrag hochgerechnet und auf der neuen Kurve neu ausgegeben. 58 bezahlte
+  Stationen geprüft, keine verloren.
+- **Client rechnete noch mit 1000 Speed-Leveln**, `shared` mit 60. Der Client
+  ist jetzt umgestellt — Code und Migration müssen deshalb **gemeinsam** live.
+
+### Verschobene Kurvenänderungen jetzt aktiv
+- [x] `upgMult` 1.28 → 1.12
+- [x] Speed-Kurve 60 Level, 1×→3×, 21–210 Sats
+
+## Deployment-Ablauf (Phase 5, wenn freigegeben)
+Code und Migration gehören in **einen** Wartungsschritt, sonst liest der neue
+Client alte Werte auf der neuen Skala.
+
+1. `pm2 stop jointfactory`
+2. `sqlite3 data/jointfactory.db ".backup 'data/pre-season1.db'"` — Rückweg
+3. `git pull && npm run build`
+4. `node scripts/seed-bots.mjs`
+5. `node scripts/season-reset.mjs` (Dry-Run prüfen)
+6. `node scripts/season-reset.mjs --commit`
+7. `pm2 start jointfactory`
+8. `curl localhost:3421/api/health/solvency` — Lücke muss ≥ 0 sein
 
 ## Phase 6 — Server-Autorität für Joints
 - [ ] Joints-Zuwachs gegen `serverJps × elapsed × 1.5` klemmen
