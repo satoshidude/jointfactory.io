@@ -1,5 +1,5 @@
 import { useAuth } from '../../stores/authStore'
-import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, UserPlus, AlertTriangle, MessageSquare, Github, UserCog } from 'lucide-react'
+import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, UserPlus, AlertTriangle, MessageSquare, Github, UserCog, Gauge, Rocket } from 'lucide-react'
 import './MobileInfo.css'
 import './MobileLottery.css'
 
@@ -48,7 +48,7 @@ export default function MobileInfo() {
             <Cannabis size={22} className="mi-feat-icon green" />
             <div>
               <h3 className="mi-feat-title">Plantations</h3>
-              <p className="mi-feat-desc">Grow weed across multiple plant slots. Level up for higher output and hit milestones for massive multipliers.</p>
+              <p className="mi-feat-desc">Grow weed across six plots. Levels cost joints and every tenth one hits a milestone that multiplies the plot's output.</p>
             </div>
           </div>
 
@@ -56,7 +56,7 @@ export default function MobileInfo() {
             <Footprints size={22} className="mi-feat-icon pink" />
             <div>
               <h3 className="mi-feat-title">Courier</h3>
-              <p className="mi-feat-desc">Transports harvested weed to the factory. Upgrade capacity and speed to keep up.</p>
+              <p className="mi-feat-desc">Carries the harvest to the factory. Upgrade its capacity with joints — if it brings less than the factory can roll, the factory idles.</p>
             </div>
           </div>
 
@@ -64,7 +64,7 @@ export default function MobileInfo() {
             <Factory size={22} className="mi-feat-icon purple" />
             <div>
               <h3 className="mi-feat-title">Factory</h3>
-              <p className="mi-feat-desc">Turns weed into joints. Bigger batches and faster speed mean more joints per second.</p>
+              <p className="mi-feat-desc">Rolls weed into joints in batches. Bigger batches cost joints. Your output is whatever the slowest of the three stations manages.</p>
             </div>
           </div>
 
@@ -77,10 +77,34 @@ export default function MobileInfo() {
           </div>
 
           <div className="mi-feature">
+            <UserCog size={22} className="mi-feat-icon green" />
+            <div>
+              <h3 className="mi-feat-title">Managers</h3>
+              <p className="mi-feat-desc">A manager runs a station for you. The first three are free for everyone, so the whole chain can run without depositing anything. Further ones cost 100–300 sats.</p>
+            </div>
+          </div>
+
+          <div className="mi-feature">
+            <Gauge size={22} className="mi-feat-icon green" />
+            <div>
+              <h3 className="mi-feat-title">Speed</h3>
+              <p className="mi-feat-desc">Spend joints for a permanent +2% on the whole chain. It never expires. The price is a slice of your own production, so it stays meaningful however big you get.</p>
+            </div>
+          </div>
+
+          <div className="mi-feature">
+            <Rocket size={22} className="mi-feat-icon gold" />
+            <div>
+              <h3 className="mi-feat-title">Boosts</h3>
+              <p className="mi-feat-desc">Timed multipliers for sats: 2x grow, 3x courier or 2x factory for 30 min (21 sats each), or Full Throttle — 2x everything for an hour (50 sats). Buying one feeds the lottery pot.</p>
+            </div>
+          </div>
+
+          <div className="mi-feature">
             <Ticket size={22} className="mi-feat-icon gold" />
             <div>
               <h3 className="mi-feat-title">Lottery</h3>
-              <p className="mi-feat-desc">Spend joints on lottery tickets for a chance to win the pot in real sats. Draws Tue, Thu & Sat at 21:00.</p>
+              <p className="mi-feat-desc">Joints buy tickets, up to four a day. A ticket costs a share of a day of your own production, so it is the same bite for everyone. Draws Tue, Thu &amp; Sat at 21:00; 80% of the pot goes to the winners, and up to a third of the players in a round win.</p>
             </div>
           </div>
 
@@ -88,7 +112,7 @@ export default function MobileInfo() {
             <TrendingUp size={22} className="mi-feat-icon green" />
             <div>
               <h3 className="mi-feat-title">Leaderboard</h3>
-              <p className="mi-feat-desc">Compete against other players. Track your joints/s and climb the rankings.</p>
+              <p className="mi-feat-desc">Compete against other players. Track your joints/s, your speed level and climb the rankings.</p>
             </div>
           </div>
 
@@ -96,7 +120,7 @@ export default function MobileInfo() {
             <UserPlus size={22} className="mi-feat-icon green" />
             <div>
               <h3 className="mi-feat-title">Invite Friends</h3>
-              <p className="mi-feat-desc">Share your invite link. When your buddy automates all three stations, you get an hour of Full Throttle — 2x output chain-wide. Hours stack.</p>
+              <p className="mi-feat-desc">Share your invite link. Everyone who joins through it appears as a tile in your boost card; once they automate all three stations, one click starts an hour of Full Throttle — 2x output chain-wide. Hours stack.</p>
             </div>
           </div>
         </div>

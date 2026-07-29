@@ -166,7 +166,7 @@ function GuestTour({ step, onNext, onDismiss }: { step: number; onNext: () => vo
     {
       target: null,
       title: 'Good luck!',
-      text: 'Build joints, win the Lightning Lottery and earn real sats! Login to unlock auto-managers and speed upgrades.',
+      text: 'Build joints, win the Lightning Lottery and earn real sats! Log in to save your progress — the first three managers are free.',
       btnText: 'Let\'s go!',
     },
   ]

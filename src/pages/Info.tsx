@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../stores/authStore'
 import { Card, CardContent } from '@/components/ui/card'
-import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, ArrowLeft, KeyRound, ExternalLink, UserPlus, AlertTriangle, Mail } from 'lucide-react'
+import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, ArrowLeft, KeyRound, ExternalLink, UserPlus, AlertTriangle, Mail, Gauge, Rocket, UserCog } from 'lucide-react'
 import './Info.css'
 
 export default function InfoPage() {
@@ -59,8 +59,8 @@ export default function InfoPage() {
               <Cannabis size={24} className="info-icon weed" />
               <div>
                 <h3>Plantations</h3>
-                <p>Grow weed across multiple plant slots. Level up for higher output
-                  and hit milestones for massive production multipliers.</p>
+                <p>Grow weed across six plots. Levels cost joints, and every tenth
+                  one hits a milestone that multiplies that plot's output.</p>
               </div>
             </div>
 
@@ -68,8 +68,9 @@ export default function InfoPage() {
               <Footprints size={24} className="info-icon flamingo" />
               <div>
                 <h3>Courier</h3>
-                <p>Your courier transports harvested weed from the plantations to
-                  the factory. Upgrade capacity and speed to keep up with production.</p>
+                <p>Your courier carries the harvest from the plantations to the
+                  factory. Upgrade its capacity with joints — if it delivers less
+                  than the factory can roll, the factory sits idle.</p>
               </div>
             </div>
 
@@ -77,8 +78,9 @@ export default function InfoPage() {
               <Factory size={24} className="info-icon purple" />
               <div>
                 <h3>Factory</h3>
-                <p>The factory turns weed into joints. Bigger batches and
-                  faster speed mean more joints per second.</p>
+                <p>The factory rolls weed into joints in batches. Bigger batches
+                  cost joints. Your output is whatever the slowest of the three
+                  stations manages — that is the number to work on.</p>
               </div>
             </div>
 
@@ -97,11 +99,46 @@ export default function InfoPage() {
             </div>
 
             <div className="info-feature">
+              <UserCog size={24} className="info-icon green" />
+              <div>
+                <h3>Managers</h3>
+                <p>A manager runs a station without you. The first three are free
+                  for everyone, so the whole chain can be automated without
+                  depositing anything. Beyond that a manager costs 100–300 sats.</p>
+              </div>
+            </div>
+
+            <div className="info-feature">
+              <Gauge size={24} className="info-icon green" />
+              <div>
+                <h3>Speed</h3>
+                <p>Spend joints for a permanent +2 % on the entire chain. It never
+                  expires. The price is a slice of your own production rather than
+                  a fixed amount, so it stays a real decision however large you get
+                  — and each step raises the rate the next one is priced against.</p>
+              </div>
+            </div>
+
+            <div className="info-feature">
+              <Rocket size={24} className="info-icon gold" />
+              <div>
+                <h3>Boosts</h3>
+                <p>Timed multipliers bought with sats: 2x grow, 3x courier or 2x
+                  factory for 30 minutes at 21 sats each, or Full Throttle — 2x
+                  everything for an hour at 50 sats. What you spend feeds the
+                  lottery pot.</p>
+              </div>
+            </div>
+
+            <div className="info-feature">
               <Ticket size={24} className="info-icon flamingo" />
               <div>
                 <h3>Lottery</h3>
-                <p>Spend joints on lottery tickets for a chance to win the pot
-                  in real sats. Draws Tue, Thu &amp; Sat at 21:00.</p>
+                <p>Joints buy tickets, up to four a day. A ticket costs a share of
+                  a day of your own production, so it is the same bite for a
+                  beginner as for the leader. Draws Tue, Thu &amp; Sat at 21:00;
+                  80 % of the pot is paid out, and up to a third of the players in
+                  a round win a share of it.</p>
               </div>
             </div>
 
@@ -109,8 +146,8 @@ export default function InfoPage() {
               <TrendingUp size={24} className="info-icon green" />
               <div>
                 <h3>Leaderboard</h3>
-                <p>Compete against other players. Track your joints/s production
-                  rate and climb the rankings.</p>
+                <p>Compete against other players. Track your joints/s, your speed
+                  level and climb the rankings.</p>
               </div>
             </div>
 
@@ -118,10 +155,11 @@ export default function InfoPage() {
               <UserPlus size={24} className="info-icon green" />
               <div>
                 <h3>Invite Friends</h3>
-                <p>Share your personal invite link and grow your crew. Once your buddy
-                  automates all three stations, you get an hour of Full Throttle —
-                  double output from plantations, courier and factory. Every buddy adds
-                  another hour, and the hours stack.</p>
+                <p>Share your personal invite link and grow your crew. Everyone who
+                  signs up through it shows up as a tile in your boost card; once
+                  they automate all three stations the tile unlocks, and one click
+                  starts an hour of Full Throttle — double output across the chain.
+                  Every buddy is another hour, and the hours stack.</p>
               </div>
             </div>
           </div>

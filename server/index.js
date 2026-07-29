@@ -228,7 +228,10 @@ fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
       .catch(err => console.error('[invite] Referral reward note failed:', err.message));
   }
 
-  return result;
+  // A reward is unlocked by the *buddy's* save, on someone else's account, so a
+  // referrer has no other way to hear about it. Riding along on their own saves
+  // makes the tile appear within one autosave interval without a poll.
+  return { ...result, boost_grants: listReferralBoosts(req.user.npub) };
 });
 fastify.post('/api/game/profile', { preHandler: requireAuth }, async (req) => updateProfile(req.user.npub, req.body));
 
