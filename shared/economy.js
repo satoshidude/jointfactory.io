@@ -364,10 +364,19 @@ export function ticketPrice(boughtToday, rate) {
   return Math.max(1, Math.round(rate * DAY_SECONDS * TICKET_DAY_SHARE[n] * ticketScale(rate)))
 }
 
-/** Prices for the rest of today's allowance. */
-export function ticketPreview(boughtToday, rate) {
+/**
+ * Prices for the next few tickets of today's allowance.
+ *
+ * Capped at three: showing the whole remaining allowance made the row wide and
+ * the far entries are not a decision anyone is making yet.
+ *
+ * @param {number} boughtToday
+ * @param {number} rate
+ * @param {number} [limit]
+ */
+export function ticketPreview(boughtToday, rate, limit = 3) {
   const out = []
-  for (let n = boughtToday; n < MAX_TICKETS_PER_DAY; n++) {
+  for (let n = boughtToday; n < MAX_TICKETS_PER_DAY && out.length < limit; n++) {
     out.push({ n: n + 1, cost: ticketPrice(n, rate) })
   }
   return out
