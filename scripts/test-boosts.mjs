@@ -19,17 +19,20 @@ const { boostMultipliers, BOOSTS, potPayout } = await import('../shared/economy.
 const N = 'boost-probe'
 db.prepare('DELETE FROM players WHERE npub=?').run(N)
 db.prepare('DELETE FROM active_boosts WHERE npub=?').run(N)
-db.prepare('INSERT INTO players (npub, display_name, sats) VALUES (?,?,?)').run(N, 'Probe', 150)
+// Budget derived from the prices, so a repricing does not break the test.
+const F = BOOSTS.fertilizer.cost, FT = BOOSTS.fullthrottle.cost
+const START = F * 2 + FT           // exactly two fertilizers and one full throttle
+db.prepare('INSERT INTO players (npub, display_name, sats) VALUES (?,?,?)').run(N, 'Probe', START)
 const potBefore = db.prepare("SELECT total_sats_collected p FROM lottery_rounds WHERE status='open'").get().p
 let fail = 0
 const check = (label, cond) => { console.log(`  ${cond ? '✓' : '✗'} ${label}`); if (!cond) fail++ }
 
-console.log(`Start: 150 Sats, Pot ${potBefore}\n`)
+console.log(`Start: ${START} Sats, Pot ${potBefore}\n`)
 
 const r1 = buyBoost(N, 'fertilizer')
-check(`Kauf Dünger (21 Sats) → ok, Guthaben ${r1.sats}`, r1.ok && r1.sats === 129)
+check(`Kauf Dünger (${F} Sats) → ok, Guthaben ${r1.sats}`, r1.ok && r1.sats === START - F)
 const potA = db.prepare("SELECT total_sats_collected p FROM lottery_rounds WHERE status='open'").get().p
-check(`Brutto in den Pot: ${potBefore} → ${potA} (+${potA-potBefore})`, potA - potBefore === 21)
+check(`Brutto in den Pot: ${potBefore} → ${potA} (+${potA-potBefore})`, potA - potBefore === F)
 
 const m1 = boostMultipliers(getActiveBoosts(N), Math.floor(Date.now()/1000))
 check(`Multiplikator plant=${m1.plant} courier=${m1.courier} fabrik=${m1.fabrik}`, m1.plant === 2 && m1.courier === 1)
@@ -43,17 +46,17 @@ check(`Multiplikator bleibt bei ${m2.plant}x, keine Stapelung`, m2.plant === 2)
 check(`nur eine Zeile pro Typ`, db.prepare('SELECT COUNT(*) c FROM active_boosts WHERE npub=? AND type=?').get(N,'fertilizer').c === 1)
 
 const r3 = buyBoost(N, 'fullthrottle')
-check(`Vollgas (100 Sats) bei ${r2.sats} Sats → ok, Rest ${r3.sats}`, r3.ok && r3.sats === 8)
+check(`Vollgas (${FT} Sats) bei ${r2.sats} Sats → ok, Rest ${r3.sats}`, r3.ok && r3.sats === 0)
 const m3a = boostMultipliers(getActiveBoosts(N), Math.floor(Date.now()/1000))
 check(`Dünger + Vollgas kombinieren: plant=${m3a.plant} courier=${m3a.courier} fabrik=${m3a.fabrik}`,
       m3a.plant === 4 && m3a.courier === 2 && m3a.fabrik === 2)
 
 const r3b = buyBoost(N, 'fertilizer')
-check(`Dünger (21 Sats) bei 8 Sats → abgelehnt: "${r3b.reason}"`, !r3b.ok)
-check(`Guthaben unverändert nach Ablehnung`, db.prepare('SELECT sats s FROM players WHERE npub=?').get(N).s === 8)
+check(`Dünger (${F} Sats) bei ${r3.sats} Sats → abgelehnt: "${r3b.reason}"`, !r3b.ok)
+check(`Guthaben unverändert nach Ablehnung`, db.prepare('SELECT sats s FROM players WHERE npub=?').get(N).s === 0)
 const potAfterReject = db.prepare("SELECT total_sats_collected p FROM lottery_rounds WHERE status='open'").get().p
-check(`Pot unverändert nach Ablehnung (${potAfterReject})`, potAfterReject === 142)
-check(`Auszahlung = 80 % des Brutto-Pots: ${potPayout(potAfterReject)}`, potPayout(potAfterReject) === 113)
+check(`Pot unverändert nach Ablehnung (${potAfterReject})`, potAfterReject === START)
+check(`Auszahlung = 80 % des Brutto-Pots: ${potPayout(potAfterReject)}`, potPayout(potAfterReject) === Math.floor(START * 0.8))
 
 const r4 = buyBoost(N, 'nonexistent')
 check(`unbekannter Typ abgelehnt`, !r4.ok)

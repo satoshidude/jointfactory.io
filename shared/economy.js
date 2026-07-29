@@ -145,7 +145,7 @@ export const BOOSTS = {
   fertilizer:   { id: 'fertilizer',   name: 'Fertilizer',   short: '2x Grow',    cost: 21,  durationSec: 1800, plant: 2 },
   express:      { id: 'express',      name: 'Express Run',  short: '3x Courier', cost: 21,  durationSec: 1800, courier: 3 },
   doubleshift:  { id: 'doubleshift',  name: 'Double Shift', short: '2x Factory', cost: 21,  durationSec: 1800, fabrik: 2 },
-  fullthrottle: { id: 'fullthrottle', name: 'Full Throttle', short: '2x Everything', cost: 100, durationSec: 3600, plant: 2, courier: 2, fabrik: 2 },
+  fullthrottle: { id: 'fullthrottle', name: 'Full Throttle', short: '2x Everything', cost: 50,  durationSec: 3600, plant: 2, courier: 2, fabrik: 2 },
 }
 
 /**
