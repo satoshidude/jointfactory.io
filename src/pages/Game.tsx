@@ -110,11 +110,9 @@ function StatRow({ label, value, highlight }: { label: string; value: string; hi
   )
 }
 
-function fmtSats(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + '\u2009M'
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + '\u2009K'
-  return n.toLocaleString()
-}
+// Suffixes come from the shared formatter; this copy stopped at M and turned
+// billions into four-digit "14889.49 M".
+const fmtSats = (n: number) => fmtNum(n, 1)
 
 function fmtTime(ts: number): string {
   const d = new Date(ts * 1000)

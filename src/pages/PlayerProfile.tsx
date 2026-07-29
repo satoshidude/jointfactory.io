@@ -50,10 +50,10 @@ function fmtNum(n: number): string {
 }
 
 function fmtRate(n: number): string {
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + '\u2009M/s';
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + '\u2009K/s';
-  if (n >= 1)   return n.toFixed(1) + '/s';
-  if (n > 0)    return n.toFixed(3) + '/s';
+  // Shared suffixes, so a rate past a billion does not read as "1600.0 M/s".
+  if (n >= 1000) return fmtNumBase(n, 1) + '/s';
+  if (n >= 1)    return n.toFixed(1) + '/s';
+  if (n > 0)     return n.toFixed(3) + '/s';
   return '0/s';
 }
 

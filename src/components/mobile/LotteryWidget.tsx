@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Zap, Ticket, Users, Timer } from 'lucide-react'
 import { apiFetch, wsUrl } from '../../lib/api'
-import { fmtCountdown, fmtDrawTime } from '../../lib/format'
+import { fmtCountdown, fmtDrawTime, fmtNum as fmtSats } from '../../lib/format'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import './LotteryWidget.css'
@@ -13,12 +13,6 @@ interface LotteryRound {
   total_tickets: number
   unique_players: number
   sat_per_ticket: number
-}
-
-function fmtSats(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + '\u2009M'
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + '\u2009K'
-  return n.toLocaleString()
 }
 
 export default function LotteryWidget() {

@@ -19,7 +19,9 @@ const TIERS: ReadonlyArray<readonly [number, string]> = [
   [1e3, 'K'],   // Thousand
 ]
 
-const THIN_SPACE = ' '
+// Narrow NO-BREAK space: the plain thin space let "14.9 B" wrap between the
+// number and its suffix inside narrow tiles.
+const THIN_SPACE = ' '
 
 /**
  * Format a number with a short-scale suffix (e.g. 7_888_090_208_466_959 -> "7.9 Qa").

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Zap, Ticket, TicketPlus, Users, Timer, Trophy, TrendingUp, ExternalLink, ChevronLeft, ChevronRight, Cannabis } from 'lucide-react'
 import { apiFetch, wsUrl } from '../../lib/api'
-import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime } from '../../lib/format'
+import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime, fmtNum as fmtSats } from '../../lib/format'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { nip19 } from 'nostr-tools'
@@ -44,12 +44,6 @@ interface ZapRecord {
   nostr_event_id: string
   display_name: string | null
   created_at: number
-}
-
-function fmtSats(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + '\u2009M'
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + '\u2009K'
-  return n.toLocaleString()
 }
 
 function shortenNpub(npub: string): string {
