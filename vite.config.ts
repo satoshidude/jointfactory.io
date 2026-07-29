@@ -33,6 +33,11 @@ export default defineConfig({
   },
   plugins: [react(), tailwindcss()],
   server: {
+    // Vite rejects Host headers it does not know (DNS-rebinding protection), so
+    // reaching the dev server from another machine over its mDNS name returned
+    // 403 while the bare IP worked. Allowing .local covers the LAN case without
+    // opening it to arbitrary hostnames.
+    allowedHosts: ['.local'],
     proxy: {
       '/api': {
         target: API_TARGET,
