@@ -111,6 +111,19 @@ check('nach 1 Tag noch nicht leistbar', oneDay < getTicketPrice('beginner'))
 check('nach 2 Tagen leistbar', twoDays >= getTicketPrice('beginner'))
 
 // ── Not gameable through the reported rate ──────────────────────────────────
+console.log('\n── Prestige zählt in den Preis ──')
+{
+  const gs = JSON.parse(db.prepare('SELECT game_state g FROM players WHERE npub=?').get('beginner').g)
+  const base = getTicketPrice('beginner')
+  db.prepare('UPDATE players SET prestige_seeds = 343 WHERE npub = ?').run('beginner')
+  const withSeeds = getTicketPrice('beginner')
+  const rate = throughput(gs).jointsPerSec
+  const seededRate = throughput(gs, { seeds: 343 }).jointsPerSec
+  console.log(`  ${rate.toFixed(2)}/s → ${fmt(base)}   ·   mit 343 Seeds ${seededRate.toFixed(2)}/s → ${fmt(withSeeds)}`)
+  check('Seeds erhöhen den Preis', withSeeds > base * 10)
+  db.prepare('UPDATE players SET prestige_seeds = 0 WHERE npub = ?').run('beginner')
+}
+
 console.log('\n── Nicht manipulierbar ──')
 db.prepare('UPDATE players SET joints_per_sec = 0 WHERE npub = ?').run('hoarder')
 check('gemeldete Rate 0 senkt den Preis nicht', getTicketPrice('hoarder') > 1e12)

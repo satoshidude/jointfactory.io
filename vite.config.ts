@@ -31,6 +31,14 @@ export default defineConfig({
         changeOrigin: true,
         secure: true,
         ws: true,
+        configure: (proxy) => {
+          // Restarting the API server closes the upstream socket mid-write. The
+          // resulting EPIPE is unhandled by default and takes the whole dev
+          // server down, so every backend restart also killed Vite.
+          proxy.on('error', (err: Error) => {
+            console.warn('[vite] ws proxy:', err.message)
+          })
+        },
       },
     },
   },

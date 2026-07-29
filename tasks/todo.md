@@ -257,6 +257,21 @@ unter den Gewinnern die Alternative.
 - [x] `upgMult` 1.28 → 1.12
 - [x] Speed-Kurve 60 Level, 1×→3×, 21–210 Sats
 
+## Lokaler Probelauf 2026-07-29 — bestanden
+Migration auf `data/jointfactory.db` gefahren, Rückweg unter `data/pre-season1.db`.
+Als `satoshidude` (343 Seeds, ×18,15) im Browser geprüft: Kurier-Kapazität 363
+statt 20, Speed +3 % für 21 Sats auf der neuen Kurve, Level-Kosten 8 statt 94
+Joints, Leaderboard und Growth Race ohne Bots, Solvenz-Lücke +1117.
+
+### Dabei gefunden und behoben
+- **Ticketpreis ignorierte das Prestige.** `playerRate` rechnete `throughput()`
+  ohne Seeds — ein Spieler mit ×18 Produktion zahlte, als produziere er 1,3/s.
+  Lose waren damit **15,8× zu billig**. Seeds sind dauerhafte Kapazität wie
+  Plantagenlevel und gehören in den Preis; Boosts weiterhin nicht.
+- **Vite starb bei jedem Backend-Neustart.** Der `/ws`-Proxy warf ein
+  unbehandeltes EPIPE, sobald der API-Server verschwand. Fehler-Handler in
+  `vite.config.ts`.
+
 ## Deployment-Ablauf (Phase 5, wenn freigegeben)
 Code und Migration gehören in **einen** Wartungsschritt, sonst liest der neue
 Client alte Werte auf der neuen Skala.

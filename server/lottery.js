@@ -24,9 +24,12 @@ export { MAX_TICKETS_PER_DAY };
  * buying a boost never makes tickets more expensive.
  */
 function playerRate(npub) {
-  const row = db.prepare('SELECT game_state FROM players WHERE npub = ?').get(npub);
+  const row = db.prepare('SELECT game_state, prestige_seeds FROM players WHERE npub = ?').get(npub);
   if (!row?.game_state) return 0;
-  try { return throughput(JSON.parse(row.game_state)).jointsPerSec; }
+  // Seeds are permanent capability, exactly like plantation levels, so they
+  // belong in the price. Leaving them out made tickets ~16x too cheap for a
+  // player who had harvested — they produced 23/s and paid as if making 1.3/s.
+  try { return throughput(JSON.parse(row.game_state), { seeds: row.prestige_seeds || 0 }).jointsPerSec; }
   catch { return 0; }
 }
 
