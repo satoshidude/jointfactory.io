@@ -236,6 +236,7 @@ export default function Game() {
   const { state, actions } = useGameLoop(
     auth.isLoggedIn ? auth.joints : 0,
     auth.isLoggedIn ? auth.sats : 0,
+    auth.isLoggedIn ? auth.jointsRev : 0,
     auth.isLoggedIn ? auth.setJoints : undefined,
     auth.isLoggedIn ? auth.setSats : undefined,
     auth.isNewAccount,

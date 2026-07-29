@@ -51,7 +51,9 @@ const _buyTicketTx = db.transaction((npub, roundId) => {
   }
   const cost = getTicketPrice(npub);
   // Atomic deduct joints — WHERE joints >= cost prevents overspend
-  const deducted = db.prepare('UPDATE players SET joints = joints - ? WHERE npub = ? AND joints >= ?').run(cost, npub, cost);
+  const deducted = db.prepare(
+    'UPDATE players SET joints = joints - ?, joints_rev = joints_rev + 1 WHERE npub = ? AND joints >= ?'
+  ).run(cost, npub, cost);
   if (deducted.changes === 0) return { ok: false, reason: `Not enough Joints (${cost} needed)` };
   db.prepare('INSERT INTO lottery_tickets (round_id, npub, joints_cost) VALUES (?, ?, ?)').run(roundId, npub, cost);
   return { ok: true, myCount: getMyTicketCount(npub, roundId), boughtToday: boughtToday + 1, cost };
@@ -79,9 +81,16 @@ export function buyTicket(npub) {
     unique_players: uniquePlayers,
   });
 
+  // The balance goes back with the response so the client can adopt it. Without
+  // it the client keeps its own figure, the deduction stays invisible, and the
+  // next autosave used to undo it outright.
+  const bal = db.prepare('SELECT joints, joints_rev FROM players WHERE npub=?').get(npub);
+  const balance = bal?.joints ?? 0;
+
   return { ok:true, round_id:round.id, my_tickets:result.myCount, total_tickets:allTickets.length,
     pool_sats:updatedRound.total_sats_collected, draws_at:round.draws_at,
     tickets_today: result.boughtToday, max_tickets_per_day: MAX_TICKETS_PER_DAY,
+    joints: balance, joints_rev: bal?.joints_rev ?? 0, cost: result.cost,
     next_ticket_cost:getTicketPrice(npub), price_curve:getPriceCurvePreview(npub) };
 }
 

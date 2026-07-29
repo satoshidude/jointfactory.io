@@ -110,6 +110,11 @@ try { db.exec(`ALTER TABLE players ADD COLUMN total_deposited INTEGER DEFAULT 0`
 // joints and crediting them withdrawable sats.
 try { db.exec(`ALTER TABLE players ADD COLUMN is_bot INTEGER DEFAULT 0`); } catch(_) {}
 
+// Revision counter for the joint balance, bumped by every server-side
+// deduction. The client owns its balance and posts an absolute figure; without
+// this, a purchase made between two saves is silently undone by the next one.
+try { db.exec(`ALTER TABLE players ADD COLUMN joints_rev INTEGER DEFAULT 0`); } catch(_) {}
+
 // Bought speed — permanent, chain-wide production multiplier, paid in joints.
 // Replaces the prestige/seed system: one currency, one ladder, no reset.
 try { db.exec(`ALTER TABLE players ADD COLUMN speed_level INTEGER DEFAULT 0`); } catch(_) {}

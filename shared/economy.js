@@ -29,11 +29,11 @@ export const UPG_MULT = Number(globalThis.process?.env?.JF_UPG_MULT) || 1.12
 
 export const PLANTATION_DEFS = [
   { id: 0, name: 'Balcony Grow',   icon: '\u{1F331}', baseProd: 5,       cycleTime: 4,   upgBase: 8,         upgMult: UPG_MULT, mgrCost: 20,  unlockCost: 0 },
-  { id: 1, name: 'Outdoor Plot',   icon: '\u{1F331}', baseProd: 60,      cycleTime: 5,   upgBase: 400,       upgMult: UPG_MULT, mgrCost: 30,  unlockCost: 50_000 },
-  { id: 2, name: 'Indoor Room',    icon: '\u{1F3E0}', baseProd: 400,     cycleTime: 4,   upgBase: 15_000,    upgMult: UPG_MULT, mgrCost: 40,  unlockCost: 2_000_000 },
-  { id: 3, name: 'Hydroponic Lab', icon: '\u{1F4A7}', baseProd: 3_000,   cycleTime: 3,   upgBase: 100_000,   upgMult: UPG_MULT, mgrCost: 60,  unlockCost: 100_000_000 },
-  { id: 4, name: 'Greenhouse',     icon: '\u{1F333}', baseProd: 25_000,  cycleTime: 2.5, upgBase: 500_000,   upgMult: UPG_MULT, mgrCost: 100, unlockCost: 10_000_000_000 },
-  { id: 5, name: 'MegaFarm',       icon: '\u{1F3ED}', baseProd: 250_000, cycleTime: 2,   upgBase: 2_500_000, upgMult: UPG_MULT, mgrCost: 200, unlockCost: 1_000_000_000_000 },
+  { id: 1, name: 'Outdoor Plot',   icon: '\u{1F331}', baseProd: 60,      cycleTime: 5,   upgBase: 400,       upgMult: UPG_MULT, mgrCost: 100, unlockCost: 50_000 },
+  { id: 2, name: 'Indoor Room',    icon: '\u{1F3E0}', baseProd: 400,     cycleTime: 4,   upgBase: 15_000,    upgMult: UPG_MULT, mgrCost: 150, unlockCost: 2_000_000 },
+  { id: 3, name: 'Hydroponic Lab', icon: '\u{1F4A7}', baseProd: 3_000,   cycleTime: 3,   upgBase: 100_000,   upgMult: UPG_MULT, mgrCost: 200, unlockCost: 100_000_000 },
+  { id: 4, name: 'Greenhouse',     icon: '\u{1F333}', baseProd: 25_000,  cycleTime: 2.5, upgBase: 500_000,   upgMult: UPG_MULT, mgrCost: 250, unlockCost: 10_000_000_000 },
+  { id: 5, name: 'MegaFarm',       icon: '\u{1F3ED}', baseProd: 250_000, cycleTime: 2,   upgBase: 2_500_000, upgMult: UPG_MULT, mgrCost: 300, unlockCost: 1_000_000_000_000 },
 ]
 
 // Milestone cycle: every 10 levels → ×2, then 15 → ×3, then 20 → ×4, repeat.
@@ -98,6 +98,11 @@ export function fabrikCycleTime(f, boostMult = 1) {
 // ── Managers ─────────────────────────────────────────────────────────────────
 // FREE_MANAGERS matches REQUIRED_MANAGERS for the lottery on purpose: a new
 // player must be able to reach the reward loop without depositing bitcoin.
+//
+// Beyond the free three, a manager costs sats (see mgrCost in PLANTATION_DEFS:
+// 100, 150, 200, 250, 300). Automating all six plantations is 1000 sats, all of
+// which passes through the lottery pot — the old 30-to-200 scale was small
+// enough that the whole ladder cost less than a couple of boosts.
 
 export const FREE_MANAGERS = 3
 export const REQUIRED_MANAGERS = 3

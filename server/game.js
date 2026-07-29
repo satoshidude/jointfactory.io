@@ -1,5 +1,5 @@
 import { db } from './db.js';
-import { rehydrate } from '../shared/economy.js';
+import { rehydrate, throughput } from '../shared/economy.js';
 
 export function loadState(npub) {
   const player = db.prepare('SELECT * FROM players WHERE npub = ?').get(npub);
@@ -22,13 +22,14 @@ export function loadState(npub) {
     total_joints_earned: player.total_joints_earned,
     total_deposited: player.total_deposited || 0,
     speed_level: player.speed_level || 0,
+    joints_rev: player.joints_rev || 0,
     gameState,
   };
 }
 
 // Atomic saveState transaction
 const _saveStateTx = db.transaction((npub, payload) => {
-  const { gameState, joints, total_joints_earned, joints_per_sec, manager_sats_spent } = payload;
+  const { gameState, joints, total_joints_earned, joints_per_sec, manager_sats_spent, joints_rev } = payload;
   let potUpdated = false;
 
   // Sats the client reports as spent this session — managers beyond the free
@@ -56,13 +57,49 @@ const _saveStateTx = db.transaction((npub, payload) => {
     }
   }
 
+  const existing = db.prepare(
+    'SELECT joints, total_joints_earned, speed_level, last_seen_at, joints_rev FROM players WHERE npub = ?'
+  ).get(npub);
+
   // Guard: reject saves that would reset a player's progress to zero
   const incomingTotal = Math.floor(total_joints_earned || 0);
-  if (incomingTotal === 0) {
-    const existing = db.prepare('SELECT total_joints_earned FROM players WHERE npub = ?').get(npub);
-    if (existing && existing.total_joints_earned > 0) {
-      console.warn(`[Game] BLOCKED state reset for ${npub.slice(0, 12)}… (server: ${existing.total_joints_earned}, incoming: 0)`);
-      return { ok: false, reason: 'state_reset_blocked' };
+  if (incomingTotal === 0 && existing && existing.total_joints_earned > 0) {
+    console.warn(`[Game] BLOCKED state reset for ${npub.slice(0, 12)}… (server: ${existing.total_joints_earned}, incoming: 0)`);
+    return { ok: false, reason: 'state_reset_blocked' };
+  }
+
+  // Cap the reported balance at what the stored one could plausibly have grown
+  // into since the last save.
+  //
+  // The client owns its joint count and posts an absolute figure. Without a cap
+  // any server-side deduction is undone by the very next autosave — buying a
+  // ticket or a speed level appeared to cost nothing, because thirty seconds
+  // later the client reported the balance it still believed it had. It is also
+  // the cheat surface: joints convert to real sats through the lottery.
+  //
+  // Generous on purpose. The factor covers boosts and clock drift, and the flat
+  // term keeps small balances from tripping over rounding; the point is to bound
+  // the number, not to recompute it.
+  let plausible = Math.floor(joints || 0);
+
+  // A purchase made since the client last read its balance bumps joints_rev.
+  // The client echoes the revision it knows; a mismatch means it is about to
+  // post a figure from before the deduction, so the balance stays as it is and
+  // the rest of the state still saves. Without this a ticket or speed purchase
+  // refunded itself on the next autosave — the plausibility ceiling below is
+  // far too generous to catch it, by design.
+  const staleBalance = existing && joints_rev !== undefined && joints_rev !== existing.joints_rev;
+  if (staleBalance) {
+    console.warn(`[Game] Stale balance from ${npub.slice(0, 12)}… (rev ${joints_rev} vs ${existing.joints_rev}) — keeping server figure`);
+    plausible = existing.joints;
+  } else if (existing) {
+    const elapsed = Math.max(0, Math.floor(Date.now() / 1000) - (existing.last_seen_at || 0));
+    let rate = 0;
+    try { rate = throughput(gameState, { speedLevel: existing.speed_level || 0 }).jointsPerSec; } catch { /* no output */ }
+    const ceiling = existing.joints + rate * elapsed * 3 + 1000;
+    if (plausible > ceiling) {
+      console.warn(`[Game] Clamped joints for ${npub.slice(0, 12)}…: reported ${plausible}, ceiling ${Math.floor(ceiling)}`);
+      plausible = Math.floor(ceiling);
     }
   }
 
@@ -77,7 +114,7 @@ const _saveStateTx = db.transaction((npub, payload) => {
     WHERE npub = ?
   `).run(
     JSON.stringify(gameState || {}),
-    Math.floor(joints || 0),
+    plausible,
     Math.floor(total_joints_earned || 0),
     joints_per_sec || 0,
     npub

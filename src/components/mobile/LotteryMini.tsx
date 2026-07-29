@@ -108,6 +108,10 @@ export default function LotteryMini() {
         setMyTickets(res.my_tickets || 0)
         setNextCost(res.next_ticket_cost || 0)
         setTicketsToday(res.tickets_today || 0)
+        // Adopt the server's balance; the game loop picks it up from the store.
+        // The revision travels with it so the next autosave is not treated as
+        // stale — see joints_rev in server/game.js.
+        if (typeof res.joints === 'number') auth.setJoints(res.joints, res.joints_rev)
         fetchCurrent()
       }
     } catch {} finally {

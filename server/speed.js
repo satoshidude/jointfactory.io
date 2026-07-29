@@ -71,7 +71,8 @@ const _buySpeedTx = db.transaction((npub) => {
 
   const cost = speedCost(level, rate);
   const deducted = db.prepare(
-    'UPDATE players SET joints = joints - ?, speed_level = speed_level + 1 WHERE npub = ? AND joints >= ?'
+    `UPDATE players SET joints = joints - ?, speed_level = speed_level + 1, joints_rev = joints_rev + 1
+     WHERE npub = ? AND joints >= ?`
   ).run(cost, npub, cost);
   if (deducted.changes === 0) {
     return { ok: false, reason: `Not enough joints — ${cost} needed, you have ${Math.floor(row.joints)}` };
@@ -84,7 +85,7 @@ export function buySpeed(npub) {
   const result = _buySpeedTx(npub);
   if (!result.ok) return result;
 
-  const player = db.prepare('SELECT joints FROM players WHERE npub = ?').get(npub);
+  const player = db.prepare('SELECT joints, joints_rev FROM players WHERE npub = ?').get(npub);
   console.log(`[Speed] ${npub.slice(0, 8)}… bought level ${result.level} for ${result.cost} joints (x${result.multiplier.toFixed(2)})`);
-  return { ...result, joints: player?.joints ?? 0, ...speedStatus(npub) };
+  return { ...result, joints: player?.joints ?? 0, joints_rev: player?.joints_rev ?? 0, ...speedStatus(npub) };
 }

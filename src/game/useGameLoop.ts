@@ -189,7 +189,7 @@ function saveLocal(gs: GameState) {
 }
 
 type LoadResult =
-  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number; boosts: ActiveBoost[]; speedLevel: number }
+  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number; boosts: ActiveBoost[]; speedLevel: number; jointsRev: number }
   | { status: 'no-auth' }
   | { status: 'error' }
 
@@ -211,6 +211,7 @@ async function loadFromServer(): Promise<LoadResult> {
       totalJointsEarned: data.total_joints_earned ?? 0,
       boosts: (data.boosts ?? []) as ActiveBoost[],
       speedLevel: data.speed_level ?? 0,
+      jointsRev: data.joints_rev ?? 0,
     }
   } catch { return { status: 'error' } }
 }
@@ -221,7 +222,7 @@ export function addManagerSatsSpent(amount: number) {
   _pendingManagerSats += amount
 }
 
-async function saveToServer(gs: GameState, joints: number, sats: number, totalJointsEarned: number, _activeBoosts: ActiveBoost[] = [], _speedLevel = 0) {
+async function saveToServer(gs: GameState, joints: number, sats: number, totalJointsEarned: number, _activeBoosts: ActiveBoost[] = [], _speedLevel = 0, _jointsRev = 0) {
   try {
     const auth = JSON.parse(localStorage.getItem('jf_auth') || '{}')
     if (!auth.token) return
@@ -237,6 +238,7 @@ async function saveToServer(gs: GameState, joints: number, sats: number, totalJo
         total_joints_earned: Math.floor(totalJointsEarned),
         joints_per_sec: totalJointsPerSec(gs, _activeBoosts, _speedLevel),
         manager_sats_spent: mgrSats,
+        joints_rev: _jointsRev,
       }),
     })
     if (res.ok) {
@@ -310,6 +312,7 @@ function simulateOffline(gs: GameState, elapsedSec: number, speedLevel = 0): num
 export function useGameLoop(
   authJoints: number,
   authSats: number,
+  authJointsRev: number,
   onJointsChange?: (j: number) => void,
   onSatsChange?: (s: number) => void,
   isNewAccount?: boolean,
@@ -320,6 +323,7 @@ export function useGameLoop(
   const totalEarnedRef = useRef(0)
   const boostsRef = useRef<ActiveBoost[]>([])
   const speedLevelRef = useRef(0)
+  const jointsRevRef = useRef(0)
   const readyRef = useRef(false)
   const canSaveRef = useRef(false)
   const loggedOutRef = useRef(false) // prevents beforeunload from re-saving after logout
@@ -335,6 +339,9 @@ export function useGameLoop(
   useEffect(() => { onSatsChangeRef.current = onSatsChange }, [onSatsChange])
   useEffect(() => { if (canSaveRef.current && !inTransitionRef.current) satsRef.current = authSats }, [authSats])
   useEffect(() => { if (canSaveRef.current && !inTransitionRef.current) jointsRef.current = authJoints }, [authJoints])
+  // A ticket purchase writes the server's balance and revision into the store;
+  // adopting the revision keeps the next autosave from looking stale.
+  useEffect(() => { if (canSaveRef.current && authJointsRev > 0) jointsRevRef.current = authJointsRev }, [authJointsRev])
 
   // ── Handle login/logout transitions ──
   const wasLoggedInRef = useRef(!!onJointsChange)
@@ -412,6 +419,8 @@ export function useGameLoop(
             totalEarnedRef.current = result.totalJointsEarned
             boostsRef.current = result.boosts
             speedLevelRef.current = result.speedLevel
+        jointsRevRef.current = result.jointsRev
+            jointsRevRef.current = result.jointsRev
             onJointsChange(result.joints)
             onSatsChange?.(result.sats)
             saveLocal(gsRef.current)
@@ -459,6 +468,7 @@ export function useGameLoop(
         totalEarnedRef.current = result.totalJointsEarned
         boostsRef.current = result.boosts
         speedLevelRef.current = result.speedLevel
+        jointsRevRef.current = result.jointsRev
         onJointsChange?.(result.joints)
         onSatsChange?.(result.sats)
         canSaveRef.current = true
@@ -651,7 +661,7 @@ export function useGameLoop(
 
       // ── Save to server every 30s ──
       if (canSaveRef.current && Date.now() - lastServerSave > 30000) {
-        saveToServer(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current)
+        saveToServer(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, jointsRevRef.current)
         lastServerSave = Date.now()
       }
 
@@ -686,6 +696,7 @@ export function useGameLoop(
             total_joints_earned: Math.floor(totalEarnedRef.current),
             joints_per_sec: totalJointsPerSec(gsRef.current, boostsRef.current, speedLevelRef.current),
             manager_sats_spent: mgrSats,
+            joints_rev: jointsRevRef.current,
           })
           navigator.sendBeacon('/api/game/beacon', new Blob([beacon], { type: 'application/json' }))
         }
@@ -698,7 +709,7 @@ export function useGameLoop(
       window.removeEventListener('beforeunload', handleBeforeUnload)
       if (canSaveRef.current && !loggedOutRef.current) {
         saveLocal(gsRef.current)
-        saveToServer(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current)
+        saveToServer(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, jointsRevRef.current)
         onJointsChangeRef.current?.(Math.floor(jointsRef.current))
       }
       readyRef.current = false
@@ -715,7 +726,7 @@ export function useGameLoop(
 
   const flushAndSave = useCallback(() => {
     flush()
-    saveToServer(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current)
+    saveToServer(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, jointsRevRef.current)
   }, [flush])
 
   const grow = useCallback((index: number) => {
@@ -888,7 +899,7 @@ export function useGameLoop(
       if (!auth.token) return { ok: false, error: 'Log in to buy speed' }
       // Flush first, so the purchase is priced against the joints just earned.
       await saveToServer(gsRef.current, jointsRef.current, satsRef.current,
-        totalEarnedRef.current, boostsRef.current, speedLevelRef.current)
+        totalEarnedRef.current, boostsRef.current, speedLevelRef.current, jointsRevRef.current)
 
       const res = await fetch('/api/game/speed', {
         method: 'POST',
@@ -899,6 +910,7 @@ export function useGameLoop(
 
       speedLevelRef.current = data.level ?? speedLevelRef.current
       jointsRef.current = data.joints ?? jointsRef.current
+      jointsRevRef.current = data.joints_rev ?? jointsRevRef.current
       onJointsChangeRef.current?.(Math.floor(jointsRef.current))
       flush()
       return { ok: true }

@@ -78,6 +78,8 @@ for (let i = 0; i < MAX_TICKETS_PER_DAY; i++) {
   const before = books()
   const res = buyTicket(NPUB)
   const after = books()
+  if (res.joints !== after.joints) check(`Los ${i + 1}: Antwort nennt den neuen Kontostand`, false)
+  if (res.cost !== quoted) check(`Los ${i + 1}: Antwort nennt den gezahlten Preis`, false)
   ticketPrices.push(quoted)
   ticketSpend += quoted
   if (!res.ok || before.joints - after.joints !== quoted) {
@@ -178,6 +180,43 @@ check('Auszahlung + Hausanteil ergibt den Bruttopot',
       potPayout(closing.pot) + (closing.pot - potPayout(closing.pot)) === closing.pot)
 check('Ledger noch unberührt — er füllt sich erst bei der Ziehung',
       closing.house === opening.house)
+
+// ── The deduction has to survive the client's next autosave ─────────────────
+// The client owns its joint balance and posts an absolute figure every 30 s.
+// A server-side deduction that the client does not know about is overwritten by
+// the very next save, so the purchase silently refunds itself.
+console.log('\n── Abzug überlebt den nächsten Autosave ──')
+{
+  const { saveState, loadState } = await import('../server/game.js')
+
+  db.prepare('UPDATE players SET joints = ?, speed_level = 0 WHERE npub = ?').run(1e12, NPUB)
+  const opening = loadState(NPUB)
+  const staleJoints = opening.joints
+  const staleRev = opening.joints_rev
+
+  const quoted = speedStatus(NPUB).next_cost
+  buySpeed(NPUB)
+  const afterBuy = loadState(NPUB)
+  check(`Kauf zieht ${fmt(quoted)} ab`, staleJoints - afterBuy.joints === quoted)
+  check('die Revision zählt hoch', afterBuy.joints_rev === staleRev + 1)
+
+  // The client had not noticed and posts what it still believes it holds.
+  saveState(NPUB, {
+    gameState: opening.gameState, joints: staleJoints, total_joints_earned: staleJoints,
+    joints_per_sec: 1, manager_sats_spent: 0, joints_rev: staleRev,
+  })
+  const afterStale = loadState(NPUB)
+  console.log(`  vor Kauf ${fmt(staleJoints)} → nach Kauf ${fmt(afterBuy.joints)} → nach veraltetem Autosave ${fmt(afterStale.joints)}`)
+  check('veralteter Autosave überschreibt den Abzug nicht', afterStale.joints === afterBuy.joints)
+
+  // A save that knows the current revision is accepted normally.
+  const earned = afterBuy.joints + 500
+  saveState(NPUB, {
+    gameState: opening.gameState, joints: earned, total_joints_earned: earned,
+    joints_per_sec: 1, manager_sats_spent: 0, joints_rev: afterStale.joints_rev,
+  })
+  check('aktueller Autosave wird normal übernommen', loadState(NPUB).joints === earned)
+}
 
 // ── The draw: gross pot splits into payouts and the house cut ───────────────
 console.log('\n── Ziehung ──')
