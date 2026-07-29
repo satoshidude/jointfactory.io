@@ -475,13 +475,13 @@ export function FactoryCard({ fabrik, courier, cannabisAtFactory, joints, manage
               <span className="station-stat-label">Processing</span>
               <span className="station-stat-value" style={{ color: 'var(--neon-purple)' }}>{fmtNum(fabrik._currentCharge)}</span>
             </div>
+            {/* Lifetime output lived here and read as a fourth throughput
+                figure next to three that describe the current moment. It is an
+                account statistic, and it is already on the leaderboard and the
+                profile. */}
             <div className="station-stat-row">
               <span className="station-stat-label">Cycle</span>
               <span className="station-stat-value">{cycleTime.toFixed(1)}s</span>
-            </div>
-            <div className="station-stat-row">
-              <span className="station-stat-label">Total</span>
-              <span className="station-stat-value" style={{ color: 'var(--neon-green)' }}><Cannabis size={12} /> {fmtNum(fabrik.total)}</span>
             </div>
           </div>
         </div>
