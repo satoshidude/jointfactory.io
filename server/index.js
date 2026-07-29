@@ -14,7 +14,7 @@ import { loadState, saveState, updateProfile, deletePlayer } from './game.js';
 import { createInvoice, handleWebhook, payToLightningAddress, SAT_PACKS } from './lightning.js';
 import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         startCron, getTicketPrice, getMyTicketCount, getPriceCurvePreview,
-        MAX_WINNERS, SAT_PER_TICKET, ticketsBoughtToday } from './lottery.js';
+        MAX_WINNERS, SAT_PER_TICKET, ticketsBoughtToday, ticketEligibility } from './lottery.js';
 import { db, logRateChange } from './db.js';
 import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount,
          MAX_TICKETS_PER_DAY, boostMultipliers, BOOSTS } from '../shared/economy.js';
@@ -326,13 +326,17 @@ fastify.get('/api/lottery/current', async (req) => {
   const tickets = getRoundTickets(round.id);
   const uniquePlayers = new Set(tickets.map(t => t.npub)).size;
 
-  let myTickets = 0, nextCost = 0, preview = [], ticketsToday = 0;
+  let myTickets = 0, nextCost = 0, preview = [], ticketsToday = 0, eligibility = null;
   try {
     await req.jwtVerify();
     myTickets    = getMyTicketCount(req.user.npub, round.id);
     ticketsToday = ticketsBoughtToday(req.user.npub);
     nextCost     = getTicketPrice(req.user.npub);
     preview      = getPriceCurvePreview(req.user.npub);
+    // Server-side truth. The lottery page used to read this from the game loop,
+    // which only runs on the Grow page — landing on /lottery directly told a
+    // fully automated player to "hire more managers".
+    eligibility  = ticketEligibility(req.user.npub);
   } catch(e) {
     // Anonymous visitor: no game state, so no meaningful price to quote.
     preview = [];
@@ -355,6 +359,7 @@ fastify.get('/api/lottery/current', async (req) => {
     max_tickets_per_day: MAX_TICKETS_PER_DAY,
     next_ticket_cost: nextCost,
     price_preview: preview,
+    eligibility,
     my_total_won_sats: req.user ? (() => {
       const rows = db.prepare(`
         SELECT winner_payout_sats FROM lottery_rounds

@@ -128,6 +128,33 @@ console.log('\n── Nicht manipulierbar ──')
 db.prepare('UPDATE players SET joints_per_sec = 0 WHERE npub = ?').run('hoarder')
 check('gemeldete Rate 0 senkt den Preis nicht', getTicketPrice('hoarder') > 1e12)
 
+// ── The three-manager rule is server-side ───────────────────────────────────
+// A chainless account produces nothing, so its ticket falls to the one-joint
+// floor: four joints used to buy four entries in a round paying real sats.
+console.log('\n── Ohne automatisierte Kette kein Los ──')
+{
+  const { ticketEligibility, buyTicket } = await import('../server/lottery.js')
+  const { initialState } = await import('../shared/economy.js')
+  const bare = initialState()
+  db.prepare('INSERT INTO players (npub, display_name, joints, sats, game_state) VALUES (?,?,?,?,?)')
+    .run('freeloader', 'Freeloader', 1_000_000, 0, JSON.stringify(bare))
+  const elig = ticketEligibility('freeloader')
+  console.log(`  Manager ${elig.managers}/${elig.required} · Lospreis ${getTicketPrice('freeloader')} Joints`)
+  check('Preis fällt tatsächlich auf den Boden', getTicketPrice('freeloader') === 1)
+  check('gilt als nicht berechtigt', elig.eligible === false)
+  const res = buyTicket('freeloader')
+  check('Kauf wird abgewiesen', res.ok === false)
+  console.log(`  Server: "${res.reason}"`)
+  check('kein Los in der Runde',
+        db.prepare("SELECT COUNT(*) n FROM lottery_tickets WHERE npub='freeloader'").get().n === 0)
+  check('Joints unberührt',
+        db.prepare("SELECT joints j FROM players WHERE npub='freeloader'").get().j === 1_000_000)
+
+  bare.plantagen[0].managerLevel = 1; bare.courier.mgrLevel = 1; bare.fabrik.mgrLevel = 1
+  db.prepare('UPDATE players SET game_state = ? WHERE npub = ?').run(JSON.stringify(bare), 'freeloader')
+  check('mit drei Managern berechtigt', ticketEligibility('freeloader').eligible === true)
+}
+
 rmSync(dir, { recursive: true, force: true })
 console.log(fail ? `\n${fail} Fehler\n` : '\nAlle Ticketpreis-Checks bestanden\n')
 process.exit(fail ? 1 : 0)

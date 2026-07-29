@@ -60,6 +60,10 @@ export default function MobileLottery() {
   const [ticketsToday, setTicketsToday] = useState(0)
   const [nextCost, setNextCost] = useState(0)
   const [pricePreview, setPricePreview] = useState<PricePreview[]>([])
+  // Server-side truth about the three-manager rule. The game loop only runs on
+  // the Grow page, so on a direct visit here its store is empty and every
+  // player looked ineligible.
+  const [serverElig, setServerElig] = useState<{ eligible: boolean; missing: number } | null>(null)
   const [countdown, setCountdown] = useState(0)
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState(false)
@@ -78,6 +82,7 @@ export default function MobileLottery() {
         setRound(res.round as LotteryRound)
         setMyTickets(res.my_tickets ?? 0)
         setNextCost(res.next_ticket_cost ?? 0)
+        if (res.eligibility) setServerElig(res.eligibility)
         setTicketsToday(res.tickets_today ?? 0)
         setPricePreview(res.price_preview ?? [])
         drawAtRef.current = res.round.draws_at
@@ -147,6 +152,7 @@ export default function MobileLottery() {
       } else if (res.ok) {
         setMyTickets(res.my_tickets || 0)
         setNextCost(res.next_ticket_cost || 0)
+        if (res.eligibility) setServerElig(res.eligibility)
         setTicketsToday(res.tickets_today || 0)
         // Adopt the server's balance; the game loop picks it up from the store.
         // The revision travels with it so the next autosave is not treated as
@@ -163,9 +169,12 @@ export default function MobileLottery() {
   }
 
   // Four tickets per rolling day, so a hoarded balance cannot empty a round.
+  // The running game loop knows first; the server answer covers a direct visit.
+  const eligible = gd.eligible ?? serverElig?.eligible ?? false
+  const missing = gd.upgradesNeeded ?? serverElig?.missing ?? 0
   const dayLimitReached = ticketsToday >= MAX_TICKETS_PER_DAY
   const canBuy = auth.isLoggedIn && auth.joints >= nextCost && nextCost > 0
-    && !buying && gd.eligible && !dayLimitReached
+    && !buying && eligible && !dayLimitReached
   const drawTime = fmtDrawTime(drawAtRef.current)
 
   if (loading) return <div className="ml-page"><div className="ml-card"><p className="ml-empty">Loading Lottery...</p></div></div>
@@ -253,15 +262,15 @@ export default function MobileLottery() {
                     <span className="lottery-mini-avail">{ticketsToday}/{MAX_TICKETS_PER_DAY} today</span>
                   </>}
                 </button>
-                {!gd.eligible && (
+                {!eligible && missing > 0 && (
                   <span className="ml-hint">
-                    Hire {gd.upgradesNeeded} more manager{(gd.upgradesNeeded || 0) !== 1 ? 's' : ''} to unlock
+                    Hire {missing} more manager{missing !== 1 ? 's' : ''} to unlock
                   </span>
                 )}
                 {dayLimitReached && (
                   <span className="ml-hint">Daily allowance used — the next tickets unlock 24 h after each purchase</span>
                 )}
-                {!dayLimitReached && nextCost > auth.joints && gd.eligible && (
+                {!dayLimitReached && nextCost > auth.joints && eligible && (
                   <span className="ml-hint">Need {fmtSats(nextCost - Math.floor(auth.joints))} more Joints</span>
                 )}
                 {buyError && <span className="ml-error">{buyError}</span>}

@@ -1,8 +1,8 @@
 import { randomInt } from 'crypto';
 import { db, ensureOpenRound } from './db.js';
 import { DRAW_LABEL } from '../shared/schedule.js';
-import { potPayout, ticketPrice, ticketPreview, winnerCount,
-         MAX_WINNERS, MAX_TICKETS_PER_DAY } from '../shared/economy.js';
+import { potPayout, ticketPrice, ticketPreview, winnerCount, countLotteryManagers,
+         MAX_WINNERS, MAX_TICKETS_PER_DAY, REQUIRED_MANAGERS } from '../shared/economy.js';
 import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
@@ -28,6 +28,26 @@ export function ticketsBoughtToday(npub) {
 export function getTicketPrice(npub) {
   return ticketPrice(ticketsBoughtToday(npub), playerRate(npub));
 }
+
+/**
+ * May this account enter a draw?
+ *
+ * The three-manager rule was only ever enforced in the UI, which made it an
+ * open door: a ticket costs a share of the buyer's production, and an account
+ * with no chain produces nothing, so the price fell to the one-joint floor.
+ * Four joints bought four entries in a round paying real sats. The rule lives
+ * here now, and the page reads it from here instead of guessing.
+ */
+export function ticketEligibility(npub) {
+  const row = db.prepare('SELECT game_state FROM players WHERE npub = ?').get(npub);
+  const managers = countLotteryManagers(row?.game_state);
+  return {
+    eligible: managers >= REQUIRED_MANAGERS,
+    managers,
+    required: REQUIRED_MANAGERS,
+    missing: Math.max(0, REQUIRED_MANAGERS - managers),
+  };
+}
 export function getMyTicketCount(npub, roundId) {
   return db.prepare(`SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=? AND npub=?`).get(roundId, npub)?.n || 0;
 }
@@ -45,6 +65,10 @@ export function getPriceCurvePreview(npub) {
 const _buyTicketTx = db.transaction((npub, roundId) => {
   // Counted and priced inside the transaction, from the same rows the deduction
   // reads, so two concurrent purchases cannot both pass the daily check.
+  const { eligible, missing } = ticketEligibility(npub);
+  if (!eligible) {
+    return { ok: false, reason: `Automate the chain first — ${missing} more manager${missing === 1 ? '' : 's'} needed` };
+  }
   const boughtToday = ticketsBoughtToday(npub);
   if (boughtToday >= MAX_TICKETS_PER_DAY) {
     return { ok: false, reason: `Daily limit reached — ${MAX_TICKETS_PER_DAY} tickets per day` };
