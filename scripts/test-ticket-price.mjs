@@ -111,17 +111,17 @@ check('nach 1 Tag noch nicht leistbar', oneDay < getTicketPrice('beginner'))
 check('nach 2 Tagen leistbar', twoDays >= getTicketPrice('beginner'))
 
 // ── Not gameable through the reported rate ──────────────────────────────────
-console.log('\n── Prestige zählt in den Preis ──')
+console.log('\n── Gekaufter Speed zählt in den Preis ──')
 {
   const gs = JSON.parse(db.prepare('SELECT game_state g FROM players WHERE npub=?').get('beginner').g)
   const base = getTicketPrice('beginner')
-  db.prepare('UPDATE players SET prestige_seeds = 343 WHERE npub = ?').run('beginner')
-  const withSeeds = getTicketPrice('beginner')
+  db.prepare('UPDATE players SET speed_level = 24 WHERE npub = ?').run('beginner')
+  const lifted = getTicketPrice('beginner')
   const rate = throughput(gs).jointsPerSec
-  const seededRate = throughput(gs, { seeds: 343 }).jointsPerSec
-  console.log(`  ${rate.toFixed(2)}/s → ${fmt(base)}   ·   mit 343 Seeds ${seededRate.toFixed(2)}/s → ${fmt(withSeeds)}`)
-  check('Seeds erhöhen den Preis', withSeeds > base * 10)
-  db.prepare('UPDATE players SET prestige_seeds = 0 WHERE npub = ?').run('beginner')
+  const liftedRate = throughput(gs, { speedLevel: 24 }).jointsPerSec
+  console.log(`  ${rate.toFixed(2)}/s → ${fmt(base)}   ·   mit Stufe 24 ${liftedRate.toFixed(2)}/s → ${fmt(lifted)}`)
+  check('Speed erhöht den Ticketpreis mit', lifted > base * 1.5)
+  db.prepare('UPDATE players SET speed_level = 0 WHERE npub = ?').run('beginner')
 }
 
 console.log('\n── Nicht manipulierbar ──')

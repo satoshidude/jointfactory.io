@@ -6,7 +6,7 @@ import {
   courierTripTime, fabrikCycleTime,
   PLANTATION_DEFS,
 } from '../../game/useGameLoop'
-import { FREE_MANAGERS, boostMultipliers, prestigeMultiplier } from '../../../shared/economy.js'
+import { FREE_MANAGERS, boostMultipliers, speedMultiplier } from '../../../shared/economy.js'
 import './StationCard.css'
 import { fmtNum } from '../../lib/format'
 
@@ -219,23 +219,23 @@ function PlantRow({ p, i, joints, managerCount, isLoggedIn, boostMult, onUpgrade
 
 // ── Plantations Group Card ──────────────────────────────────────────────────
 
-export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isLoggedIn, boosts = [], seeds = 0, onUpgradeLevel, onBuyManager, onGrow, onUnlock }: {
+export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isLoggedIn, boosts = [], speedLevel = 0, onUpgradeLevel, onBuyManager, onGrow, onUnlock }: {
   plantagen: PlantationState[]
   cannabis: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
   boosts?: ActiveBoost[]
-  seeds?: number
+  speedLevel?: number
   onUpgradeLevel: (i: number) => void
   onBuyManager: (i: number) => void
   onGrow: (i: number) => void
   onUnlock: () => void
 }) {
   // Summary stats
-  // Prestige scales the whole chain, so the displayed rates have to carry it —
-  // otherwise the cards understate what the loop is actually producing.
-  const plantBoost = boostMultipliers(boosts, Math.floor(Date.now() / 1000)).plant * prestigeMultiplier(seeds)
+  // Bought speed scales the whole chain, so the displayed rates have to carry
+  // it — otherwise the cards understate what the loop is actually producing.
+  const plantBoost = boostMultipliers(boosts, Math.floor(Date.now() / 1000)).plant * speedMultiplier(speedLevel)
   let totalRate = 0
   let totalOutput = 0
   for (const p of plantagen) {
@@ -317,21 +317,21 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
 
 // ── Courier Station Card ────────────────────────────────────────────────────
 
-export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedIn, boosts = [], seeds = 0, onUpgradeCap, onBuyManager, onSend }: {
+export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedIn, boosts = [], speedLevel = 0, onUpgradeCap, onBuyManager, onSend }: {
   courier: CourierState
   cannabis: number
   joints: number
   managerCount: number
   isLoggedIn: boolean
   boosts?: ActiveBoost[]
-  seeds?: number
+  speedLevel?: number
   onUpgradeCap: () => void
   onBuyManager: () => void
   onSend: () => void
 }) {
   const tripTime = courierTripTime(courier, boostMultipliers(boosts, Math.floor(Date.now() / 1000)).courier)
-  // The loop hauls capacity x prestige per trip; show that, not the raw number.
-  const payload = courier.capacity * prestigeMultiplier(seeds)
+  // The loop hauls capacity x speed per trip; show that, not the raw number.
+  const payload = courier.capacity * speedMultiplier(speedLevel)
   const isMoving = courier.state !== 'idle'
   const rawProgress = isMoving ? 1 - (courier.tripTimer / tripTime) : 0
   const progress = courier.state === 'toPlant' ? 1 - rawProgress : rawProgress
@@ -403,7 +403,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
 
 // ── Factory Station Card ────────────────────────────────────────────────────
 
-export function FactoryCard({ fabrik, courier, cannabisAtFactory, joints, managerCount, isLoggedIn, boosts = [], seeds = 0, onUpgradeCap, onBuyManager, onRoll }: {
+export function FactoryCard({ fabrik, courier, cannabisAtFactory, joints, managerCount, isLoggedIn, boosts = [], speedLevel = 0, onUpgradeCap, onBuyManager, onRoll }: {
   fabrik: FabrikState
   courier: CourierState
   cannabisAtFactory: number
@@ -411,19 +411,19 @@ export function FactoryCard({ fabrik, courier, cannabisAtFactory, joints, manage
   managerCount: number
   isLoggedIn: boolean
   boosts?: ActiveBoost[]
-  seeds?: number
+  speedLevel?: number
   onUpgradeCap: () => void
   onBuyManager: () => void
   onRoll: () => void
 }) {
   const mult = boostMultipliers(boosts, Math.floor(Date.now() / 1000))
   const cycleTime = fabrikCycleTime(fabrik, mult.fabrik)
-  const batch = fabrik.capacity * prestigeMultiplier(seeds)
+  const batch = fabrik.capacity * speedMultiplier(speedLevel)
 
   // Can the courier keep the factory fed? Comparing throughput rather than the
   // momentary stock, which swings with every batch and would flicker.
   const intake = courier.mgrLevel > 0
-    ? (courier.capacity * prestigeMultiplier(seeds)) / (2 * courierTripTime(courier, mult.courier))
+    ? (courier.capacity * speedMultiplier(speedLevel)) / (2 * courierTripTime(courier, mult.courier))
     : 0
   const demand = fabrik.mgrLevel > 0 ? batch / cycleTime : 0
   const starved = demand > 0 && intake < demand

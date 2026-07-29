@@ -460,7 +460,7 @@ function scheduleFakePlayers(round) {
         const currentRound = db.prepare(`SELECT id, status FROM lottery_rounds WHERE id=?`).get(round.id);
         if (!currentRound || currentRound.status !== 'open') return;
 
-        const player = db.prepare(`SELECT npub, joints, game_state, prestige_seeds FROM players WHERE npub = ?`).get(npub);
+        const player = db.prepare(`SELECT npub, joints, game_state, speed_level FROM players WHERE npub = ?`).get(npub);
         if (!player) return;
 
         let myCount = db.prepare(`SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=? AND npub=?`).get(round.id, player.npub)?.n || 0;
@@ -469,7 +469,7 @@ function scheduleFakePlayers(round) {
         // Same pricing and the same daily cap as a real purchase — this used to
         // carry its own copy of the curve and bought 3-12 tickets at once.
         let rate = 0;
-        try { rate = throughput(JSON.parse(player.game_state || '{}'), { seeds: player.prestige_seeds || 0 }).jointsPerSec; } catch { /* no output */ }
+        try { rate = throughput(JSON.parse(player.game_state || '{}'), { speedLevel: player.speed_level || 0 }).jointsPerSec; } catch { /* no output */ }
 
         // A bot has no client accumulating joints for it, so top it up to one
         // day of its own output before buying — the same budget the daily

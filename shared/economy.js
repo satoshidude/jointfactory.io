@@ -6,8 +6,9 @@
  * many joints a player has, what a ticket costs, or how much a boost is worth
  * belongs here — not in a component and not duplicated per side.
  *
- * Currency rule that runs through all of it: joints are earned by playing and may
- * be reset (prestige), sats are real money and are never destroyed by game logic.
+ * Currency rule that runs through all of it: joints are earned by playing and buy
+ * tickets, speed, levels and capacity; sats are real money and buy boosts and
+ * managers. Game logic never destroys what sats paid for.
  */
 
 // ── Plantations ──────────────────────────────────────────────────────────────
@@ -19,9 +20,9 @@
  * one more MegaFarm level cost the top account 18 days of idling, which is why
  * all six endgame players sat at the same rate.
  *
- * 1.12 leaves a gentle wall that prestige is meant to break, rather than one no
- * amount of play gets past. rehydrate() writes these defs onto every save, so
- * this value only changes together with scripts/season-reset.mjs.
+ * 1.12 leaves a gentle slope rather than a wall no amount of play gets past.
+ * rehydrate() writes these defs onto every save, so changing this value reprices
+ * every existing plantation at once.
  * Try a candidate with: node scripts/sim-economy.mjs 30 --upgmult=1.15
  */
 export const UPG_MULT = Number(globalThis.process?.env?.JF_UPG_MULT) || 1.12
@@ -56,7 +57,7 @@ export function plantMilestoneInfo(level) {
   return { multiplier, levelsToNext: next.gap - remaining, nextMult: next.mult }
 }
 
-/** Cannabis per production cycle. `globalMult` carries prestige + boosts. */
+/** Cannabis per production cycle. `globalMult` carries bought speed + boosts. */
 export function plantOutput(p, globalMult = 1) {
   const { multiplier } = plantMilestoneInfo(p.level)
   return p.level * p.baseProd * multiplier * globalMult
@@ -74,56 +75,9 @@ export function plantLevelCost(p) {
   return Math.floor(p.upgBase * Math.pow(p.upgMult, p.level))
 }
 
-// ── Speed upgrades (the permanent sats sink) ─────────────────────────────────
-// 60 levels from 1× to 3× at 21–210 sats. The old curve asked ~302k sats per
-// station for +0.7 % a level — the whole player base bought 132 of 8000 levels.
-
-export const MAX_SPEED_LEVEL = 60
-export const MAX_SPEED = 3
-
-export function getSpeedUpgrade(currentLevel) {
-  if (currentLevel >= MAX_SPEED_LEVEL) return null
-  const t = currentLevel / MAX_SPEED_LEVEL
-  const cost = Math.round(21 + 189 * Math.pow(t, 0.7))
-  const nextLevel = currentLevel + 1
-  const speed = +(1 + (nextLevel / MAX_SPEED_LEVEL) * (MAX_SPEED - 1)).toFixed(2)
-  const pct = Math.round((speed - 1) * 100)
-  return { speed, cost, label: `+${pct}%` }
-}
-
-/** Cost of one level on the retired 1000-level curve. */
-function legacySpeedCost(level) {
-  return Math.round(20 + 480 * Math.pow(level / 1000, 0.7))
-}
-
-/**
- * Convert a speedLevel from the retired 1000-level scale, preserving the sats
- * that were spent rather than the fraction of the maximum.
- *
- * A proportional mapping would wipe out nearly every purchase — the highest
- * live level, 11 of 1000, becomes 1 of 60 — and speed levels are bought with
- * sats. The same rule that governs a prestige harvest applies here: game logic
- * must never destroy what real money paid for. So the old levels are priced up,
- * and the budget is spent again on the new curve.
- */
-export function migrateSpeedLevel(oldLevel) {
-  let budget = 0
-  for (let l = 0; l < (oldLevel || 0); l++) budget += legacySpeedCost(l)
-
-  let lvl = 0
-  while (lvl < MAX_SPEED_LEVEL) {
-    const next = getSpeedUpgrade(lvl)
-    if (!next || next.cost > budget) break
-    budget -= next.cost
-    lvl++
-  }
-  // Anyone who bought a level keeps a level. The retired curve's first level
-  // cost 20 sats and the new one costs 21, so strict arithmetic would hand back
-  // nothing for a purchase that was really made.
-  if (lvl === 0 && (oldLevel || 0) >= 1) lvl = 1
-  const speed = +(1 + (lvl / MAX_SPEED_LEVEL) * (MAX_SPEED - 1)).toFixed(2)
-  return { speedLevel: lvl, speed, satsCarried: budget }
-}
+// Per-station speed levels are no longer sold — the global speed ladder below
+// replaced them. Saved `speed` values still divide every cycle time, so what
+// players bought keeps working; there is simply nothing that mints new ones.
 
 // ── Courier / factory ────────────────────────────────────────────────────────
 
@@ -210,52 +164,64 @@ export function boostMultipliers(activeBoosts, nowSec) {
   return m
 }
 
-// ── Prestige ─────────────────────────────────────────────────────────────────
-// Seeds are the only thing that survives a harvest besides sats-bought upgrades.
+// ── Speed (the scaling joints sink) ─────────────────────────────────────────
+//
+// Joints buy permanent speed for the whole chain. This replaces prestige, which
+// failed on comprehension twice: seeds were a second abstract currency, earned
+// only by resetting, measured in a unit nobody feels (quadrillions of lifetime
+// joints), and worth less with every one you owned — at 343 seeds another was
+// worth +0.28 %.
+//
+// The price is denominated in *seconds of the buyer's own production*, not in a
+// fixed number of joints. That is what makes the ceiling hold: income grows by
+// something like a factor of 10^12 over a month, so any fixed joint curve gets
+// outrun — an earlier draft aimed at +20 % a month and produced x51.
 
-export const PRESTIGE = {
-  minLifetime: 1e9, // all-time joints before the first "Ernte" unlocks
-  seedScale: 50,    // seeds per decade of lifetime
-  seedBonus: 0.05,  // +5 % chain-wide production per seed
-}
+export const SPEED_STEP = 0.02
 
-/**
- * Seeds from *all-time* joints earned — logarithmic on purpose.
- *
- * A power-law (seeds ∝ lifetime^0.4) runs away here: joint costs are fixed
- * numbers, so a ×M throughput bonus makes every rung of the upgrade ladder M
- * times faster to buy, which compounds into doubly-exponential growth. The
- * simulation reached 7e21 seeds by cycle 5. Logarithmic seed gain turns each
- * harvest into a bounded, predictable step (~+50 seeds per 10× lifetime).
- *
- * Reading all-time totals rather than per-season ones keeps seeds monotone, so
- * `players.total_joints_earned` is the only counter needed — and existing
- * accounts convert on their own at the season reset with no special-casing.
- */
-export function prestigeSeeds(lifetimeJoints) {
-  if (!lifetimeJoints || lifetimeJoints < PRESTIGE.minLifetime) return 0
-  return Math.floor(PRESTIGE.seedScale * Math.log10(1 + lifetimeJoints / 1e9))
-}
+/** Ceiling on speed growth: spending a full month's output buys at most +20 %. */
+export const SPEED_MONTHLY_CAP = 1.20
 
-export function prestigeMultiplier(seeds) {
-  return 1 + (seeds || 0) * PRESTIGE.seedBonus
-}
+const MONTH_SECONDS = 30 * 86400
+const STEPS_PER_MONTH = Math.log(SPEED_MONTHLY_CAP) / Math.log(1 + SPEED_STEP)
+
+/** Cost ceiling per step, derived from the monthly cap — about 3.26 days. */
+export const SPEED_MAX_SECONDS = MONTH_SECONDS / STEPS_PER_MONTH
+
+const SPEED_FIRST_SECONDS = 300   // the first step is five minutes of output
+const SPEED_SECONDS_GROWTH = 1.35 // ~24 steps to reach the ceiling
 
 /**
- * All-time lifetime joints at which the next seed unlocks — the inverse of
- * prestigeSeeds(), so the progress bar and the server agree on the target.
+ * Production time the next step costs, in seconds.
+ * Grows geometrically until it hits the monthly-cap ceiling, then stays flat.
  *
- * @param {number} currentSeeds
+ * @param {number} level steps already bought
  * @returns {number}
  */
-export function nextSeedAt(currentSeeds) {
-  const target = (currentSeeds || 0) + 1
-  return Math.ceil((Math.pow(10, target / PRESTIGE.seedScale) - 1) * 1e9)
+export function speedCostSeconds(level) {
+  return Math.min(SPEED_MAX_SECONDS, SPEED_FIRST_SECONDS * Math.pow(SPEED_SECONDS_GROWTH, level || 0))
 }
 
-/** Seeds a harvest right now would add on top of what the player already holds. */
-export function prestigeGain(lifetimeJoints, currentSeeds) {
-  return Math.max(0, prestigeSeeds(lifetimeJoints) - (currentSeeds || 0))
+/**
+ * Price of the next speed step in joints.
+ *
+ * @param {number} level steps already bought
+ * @param {number} rate joints per second, including speed, excluding boosts
+ * @returns {number}
+ */
+export function speedCost(level, rate) {
+  return Math.max(1, Math.round((rate || 0) * speedCostSeconds(level)))
+}
+
+/**
+ * Chain-wide multiplier from bought speed. Multiplicative, so +2 % is always
+ * worth +2 % — the property the additive seed bonus lacked.
+ *
+ * @param {number} level
+ * @returns {number}
+ */
+export function speedMultiplier(level) {
+  return Math.pow(1 + SPEED_STEP, level || 0)
 }
 
 // ── Throughput ───────────────────────────────────────────────────────────────
@@ -265,30 +231,29 @@ export function prestigeGain(lifetimeJoints, currentSeeds) {
 
 /**
  * @param {any} gs
- * @param {{ seeds?: number, boosts?: Array<{ type: string, expires_at: number }>, nowSec?: number }} [opts]
+ * @param {{ speedLevel?: number, boosts?: Array<{ type: string, expires_at: number }>, nowSec?: number }} [opts]
  * @returns {{ plant: number, courier: number, fabrik: number, jointsPerSec: number }}
  */
-export function throughput(gs, { seeds = 0, boosts = [], nowSec = 0 } = {}) {
+export function throughput(gs, { speedLevel = 0, boosts = [], nowSec = 0 } = {}) {
   const empty = { plant: 0, courier: 0, fabrik: 0, jointsPerSec: 0 }
   if (!gs || !gs.plantagen) return empty
 
   const m = boostMultipliers(boosts, nowSec)
-  // Prestige is a *chain-wide* multiplier, not a plantation bonus. Applying it
-  // only to plantations makes it worthless: the chain is capped by its weakest
-  // stage, so a ×50 plantation bonus behind a fresh courier buys nothing. The
-  // simulation showed prestige cycle 2 earning less than cycle 1 because of it.
-  const prestige = prestigeMultiplier(seeds)
+  // Chain-wide, not a plantation bonus. Applying a multiplier to plantations
+  // alone is worthless: the chain is capped by its weakest stage, so a bonus
+  // sitting behind a narrow courier buys nothing.
+  const speed = speedMultiplier(speedLevel)
 
   let plant = 0
   for (const p of gs.plantagen) {
-    if (p.managerLevel > 0) plant += plantRate(p, prestige * m.plant)
+    if (p.managerLevel > 0) plant += plantRate(p, speed * m.plant)
   }
 
   const c = gs.courier
   const f = gs.fabrik
   // Courier does a round trip per load, so throughput is capacity / (2 × trip).
-  const courier = c && c.mgrLevel > 0 ? prestige * c.capacity / (2 * courierTripTime(c, m.courier)) : 0
-  const fabrik = f && f.mgrLevel > 0 ? prestige * f.capacity / fabrikCycleTime(f, m.fabrik) : 0
+  const courier = c && c.mgrLevel > 0 ? speed * c.capacity / (2 * courierTripTime(c, m.courier)) : 0
+  const fabrik = f && f.mgrLevel > 0 ? speed * f.capacity / fabrikCycleTime(f, m.fabrik) : 0
 
   return { plant, courier, fabrik, jointsPerSec: Math.min(plant, courier, fabrik) }
 }
@@ -404,8 +369,8 @@ export function ticketPreview(boughtToday, rate) {
 }
 
 // ── Initial / reset state ────────────────────────────────────────────────────
-// Lives here because the server needs it too: prestige and the season reset are
-// server-authoritative, the client never resets its own progress.
+// Lives here because the server builds starting state too — a new account is
+// created server-side and must match what the client would have produced.
 
 export function newPlantation(def) {
   return {
@@ -484,53 +449,4 @@ export function rehydrate(gs) {
   }
 
   return gs
-}
-
-/**
- * Sats-bought attributes a prestige reset parked for a plantation that has to be
- * re-unlocked. Removes the entry, so it can only be restored once.
- *
- * @param {any} gs
- * @param {number} defId
- * @returns {{ id: number, speedLevel: number, speed: number, managerLevel: number } | null}
- */
-export function takeParkedUpgrades(gs, defId) {
-  const list = gs?._parkedSpeed
-  if (!Array.isArray(list)) return null
-  const idx = list.findIndex(x => x.id === defId)
-  if (idx === -1) return null
-  const [entry] = list.splice(idx, 1)
-  return entry
-}
-
-/**
- * Prestige reset: wipe everything joints bought, keep everything sats bought.
- * Managers and speed levels survive because a player paid real money for them —
- * game logic must never destroy that.
- */
-export function prestigeReset(gs) {
-  const fresh = initialState()
-  if (!gs) return fresh
-
-  // Plantation #1 always exists; carry its sats-bought parts over.
-  const old0 = gs.plantagen?.[0]
-  if (old0) {
-    fresh.plantagen[0].speedLevel = old0.speedLevel || 0
-    fresh.plantagen[0].speed = old0.speed || 1
-    fresh.plantagen[0].managerLevel = old0.managerLevel || 0
-  }
-  // Higher plantations are joints-unlocked, so they are gone — but their speed
-  // levels are parked so re-unlocking restores what was paid for in sats.
-  fresh._parkedSpeed = (gs.plantagen || []).slice(1).map(p => ({
-    id: p.id, speedLevel: p.speedLevel || 0, speed: p.speed || 1, managerLevel: p.managerLevel || 0,
-  }))
-
-  fresh.courier.speedLevel = gs.courier?.speedLevel || 0
-  fresh.courier.speed = gs.courier?.speed || 1
-  fresh.courier.mgrLevel = gs.courier?.mgrLevel || 0
-  fresh.fabrik.speedLevel = gs.fabrik?.speedLevel || 0
-  fresh.fabrik.speed = gs.fabrik?.speed || 1
-  fresh.fabrik.mgrLevel = gs.fabrik?.mgrLevel || 0
-
-  return fresh
 }

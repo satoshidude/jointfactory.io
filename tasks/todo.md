@@ -202,7 +202,66 @@ Gewinner ohnehin identisch. Falls das später zu stark wirkt (Lose zählen dann
 doppelt: für die Chance *und* für den Anteil), wäre die gleichmäßige Teilung
 unter den Gewinnern die Alternative.
 
-## Phase 4 — Prestige — erledigt 2026-07-28
+## Prestige durch Speed ersetzt (Entscheidung 2026-07-29)
+
+Prestige/Harvest ist zweimal an der Verständlichkeit gescheitert — nicht an der
+Erklärung, sondern an der Mechanik: Seeds waren eine zweite abstrakte Währung,
+die man nur durch einen Reset bekam, in Quadrillionen Lifetime-Joints gemessen
+wurde, und deren Nutzen mit jedem weiteren Seed gegen null ging (bei 343 Seeds
+noch +0,28 %).
+
+**Ersetzt durch: Joints kaufen dauerhaften Speed.** Damit hat das Spiel zwei
+Währungen mit je klaren Verwendungen — Joints für Lose, Speed, Level und
+Kapazität; Sats für Boosts und Manager.
+
+### Warum der Preis in Produktionszeit steht
+Eine feste Joint-Kurve hält keine Obergrenze: das Einkommen wächst über 30 Tage
+um etwa Faktor 10¹², jede feste Kurve wird überholt. Ein erster Entwurf zielte
+auf +20 %/Monat und simulierte auf ×51. Der Preis ist deshalb ein Anteil der
+**eigenen Produktion** — genau wie beim Ticket.
+
+- erste Stufe: 5 min Produktion · Stufe 20: 1,0 d · ab Stufe 24: Deckel 3,26 d
+- Deckel direkt aus der Vorgabe abgeleitet: 30 Produktionstage ÷ 9,2 Stufen
+  = +20 % im Monat
+- Anlaufphase aus dem Stand: 29 Stufen ≈ ×1,78 im ersten Monat, danach ×1,195
+
+### Was die Bestandsspieler bekommen
+Nicht die Größe der Halde zählt, sondern wie viele Produktionstage sie ist:
+
+| Spieler | Vorrat | = Produktionszeit | Stufen | Speed |
+|---|---|---|---|---|
+| Hakuna | 1,77 Q | 13,2 d | 24 | ×1,61 |
+| akki | 158,2 T | 3,9 d | 19 | ×1,46 |
+| satoshidude | 26,4 T | 4,6 h | 10 | ×1,22 |
+| boyscout | 69,6 B | 0,0 h | 0 | ×1,00 |
+
+Spanne ×1,00–×1,61 statt ×11–×19 bei den Seeds. Hakuna hat 25.000-mal so viele
+Joints wie boyscout und liegt trotzdem nur 61 % vorn.
+
+### Kein Season-Reset mehr nötig
+Die Halden werden über die Leiter zur Startausstattung, statt weggeschnitten und
+per Legacy-Formel neu zugeteilt zu werden. Ticketpreise korrigieren sich selbst
+(sie skalieren mit der Rate, die durch Speed steigt). `scripts/season-reset.mjs`
+ist gelöscht.
+
+### Bewusster Zielkonflikt
+Vier Tageslose kosten einen Top-Spieler bereits einen vollen Produktionstag.
+Speed und Lose greifen auf dieselben Joints zu — man muss sich entscheiden.
+Die +20 % im Monat erreicht nur, wer auf die Lotterie verzichtet.
+
+### Umsetzung
+- [x] `shared/economy.js`: `speedCost`, `speedCostSeconds`, `speedMultiplier`;
+      `throughput()` nimmt `speedLevel`; Prestige-API und die tote
+      Per-Station-Speed-API entfernt
+- [x] `server/speed.js` + `POST /api/game/speed`, Preis in der Transaktion aus
+      dem gespeicherten Zustand; `playerRate()` dient auch der Ticket-Preisung
+- [x] Spalte `speed_level`; `server/prestige.js` gelöscht
+- [x] `SpeedCard` ersetzt `HarvestCard`
+- [x] `scripts/test-speed.mjs` (18 Checks), `sim-economy.mjs` umgestellt,
+      `test-ticket-price.mjs` prüft jetzt Speed statt Seeds
+- [x] Im Browser: drei Käufe → Stufe 3, ×1,06, Preis 375 → 979, Rate 1,25 → 1,327/s
+
+## Phase 4 — Prestige (2026-07-28, ersetzt — siehe oben)
 - [x] Spalte `prestige_seeds`; `season_joints_earned` entfällt, weil die Seeds
       aus dem All-Time-`total_joints_earned` abgeleitet werden und damit monoton
       sind — Altkonten konvertieren beim Season-Reset von allein

@@ -5,12 +5,12 @@ import { useGameLoop } from '../../game/useGameLoop'
 import { nextObjective } from '../../game/objectives'
 import {
   countLotteryManagers, REQUIRED_MANAGERS, ticketPrice, throughput,
-  prestigeGain, nextSeedAt,
+  speedMultiplier, speedCost,
 } from '../../../shared/economy.js'
 import { PlantationsCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
 import LotteryMini from '../../components/mobile/LotteryMini'
 import BoostBar from '../../components/mobile/BoostBar'
-import HarvestCard from '../../components/mobile/HarvestCard'
+import SpeedCard from '../../components/mobile/SpeedCard'
 import GrowthRace from '../../components/mobile/GrowthRace'
 import Leaderboard from '../../components/mobile/Leaderboard'
 import './MobilePages.css'
@@ -54,12 +54,13 @@ export default function MobileGame() {
   // useful yardstick — an endgame player pays ~5 minutes of output for their
   // first ticket. Priced the same way the server does; LotteryMini still owns
   // the exact next price and gates the buy button on it.
-  const firstTicketCost = ticketPrice(0, throughput(state).jointsPerSec)
+  // Both prices are a share of the player's own output. Quoted here with the
+  // same functions the server uses; the server still owns every purchase.
+  const rate = throughput(state, { speedLevel: state.speedLevel }).jointsPerSec
+  const firstTicketCost = ticketPrice(0, rate)
+  const nextSpeedCost = speedCost(state.speedLevel, rate)
   const objective = nextObjective(state, auth.isLoggedIn, state.joints >= firstTicketCost)
 
-  // Derived with the same functions the server uses, so the card and the
-  // endpoint can never disagree about what a harvest is worth.
-  const seedGain = prestigeGain(state.totalJointsEarned, state.seeds)
 
   // Sync total earned
   useEffect(() => {
@@ -84,13 +85,14 @@ export default function MobileGame() {
           onBuy={actions.buyBoost}
         />
 
-        <HarvestCard
-          seeds={state.seeds}
-          gain={seedGain}
-          lifetime={state.totalJointsEarned}
-          nextAt={nextSeedAt(state.seeds + seedGain)}
+        <SpeedCard
+          level={state.speedLevel}
+          multiplier={speedMultiplier(state.speedLevel)}
+          nextMultiplier={speedMultiplier(state.speedLevel + 1)}
+          nextCost={nextSpeedCost}
+          joints={state.joints}
           isLoggedIn={auth.isLoggedIn}
-          onHarvest={actions.prestige}
+          onBuy={actions.buySpeed}
         />
 
         <FactoryCard
@@ -101,7 +103,7 @@ export default function MobileGame() {
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
           boosts={state.boosts}
-          seeds={state.seeds}
+          speedLevel={state.speedLevel}
           onUpgradeCap={actions.upgradeFabrikCap}
           onBuyManager={actions.buyFabrikManager}
           onRoll={actions.rollJoints}
@@ -114,7 +116,7 @@ export default function MobileGame() {
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
           boosts={state.boosts}
-          seeds={state.seeds}
+          speedLevel={state.speedLevel}
           onUpgradeCap={actions.upgradeCourierCap}
           onBuyManager={actions.buyCourierManager}
           onSend={actions.sendCourier}
@@ -131,7 +133,7 @@ export default function MobileGame() {
           managerCount={state.managerCount}
           isLoggedIn={auth.isLoggedIn}
           boosts={state.boosts}
-          seeds={state.seeds}
+          speedLevel={state.speedLevel}
           onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
           onBuyManager={(i) => actions.buyPlantManager(i)}
           onGrow={(i) => actions.grow(i)}

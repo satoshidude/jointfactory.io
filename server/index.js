@@ -18,7 +18,7 @@ import { db, logRateChange } from './db.js';
 import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount,
          MAX_TICKETS_PER_DAY } from '../shared/economy.js';
 import { buyBoost, getActiveBoosts } from './boosts.js';
-import { doPrestige, prestigeStatus } from './prestige.js';
+import { buySpeed, speedStatus } from './speed.js';
 import { solvency, houseBalance } from './house.js';
 import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder } from './zap.js';
 import { nip19 } from 'nostr-tools';
@@ -195,7 +195,7 @@ fastify.get('/api/game/state', { preHandler: requireAuth }, async (req) => {
   return {
     ...state,
     boosts: getActiveBoosts(req.user.npub),
-    prestige: prestigeStatus(req.user.npub),
+    speed: speedStatus(req.user.npub),
   };
 });
 fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
@@ -211,20 +211,13 @@ fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
 });
 fastify.post('/api/game/profile', { preHandler: requireAuth }, async (req) => updateProfile(req.user.npub, req.body));
 
-// Harvest: trade a stalled run for a permanent multiplier. Server-authoritative
-// — the client never resets its own progress.
-fastify.post('/api/game/prestige', { preHandler: requireAuth }, async (req, reply) => {
-  const result = doPrestige(req.user.npub);
+// Speed: the scaling joints sink. Priced in seconds of the buyer's own
+// production, so the monthly ceiling holds however large their output grows.
+fastify.post('/api/game/speed', { preHandler: requireAuth }, async (req, reply) => {
+  const result = buySpeed(req.user.npub);
   if (!result.ok) return reply.code(400).send({ error: result.reason });
-  const player = db.prepare('SELECT joints, sats, total_joints_earned FROM players WHERE npub=?').get(req.user.npub);
-  wsHub.broadcastPlayerUpdate(req.user.npub, 0, player?.total_joints_earned || 0, 0);
-  return {
-    ...result,
-    joints: 0,
-    sats: player?.sats || 0,
-    total_joints_earned: player?.total_joints_earned || 0,
-    prestige: prestigeStatus(req.user.npub),
-  };
+  wsHub.broadcastPlayerUpdate(req.user.npub, Math.floor(result.joints), 0, result.rate);
+  return result;
 });
 
 // Boosts: the recurring sats sink. 80 % of the price feeds the lottery pot,

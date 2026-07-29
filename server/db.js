@@ -105,10 +105,9 @@ try { db.exec(`ALTER TABLE players ADD COLUMN total_deposited INTEGER DEFAULT 0`
 // joints and crediting them withdrawable sats.
 try { db.exec(`ALTER TABLE players ADD COLUMN is_bot INTEGER DEFAULT 0`); } catch(_) {}
 
-// Prestige seeds — permanent, chain-wide production multiplier.
-// Derived from all-time total_joints_earned, so no per-season counter is needed
-// and the value can only ever grow.
-try { db.exec(`ALTER TABLE players ADD COLUMN prestige_seeds INTEGER DEFAULT 0`); } catch(_) {}
+// Bought speed — permanent, chain-wide production multiplier, paid in joints.
+// Replaces the prestige/seed system: one currency, one ladder, no reset.
+try { db.exec(`ALTER TABLE players ADD COLUMN speed_level INTEGER DEFAULT 0`); } catch(_) {}
 
 // Key-value store for bot state (e.g. nostr event IDs)
 db.exec(`

@@ -1,39 +1,22 @@
 import { randomInt } from 'crypto';
 import { db, ensureOpenRound } from './db.js';
 import { DRAW_LABEL } from '../shared/schedule.js';
-import { potPayout, ticketPrice, ticketPreview, throughput, winnerCount,
+import { potPayout, ticketPrice, ticketPreview, winnerCount,
          MAX_WINNERS, MAX_TICKETS_PER_DAY } from '../shared/economy.js';
 import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
 import { houseCredit, solvency } from './house.js';
+import { playerRate } from './speed.js';
 
 export { MAX_WINNERS };
 export const SAT_PER_TICKET = 100;
 
 export { MAX_TICKETS_PER_DAY };
 
-/**
- * Production rate a ticket price is measured against.
- *
- * Computed from the stored game state, not from players.joints_per_sec — that
- * column holds whatever the client last reported, so pricing off it would let a
- * player post a rate of 0 and buy every ticket at the floor price forever.
- *
- * Boosts are deliberately excluded: the price follows base capability, so
- * buying a boost never makes tickets more expensive.
- */
-function playerRate(npub) {
-  const row = db.prepare('SELECT game_state, prestige_seeds FROM players WHERE npub = ?').get(npub);
-  if (!row?.game_state) return 0;
-  // Seeds are permanent capability, exactly like plantation levels, so they
-  // belong in the price. Leaving them out made tickets ~16x too cheap for a
-  // player who had harvested — they produced 23/s and paid as if making 1.3/s.
-  try { return throughput(JSON.parse(row.game_state), { seeds: row.prestige_seeds || 0 }).jointsPerSec; }
-  catch { return 0; }
-}
+// Ticket prices are measured against the same rate the speed ladder uses —
+// server-computed from the stored state, boosts excluded. See server/speed.js.
 
-/** Tickets this player bought in the last 24 hours. */
 export function ticketsBoughtToday(npub) {
   if (!npub) return 0;
   return db.prepare(
