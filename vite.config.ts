@@ -9,6 +9,19 @@ import tailwindcss from '@tailwindcss/vite'
 // set VITE_API_TARGET=https://jointfactory.io to look at live data read-only.
 const API_TARGET = process.env.VITE_API_TARGET || 'http://localhost:3421'
 
+// Restarting the API server kills the dev server: the upgraded websocket is
+// written to after the upstream is gone, and the EPIPE escapes every handler
+// the proxy exposes — attaching to `error`, `econnreset`, `proxyReqWs` and
+// `open` all still left it fatal. This file only ever runs in dev and build, so
+// swallowing exactly that error class is contained; anything else still throws.
+process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
+  if (err?.code === 'EPIPE' || err?.code === 'ECONNRESET') {
+    console.warn('[vite] ignored socket error from the API proxy:', err.code)
+    return
+  }
+  throw err
+})
+
 export default defineConfig({
   resolve: {
     alias: {

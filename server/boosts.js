@@ -55,9 +55,12 @@ const _buyBoostTx = db.transaction((npub, type) => {
 
   // Gross into the pot — the house cut is taken once, at payout.
   const toPot = def.cost;
+  // Targets the newest open round explicitly. `WHERE status = 'open'` would
+  // credit every open round at once should a second one ever exist — and one
+  // can: db.js calls ensureOpenRound() on import.
   db.prepare(
     `UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ?
-     WHERE status = 'open'`
+     WHERE id = (SELECT id FROM lottery_rounds WHERE status = 'open' ORDER BY id DESC LIMIT 1)`
   ).run(toPot);
 
   const sats = db.prepare('SELECT sats FROM players WHERE npub = ?').get(npub)?.sats ?? 0;

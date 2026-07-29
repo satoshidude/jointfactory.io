@@ -102,7 +102,7 @@ export async function runDraw(roundId) {
     ensureOpenRound();
     if (carry > 0) {
       db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ?
-                  WHERE status='open'`).run(carry);
+                  WHERE id = (SELECT id FROM lottery_rounds WHERE status = 'open' ORDER BY id DESC LIMIT 1)`).run(carry);
       console.log(`[Lottery] Round ${round.id} had no entries — ${carry} sats rolled over`);
     }
     return { ok:true, winners:[], rolled_over: carry };
@@ -184,7 +184,7 @@ export async function runDraw(roundId) {
   ensureOpenRound();
   if (botShare > 0) {
     db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ?
-                WHERE status='open'`).run(botShare);
+                WHERE id = (SELECT id FROM lottery_rounds WHERE status = 'open' ORDER BY id DESC LIMIT 1)`).run(botShare);
   }
   return { ok:true, round_id:round.id, winners: winnerList, total_tickets:tickets.length,
            pot_sats: payoutPool, bot_share_returned: botShare };

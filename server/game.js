@@ -47,7 +47,8 @@ const _saveStateTx = db.transaction((npub, payload) => {
     const deducted = db.prepare(`UPDATE players SET sats = sats - ? WHERE npub = ? AND sats >= ?`).run(mgrSpent, npub, mgrSpent);
     if (deducted.changes > 0) {
       // Gross into the pot — the house cut is taken once, at payout.
-      db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE status = 'open'`).run(mgrSpent);
+      db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ?
+                  WHERE id = (SELECT id FROM lottery_rounds WHERE status = 'open' ORDER BY id DESC LIMIT 1)`).run(mgrSpent);
       console.log(`[Lottery] Adding ${mgrSpent} sats from ${npub.slice(0, 8)}... to pot`);
       potUpdated = true;
     } else {

@@ -90,6 +90,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_rate_log_npub_ts ON rate_log(npub, ts);
 `);
 
+// Strongest boost multiplier in effect when the rate was logged, so the growth
+// chart can tell a boosted burst from a permanent upgrade. Both look like a
+// rate jump otherwise.
+try { db.exec(`ALTER TABLE rate_log ADD COLUMN boost REAL DEFAULT 1`); } catch(_) {}
+
 // Invite system columns
 try { db.exec(`ALTER TABLE players ADD COLUMN invite_code TEXT`); } catch(_) {}
 try { db.exec(`ALTER TABLE players ADD COLUMN referred_by TEXT`); } catch(_) {}
@@ -146,20 +151,26 @@ ensureOpenRound();
 
 // Log rate change if it actually changed from last entry
 const _lastRate = new Map(); // npub → last logged rate
-const _logRateStmt = db.prepare(`INSERT INTO rate_log (npub, ts, rate, total) VALUES (?, unixepoch(), ?, ?)`);
+const _lastBoost = new Map(); // npub → last logged boost multiplier
+const _logRateStmt = db.prepare(`INSERT INTO rate_log (npub, ts, rate, total, boost) VALUES (?, unixepoch(), ?, ?, ?)`);
 const _getLastRateStmt = db.prepare(`SELECT rate FROM rate_log WHERE npub = ? ORDER BY ts DESC LIMIT 1`);
 
-export function logRateChange(npub, rate, total) {
+export function logRateChange(npub, rate, total, boost = 1) {
   const r = Math.round(rate * 1000) / 1000; // round to 3 decimals
+  const b = Math.round((boost || 1) * 100) / 100;
   let last = _lastRate.get(npub);
   if (last === undefined) {
     const row = _getLastRateStmt.get(npub);
     last = row ? row.rate : -1;
     _lastRate.set(npub, last);
   }
-  if (Math.abs(r - last) < 0.001) return; // no change
-  _logRateStmt.run(npub, r, Math.floor(total || 0));
+  // A boost starting or ending is worth a row even at an unchanged rate — it is
+  // what lets the chart mark the span.
+  const boostChanged = _lastBoost.get(npub) !== b;
+  if (Math.abs(r - last) < 0.001 && !boostChanged) return;
+  _logRateStmt.run(npub, r, Math.floor(total || 0), b);
   _lastRate.set(npub, r);
+  _lastBoost.set(npub, b);
 }
 
 export { db };

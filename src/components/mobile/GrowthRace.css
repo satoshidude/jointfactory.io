@@ -195,3 +195,22 @@
   font-variant-numeric: tabular-nums;
   opacity: .85;
 }
+
+/* A boost running right now. The thick segments in the chart above mark where
+   one ran; this marks who is under one at this moment. */
+.gr-boosted {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .6));
+}
+
+.gr-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.gr-legend svg { color: var(--neon-gold); }

@@ -16,7 +16,7 @@ import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         MAX_WINNERS, SAT_PER_TICKET, ticketsBoughtToday } from './lottery.js';
 import { db, logRateChange } from './db.js';
 import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount,
-         MAX_TICKETS_PER_DAY } from '../shared/economy.js';
+         MAX_TICKETS_PER_DAY, boostMultipliers } from '../shared/economy.js';
 import { buyBoost, getActiveBoosts } from './boosts.js';
 import { buySpeed, speedStatus } from './speed.js';
 import { solvency, houseBalance } from './house.js';
@@ -172,6 +172,12 @@ fastify.post('/api/auth/nostr', async (req, reply) => {
 
 // ── Game state ────────────────────────────────────────────────────────────────
 
+/** Strongest station multiplier a player's active boosts produce, 1 if none. */
+function activeBoostFactor(npub) {
+  const m = boostMultipliers(getActiveBoosts(npub), Math.floor(Date.now() / 1000));
+  return Math.max(m.plant, m.courier, m.fabrik);
+}
+
 /** Push the current pot to every connected client. Fired whenever sats spend
  *  feeds the open round — manager purchases, speed upgrades, boosts. */
 function broadcastPotUpdate() {
@@ -204,7 +210,7 @@ fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
   const { joints, total_joints_earned, joints_per_sec } = req.body;
   if (joints !== undefined) {
     wsHub.broadcastPlayerUpdate(req.user.npub, Math.floor(joints || 0), Math.floor(total_joints_earned || 0), joints_per_sec || 0);
-    logRateChange(req.user.npub, joints_per_sec || 0, total_joints_earned || 0);
+    logRateChange(req.user.npub, joints_per_sec || 0, total_joints_earned || 0, activeBoostFactor(req.user.npub));
   }
   if (result.potUpdated) broadcastPotUpdate();
   return result;
@@ -253,7 +259,7 @@ fastify.post('/api/game/beacon', async (req, reply) => {
     const { joints, total_joints_earned, joints_per_sec } = payload;
     if (joints !== undefined) {
       wsHub.broadcastPlayerUpdate(decoded.npub, Math.floor(joints || 0), Math.floor(total_joints_earned || 0), joints_per_sec || 0);
-      logRateChange(decoded.npub, joints_per_sec || 0, total_joints_earned || 0);
+      logRateChange(decoded.npub, joints_per_sec || 0, total_joints_earned || 0, activeBoostFactor(decoded.npub));
     }
     if (result.potUpdated) broadcastPotUpdate();
     return result;
@@ -580,7 +586,7 @@ fastify.get('/api/player/:npub/public', async (req, reply) => {
 // ── Rate log for production race chart ───────────────────────────────────────
 fastify.get('/api/players/rate-log', async () => {
   const rows = db.prepare(`
-    SELECT r.npub, r.ts, r.rate, r.total FROM rate_log r
+    SELECT r.npub, r.ts, r.rate, r.total, COALESCE(r.boost, 1) AS boost FROM rate_log r
     JOIN players p ON p.npub = r.npub
     WHERE COALESCE(p.is_bot, 0) = 0
     ORDER BY r.ts ASC

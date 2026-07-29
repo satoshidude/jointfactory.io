@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Cannabis, TrendingUp, TrendingDown, Minus, Trophy } from 'lucide-react'
+import { Cannabis, TrendingUp, TrendingDown, Minus, Trophy, Zap } from 'lucide-react'
 import { nip19 } from 'nostr-tools'
 import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
@@ -21,6 +21,8 @@ interface RateLog {
   ts: number
   rate: number
   total: number
+  /** Strongest boost multiplier in effect when this row was written. */
+  boost?: number
 }
 
 const CHART_COLORS = [
@@ -104,6 +106,10 @@ export default function GrowthRace() {
       const stepDuration = CHART_WINDOW / CHART_POINTS
 
       let points: number[]
+      // Boost state per point, so the line can be drawn differently where a
+      // burst was running — a boosted rate and a permanent upgrade both look
+      // like a jump otherwise.
+      const boosted: boolean[] = []
       let trendPct = 0
 
       if (events.length > 0) {
@@ -123,20 +129,27 @@ export default function GrowthRace() {
         points = []
         for (let h = 0; h <= CHART_POINTS; h++) {
           const timeAt = windowStart + (h / CHART_POINTS) * CHART_WINDOW
-          if (timeAt > now) { points.push(points.length > 0 ? points[points.length - 1] : 0); continue }
+          if (timeAt > now) {
+            boosted.push(false)
+            points.push(points.length > 0 ? points[points.length - 1] : 0)
+            continue
+          }
 
           if (timeAt <= lastEventTs) {
             // Within logged data: use actual totals
             let totalAtTime = baseTotal
+            let boostAtTime = 1
             for (const ev of events) {
-              if (ev.ts <= timeAt) totalAtTime = ev.total
+              if (ev.ts <= timeAt) { totalAtTime = ev.total; boostAtTime = ev.boost ?? 1 }
               else break
             }
+            boosted.push(boostAtTime > 1)
             points.push(Math.max(0, totalAtTime - baseTotal))
           } else {
             // After last event: extrapolate at last known rate (no speed upgrades)
             const elapsed = timeAt - lastEventTs
             const extrapolated = lastEventTotal + extrapolateRate * elapsed
+            boosted.push((lastEvent.boost ?? 1) > 1)
             points.push(Math.max(0, extrapolated - baseTotal))
           }
         }
@@ -148,6 +161,7 @@ export default function GrowthRace() {
         // Fully offline: emulate steady production at last known rate
         points = []
         for (let h = 0; h <= CHART_POINTS; h++) {
+          boosted.push(false)
           points.push(lastKnownRate * stepDuration * h)
         }
       }
@@ -155,7 +169,8 @@ export default function GrowthRace() {
       return {
         name: isYou ? 'YOU' : (p.display_name || 'anon'), npub: p.npub, rate,
         speedLevel: p.speed_level ?? 0,
-        color: c.stroke, glow: c.glow, isYou, isActive, trendPct, points,
+        boostedNow: (allPlayerLogs.at(-1)?.boost ?? 1) > 1,
+        color: c.stroke, glow: c.glow, isYou, isActive, trendPct, points, boosted,
       }
     }).sort((a, b) => b.rate - a.rate)
 
@@ -183,6 +198,7 @@ export default function GrowthRace() {
       <div className="gr-header">
         <Cannabis size={20} className="gr-header-icon" />
         <span className="gr-title">Growth Race</span>
+        <span className="gr-legend"><Zap size={10} /> thick line = boost running</span>
         <span className="gr-live">LIVE</span>
       </div>
 
@@ -219,10 +235,31 @@ export default function GrowthRace() {
             }
             const areaPath = `${linePath} L400,110 L0,110 Z`
             const last = coords[coords.length - 1]
+
+            // Contiguous boosted spans, redrawn thicker on top of the line.
+            const spans: string[] = []
+            let runStart = -1
+            for (let j = 0; j <= line.boosted.length; j++) {
+              const on = line.boosted[j] === true
+              if (on && runStart === -1) runStart = j
+              if (!on && runStart !== -1) {
+                if (j - runStart > 1) {
+                  let d = `M${coords[runStart].x},${coords[runStart].y}`
+                  for (let k = runStart + 1; k < j && k < coords.length; k++) d += ` L${coords[k].x},${coords[k].y}`
+                  spans.push(d)
+                }
+                runStart = -1
+              }
+            }
+
             return (
               <g key={line.npub} opacity={line.isActive ? 1 : 0.3}>
                 <path d={areaPath} fill={`url(#grc${i})`} />
                 <path d={linePath} fill="none" stroke={line.color} strokeWidth="1.5" filter="url(#gr-glow)" opacity="0.85" />
+                {spans.map((d, si) => (
+                  <path key={si} d={d} fill="none" stroke={line.color} strokeWidth="4"
+                        strokeLinecap="round" filter="url(#gr-glow)" opacity="0.9" />
+                ))}
                 <circle cx={last.x} cy={last.y} r="3" fill={line.color} filter="url(#gr-glow)" />
               </g>
             )
@@ -253,9 +290,10 @@ export default function GrowthRace() {
                 }} />
               </div>
               <div className="gr-stats">
+                {line.boostedNow && <Zap size={10} className="gr-boosted" />}
                 {line.speedLevel > 0 && (
                   <span className="gr-speed" title={`Speed level ${line.speedLevel}`}>
-                    ×{speedMultiplier(line.speedLevel).toFixed(2)}
+                    L{line.speedLevel} ×{speedMultiplier(line.speedLevel).toFixed(2)}
                   </span>
                 )}
                 <span className="gr-rate" style={{ color: line.color }}>{fmtNum(line.rate)}/s</span>
