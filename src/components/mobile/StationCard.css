@@ -397,3 +397,16 @@
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+/* "12.4K / 1.8K" — stock against one batch, so an underfed factory is visible
+   without reading two cards. */
+.station-stat-of {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.station-stat-warn {
+  color: var(--neon-gold);
+  font-size: 10px;
+  line-height: 1.3;
+}

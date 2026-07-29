@@ -403,8 +403,9 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
 
 // ── Factory Station Card ────────────────────────────────────────────────────
 
-export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, isLoggedIn, boosts = [], seeds = 0, onUpgradeCap, onBuyManager, onRoll }: {
+export function FactoryCard({ fabrik, courier, cannabisAtFactory, joints, managerCount, isLoggedIn, boosts = [], seeds = 0, onUpgradeCap, onBuyManager, onRoll }: {
   fabrik: FabrikState
+  courier: CourierState
   cannabisAtFactory: number
   joints: number
   managerCount: number
@@ -415,8 +416,17 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
   onBuyManager: () => void
   onRoll: () => void
 }) {
-  const cycleTime = fabrikCycleTime(fabrik, boostMultipliers(boosts, Math.floor(Date.now() / 1000)).fabrik)
+  const mult = boostMultipliers(boosts, Math.floor(Date.now() / 1000))
+  const cycleTime = fabrikCycleTime(fabrik, mult.fabrik)
   const batch = fabrik.capacity * prestigeMultiplier(seeds)
+
+  // Can the courier keep the factory fed? Comparing throughput rather than the
+  // momentary stock, which swings with every batch and would flicker.
+  const intake = courier.mgrLevel > 0
+    ? (courier.capacity * prestigeMultiplier(seeds)) / (2 * courierTripTime(courier, mult.courier))
+    : 0
+  const demand = fabrik.mgrLevel > 0 ? batch / cycleTime : 0
+  const starved = demand > 0 && intake < demand
   const progress = fabrik.processing ? 1 - (fabrik.timer / fabrik.processTime) : 0
   const isAuto = fabrik.mgrLevel > 0
   const canRoll = !fabrik.processing && cannabisAtFactory > 0
@@ -443,15 +453,24 @@ export function FactoryCard({ fabrik, cannabisAtFactory, joints, managerCount, i
         />
         <div className="station-info">
           <div className="station-stats">
-            {/* Weed the courier has delivered, waiting to be rolled. Mirrors
-                "Waiting" on the courier card, which shows the stock still out
-                at the plantations — together they make the chain readable. */}
+            {/* Weed the courier has delivered, against what one batch eats.
+                Below the batch size means the next run is only partly filled,
+                so the chain is readable end to end: the courier card shows what
+                is still out in the fields, this shows what made it here. */}
             <div className="station-stat-row">
-              <span className="station-stat-label">Ready</span>
-              <span className="station-stat-value" style={{ color: 'var(--neon-green)' }}>
+              <span className="station-stat-label">Stock</span>
+              <span className="station-stat-value" style={{ color: starved ? 'var(--neon-gold)' : 'var(--neon-green)' }}>
                 <Cannabis size={12} /> {fmtNum(cannabisAtFactory)}
+                <span className="station-stat-of"> / {fmtNum(batch)}</span>
               </span>
             </div>
+            {starved && (
+              <div className="station-stat-row">
+                <span className="station-stat-label station-stat-warn">
+                  Courier delivers {fmtNum(intake)}/s, factory eats {fmtNum(demand)}/s
+                </span>
+              </div>
+            )}
             <div className="station-stat-row">
               <span className="station-stat-label">Processing</span>
               <span className="station-stat-value" style={{ color: 'var(--neon-purple)' }}>{fmtNum(fabrik._currentCharge)}</span>
