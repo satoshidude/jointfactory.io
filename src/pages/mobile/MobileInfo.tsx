@@ -72,7 +72,7 @@ export default function MobileInfo() {
             <Zap size={22} className="mi-feat-icon gold" />
             <div>
               <h3 className="mi-feat-title">Lightning Economy</h3>
-              <p className="mi-feat-desc">Deposit sats to unlock speed upgrades. Withdraw your earnings anytime — real Bitcoin over Lightning.</p>
+              <p className="mi-feat-desc">Sats buy timed boosts and extra managers — speed itself is paid for in joints. Withdraw anytime — real Bitcoin over Lightning.</p>
             </div>
           </div>
 
@@ -96,7 +96,7 @@ export default function MobileInfo() {
             <UserPlus size={22} className="mi-feat-icon green" />
             <div>
               <h3 className="mi-feat-title">Invite Friends</h3>
-              <p className="mi-feat-desc">Share your invite link. When your buddy unlocks 3 auto-managers, you both get 10 sats. First referral earns a free auto-manager.</p>
+              <p className="mi-feat-desc">Share your invite link. When your buddy automates all three stations, you get an hour of Full Throttle — 2x output chain-wide. Hours stack.</p>
             </div>
           </div>
         </div>

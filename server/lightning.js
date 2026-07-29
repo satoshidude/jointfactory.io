@@ -1,6 +1,4 @@
 import { db } from './db.js';
-import { checkReferralReward } from './auth.js';
-import { publishReferralReward } from './zap.js';
 import 'dotenv/config';
 
 const LNBITS_URL = process.env.LNBITS_URL || 'http://localhost:5000';
@@ -103,17 +101,8 @@ const _handleWebhookTx = db.transaction((paymentHash) => {
 export function handleWebhook(paymentHash) {
   const result = _handleWebhookTx(paymentHash);
 
-  // Check referral reward after deposit (triggers when total_deposited >= 50)
-  if (result.ok && result.npub) {
-    const referralResult = checkReferralReward(result.npub);
-    if (referralResult) {
-      const buddy = db.prepare('SELECT display_name FROM players WHERE npub=?').get(result.npub);
-      const referrer = db.prepare('SELECT display_name FROM players WHERE npub=?').get(referralResult.referrerNpub);
-      publishReferralReward(referralResult.referrerNpub, referrer?.display_name, result.npub, buddy?.display_name)
-        .catch(err => console.error('[invite] Referral reward note failed:', err.message));
-      result.referral_reward = referralResult;
-    }
-  }
+  // Invites no longer hinge on a deposit — the reward is a boost, granted when
+  // the invited player automates their chain. See checkReferralReward.
 
   return result;
 }

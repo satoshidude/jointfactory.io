@@ -4,7 +4,7 @@ import {
   Zap, Trophy,
   ArrowRight, Crown, Circle, ExternalLink,
   TrendingUp, BarChart3,
-  UserPlus, Copy, Check, Gift, Shield, Clock,
+  UserPlus, Copy, Check, Gauge, Shield, Clock,
   ArrowDownToLine, ArrowUpFromLine, Wallet,
 } from 'lucide-react'
 import { apiFetch, wsUrl } from '../lib/api'
@@ -441,10 +441,10 @@ export default function Dashboard() {
               {auth.isLoggedIn ? (
                 <div className="dash-invite-content">
                   <div className="dash-invite-reward">
-                    <Gift size={16} className="dash-invite-reward-icon" />
+                    <Gauge size={16} className="dash-invite-reward-icon" />
                     <div>
-                      <strong>1st buddy with 3 managers</strong> → free auto-manager!<br />
-                      <strong>Every buddy</strong> → 10 sats for both
+                      <strong>Every buddy who automates all 3 stations</strong><br />
+                      → 1 hour of 2x output, chain-wide. Hours stack.
                     </div>
                   </div>
                   <div className="dash-invite-progress">
@@ -457,8 +457,8 @@ export default function Dashboard() {
                       <span className="dash-invite-stat-lbl">Rewarded</span>
                     </span>
                     <span className="dash-invite-stat">
-                      <span className="dash-invite-stat-val dash-neon-gold">+{rewardedCount * 10}</span>
-                      <span className="dash-invite-stat-lbl">Sats earned</span>
+                      <span className="dash-invite-stat-val dash-neon-gold">{rewardedCount} h</span>
+                      <span className="dash-invite-stat-lbl">2x earned</span>
                     </span>
                   </div>
                   <div className="dash-invite-link-row">
@@ -479,7 +479,7 @@ export default function Dashboard() {
                             </span>
                           </div>
                           <span className={`dash-invite-ref-status ${r.rewarded ? 'done' : 'pending'}`}>
-                            {r.rewarded ? <><Zap size={12} /> +10 sats</> : `${3 - r.managers} to go`}
+                            {r.rewarded ? <><Gauge size={12} /> +1 h</> : `${3 - r.managers} to go`}
                           </span>
                         </div>
                       ))}
@@ -495,11 +495,11 @@ export default function Dashboard() {
                   </div>
                   <h3 className="dash-invite-teaser-title">Join the Factory!</h3>
                   <p className="dash-invite-teaser-text">
-                    Sign in to get your invite link. Invite buddies and earn <strong>free auto-managers</strong> and <strong>sats</strong> for every friend who joins!
+                    Sign in to get your invite link. Every buddy who gets their chain running earns you an hour of <strong>double output</strong>.
                   </p>
                   <div className="dash-invite-teaser-perks">
-                    <span><Gift size={14} /> Free auto-manager</span>
-                    <span><Zap size={14} /> 10 sats per buddy</span>
+                    <span><Gauge size={14} /> 1 h of 2x per buddy</span>
+                    <span><Clock size={14} /> hours stack</span>
                   </div>
                 </div>
               )}

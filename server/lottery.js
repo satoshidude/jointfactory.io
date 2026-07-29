@@ -138,7 +138,7 @@ export async function runDraw(roundId) {
   // Calculate payout proportional to tickets held by each winner
   const gross = round.total_sats_collected || 0;
   const payoutPool = potPayout(gross);
-  // The cut is what funds pot seeding and referral rewards; see server/house.js.
+  // The cut is what funds pot seeding and withdrawals; see server/house.js.
   houseCredit(gross - payoutPool, `round ${round.id} cut`);
   const winnerTickets = winners.reduce((sum, npub) => sum + ticketsByPlayer[npub], 0);
   const payouts = {}; // { npub: sats }

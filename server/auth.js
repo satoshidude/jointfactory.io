@@ -1,5 +1,6 @@
 import { db } from './db.js';
-import { houseDebit } from './house.js';
+import { grantBoost } from './boosts.js';
+import { countLotteryManagers, REQUIRED_MANAGERS } from '../shared/economy.js';
 import { verifyEvent } from 'nostr-tools';
 
 // Fantasy name generator (6-10 chars)
@@ -84,32 +85,36 @@ export function getOrCreatePlayer(npub, referralCode) {
   return { player, is_new };
 }
 
-// Atomic referral reward — triggered when referred user deposits 50+ sats
-// Only the referrer gets 20 sats. The referred user gets nothing (must invite others themselves).
-// No cap on number of referrals.
-const _referralRewardTx = db.transaction((npub) => {
-  const player = db.prepare('SELECT referred_by, referral_rewarded, total_deposited FROM players WHERE npub = ?').get(npub);
-  if (!player?.referred_by || player.referral_rewarded) return null;
-  if (player.total_deposited < 50) return null;
+/**
+ * Referral reward: one hour of double output across the whole chain.
+ *
+ * It used to pay the referrer 20 sats once the invited player had deposited 50
+ * — which put the only reward for inviting behind someone else's bitcoin, and
+ * minted sats besides. The reward is now a Full Throttle boost, and the trigger
+ * is the invited player automating their chain: three managers, all of them
+ * free, so nobody has to spend anything for an invite to pay off.
+ *
+ * No cap on referrals; each one grants another hour, stacking as duration.
+ */
+export const REFERRAL_BOOST = 'fullthrottle';
 
-  // Atomic mark
+const _referralRewardTx = db.transaction((npub) => {
+  const player = db.prepare(
+    'SELECT referred_by, referral_rewarded, game_state FROM players WHERE npub = ?'
+  ).get(npub);
+  if (!player?.referred_by || player.referral_rewarded) return null;
+  if (countLotteryManagers(player.game_state) < REQUIRED_MANAGERS) return null;
+
+  // Atomic mark, so two concurrent saves cannot both grant the reward.
   const marked = db.prepare('UPDATE players SET referral_rewarded = 1 WHERE npub = ? AND referral_rewarded = 0').run(npub);
   if (marked.changes === 0) return null;
 
   const referrerNpub = player.referred_by;
-
-  // Reward: only the referrer gets 20 sats, funded from the house ledger.
-  // It used to be minted, which is one of the reasons more sats have been
-  // credited than were ever deposited. No cut banked, no reward.
-  if (!houseDebit(20, `referral reward to ${referrerNpub.slice(0, 8)}`)) {
-    console.warn('[Invite] Referral reward skipped — house ledger empty');
-    return { ok: false, reason: 'Reward unavailable' };
-  }
-  db.prepare('UPDATE players SET sats = sats + 20 WHERE npub = ?').run(referrerNpub);
+  const granted = grantBoost(referrerNpub, REFERRAL_BOOST, `referral by ${npub.slice(0, 8)}`);
 
   const rewardedCount = db.prepare('SELECT COUNT(*) as c FROM players WHERE referred_by = ? AND referral_rewarded = 1').get(referrerNpub)?.c || 0;
-  console.log(`[Invite] Reward #${rewardedCount} for ${referrerNpub.slice(0, 8)}... (buddy: ${npub.slice(0, 8)}... deposited ${player.total_deposited} sats) +20 sats to referrer`);
-  return { referrerNpub, rewardedCount, buddyNpub: npub };
+  console.log(`[Invite] Reward #${rewardedCount} for ${referrerNpub.slice(0, 8)}… — buddy ${npub.slice(0, 8)}… automated their chain`);
+  return { referrerNpub, rewardedCount, buddyNpub: npub, boost: granted };
 });
 
 export function checkReferralReward(npub) {

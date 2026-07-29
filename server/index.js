@@ -8,7 +8,7 @@ import fastifyJwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import * as wsHub from './ws.js';
-import { verifyNostrAuth, getOrCreatePlayer } from './auth.js';
+import { verifyNostrAuth, getOrCreatePlayer, checkReferralReward, REFERRAL_BOOST } from './auth.js';
 import { loadState, saveState, updateProfile, deletePlayer } from './game.js';
 import { createInvoice, handleWebhook, payToLightningAddress, SAT_PACKS } from './lightning.js';
 import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
@@ -16,7 +16,7 @@ import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         MAX_WINNERS, SAT_PER_TICKET, ticketsBoughtToday } from './lottery.js';
 import { db, logRateChange } from './db.js';
 import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount,
-         MAX_TICKETS_PER_DAY, boostMultipliers } from '../shared/economy.js';
+         MAX_TICKETS_PER_DAY, boostMultipliers, BOOSTS } from '../shared/economy.js';
 import { buyBoost, getActiveBoosts } from './boosts.js';
 import { buySpeed, speedStatus } from './speed.js';
 import { solvency, houseBalance } from './house.js';
@@ -213,6 +213,18 @@ fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
     logRateChange(req.user.npub, joints_per_sec || 0, total_joints_earned || 0, activeBoostFactor(req.user.npub));
   }
   if (result.potUpdated) broadcastPotUpdate();
+
+  // An invite pays off when the invited player automates their chain, which is
+  // something that can only become true on a save. Cheap to check: the guard
+  // inside returns immediately unless this account was referred and unrewarded.
+  const referral = checkReferralReward(req.user.npub);
+  if (referral) {
+    const buddy = db.prepare('SELECT display_name FROM players WHERE npub=?').get(req.user.npub);
+    const referrer = db.prepare('SELECT display_name FROM players WHERE npub=?').get(referral.referrerNpub);
+    publishReferralReward(referral.referrerNpub, referrer?.display_name, req.user.npub, buddy?.display_name)
+      .catch(err => console.error('[invite] Referral reward note failed:', err.message));
+  }
+
   return result;
 });
 fastify.post('/api/game/profile', { preHandler: requireAuth }, async (req) => updateProfile(req.user.npub, req.body));
@@ -654,13 +666,9 @@ fastify.get('/api/player/payments', { preHandler: requireAuth }, async (req) => 
     FROM withdrawals WHERE npub = ?
     ORDER BY created_at DESC LIMIT 50
   `).all(npub);
-  // Referral rewards (10 sats each for rewarded buddies)
-  const referralRewards = db.prepare(`
-    SELECT 'referral_reward' as type, 10 as amount_sats, last_seen_at as ts, display_name as ref
-    FROM players WHERE referred_by = ? AND referral_rewarded = 1
-    ORDER BY last_seen_at DESC LIMIT 20
-  `).all(npub);
-  const all = [...deposits, ...lotteryWins, ...tickets, ...withdrawals, ...referralRewards].sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 80);
+  // Referral rewards are boosts now, not sats — they have no place in a sats
+  // ledger, and the row claimed 10 while the code paid 20.
+  const all = [...deposits, ...lotteryWins, ...tickets, ...withdrawals].sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 80);
   const player = db.prepare('SELECT sats, joints FROM players WHERE npub=?').get(npub);
   return { ok: true, payments: all, sats: player?.sats || 0, joints: player?.joints || 0 };
 });
@@ -688,7 +696,16 @@ fastify.get('/api/player/invite', { preHandler: requireAuth }, async (req) => {
     };
   });
   const rewardedCount = referrals.filter(r => r.rewarded).length;
-  return { ok: true, invite_code: player?.invite_code || null, referrals, rewarded_count: rewardedCount, max_referrals: 10 };
+  const reward = BOOSTS[REFERRAL_BOOST];
+  return {
+    ok: true,
+    invite_code: player?.invite_code || null,
+    referrals,
+    rewarded_count: rewardedCount,
+    // There is no cap; max_referrals: 10 was reported here while the code said
+    // otherwise. What matters is what an invite is worth.
+    reward: { boost: REFERRAL_BOOST, name: reward.name, short: reward.short, minutes: reward.durationSec / 60 },
+  };
 });
 
 // Remove a buddy (unlink referral)

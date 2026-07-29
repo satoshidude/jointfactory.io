@@ -25,6 +25,25 @@ export function getActiveBoosts(npub) {
   ).all(npub);
 }
 
+/**
+ * Put a boost on an account without charging for it — the invite reward.
+ * Extends an already running one, exactly like a purchase does.
+ */
+export function grantBoost(npub, type, reason = '') {
+  const def = BOOSTS[type];
+  if (!def) return null;
+  const now = Math.floor(Date.now() / 1000);
+  const current = db.prepare('SELECT expires_at FROM active_boosts WHERE npub = ? AND type = ?').get(npub, type);
+  const base = current && current.expires_at > now ? current.expires_at : now;
+  const expires_at = base + def.durationSec;
+  db.prepare(
+    `INSERT INTO active_boosts (npub, type, expires_at) VALUES (?, ?, ?)
+     ON CONFLICT(npub, type) DO UPDATE SET expires_at = excluded.expires_at`
+  ).run(npub, type, expires_at);
+  console.log(`[Boost] Granted ${type} to ${npub.slice(0, 8)}…${reason ? ` (${reason})` : ''}, until ${new Date(expires_at * 1000).toISOString()}`);
+  return { type, expires_at };
+}
+
 const _buyBoostTx = db.transaction((npub, type) => {
   const def = BOOSTS[type];
   if (!def) return { ok: false, reason: 'Unknown boost' };

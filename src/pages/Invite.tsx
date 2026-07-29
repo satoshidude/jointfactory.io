@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Copy, Check, Gift, Zap, Shield, Clock, Users, MessageSquare, X } from 'lucide-react';
+import { UserPlus, Copy, Check, Gauge, Zap, Shield, Clock, Users, MessageSquare, X } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { apiFetch } from '../lib/api';
 import { useAuth } from '../stores/authStore';
@@ -196,6 +196,9 @@ export default function InvitePage() {
   const [inviteCode, setInviteCode] = useState('');
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [rewardedCount, setRewardedCount] = useState(0);
+  // Described by the server, so the page cannot drift from what is granted —
+  // this is where "10 sats", "20 sats" and "50 sats" used to disagree.
+  const [reward, setReward] = useState<{ short: string; minutes: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [nostrCopied, setNostrCopied] = useState(false);
@@ -207,6 +210,7 @@ export default function InvitePage() {
           setInviteCode(d.invite_code || '');
           setReferrals(d.referrals || []);
           setRewardedCount(d.rewarded_count || 0);
+          if (d.reward) setReward(d.reward);
         }
       })
       .catch(() => {})
@@ -235,16 +239,16 @@ export default function InvitePage() {
           </div>
           <h1 className="invite-hero-title">Invite a Buddy</h1>
           <p className="invite-hero-subtitle">
-            Sign in to get your personal invite link and start earning sats!
+            Sign in to get your personal invite link.
           </p>
           <div className="invite-hero-perks">
             <div className="invite-perk">
-              <Gift size={20} />
-              <span>Free auto-manager</span>
+              <Gauge size={20} />
+              <span>1 hour of 2x output</span>
             </div>
-            <div className="invite-perk gold">
-              <Zap size={20} />
-              <span>10 sats per buddy</span>
+            <div className="invite-perk">
+              <Users size={20} />
+              <span>per buddy who gets going</span>
             </div>
           </div>
         </div>
@@ -264,23 +268,17 @@ export default function InvitePage() {
         </div>
         <h1 className="invite-hero-title">Invite a Buddy</h1>
         <p className="invite-hero-subtitle">
-          Share your link and earn rewards when your buddies reach 3 auto-managers
+          Every buddy who automates their chain earns you an hour of double output
         </p>
       </div>
 
-      {/* Reward cards */}
+      {/* Reward — one card, because there is one reward */}
       <div className="invite-rewards-row">
-        <div className="invite-reward-card first">
-          <div className="invite-reward-badge">1st Buddy</div>
-          <Gift size={28} className="invite-reward-icon" />
-          <span className="invite-reward-text">Free auto-manager</span>
-          <span className="invite-reward-plus">+ 10 sats for both</span>
-        </div>
         <div className="invite-reward-card every">
           <div className="invite-reward-badge">Every Buddy</div>
-          <Zap size={28} className="invite-reward-icon gold" />
-          <span className="invite-reward-text gold">10 sats</span>
-          <span className="invite-reward-plus">for you and your buddy</span>
+          <Gauge size={28} className="invite-reward-icon" />
+          <span className="invite-reward-text">{reward ? `${reward.minutes} min of ${reward.short}` : '1 hour of 2x output'}</span>
+          <span className="invite-reward-plus">plantations, courier and factory · hours stack</span>
         </div>
       </div>
 
@@ -297,9 +295,9 @@ export default function InvitePage() {
           <span className="invite-stat-lbl">Rewarded</span>
         </div>
         <div className="invite-stat-card">
-          <Zap size={18} />
-          <span className="invite-stat-val gold">+{rewardedCount * 10}</span>
-          <span className="invite-stat-lbl">Sats Earned</span>
+          <Gauge size={18} />
+          <span className="invite-stat-val gold">{rewardedCount * ((reward?.minutes ?? 60) / 60)} h</span>
+          <span className="invite-stat-lbl">2x Earned</span>
         </div>
       </div>
 
@@ -340,7 +338,7 @@ export default function InvitePage() {
                   </div>
                   <div className="invite-buddy-status">
                     {r.rewarded ? (
-                      <span className="invite-buddy-done"><Zap size={14} /> +10 sats</span>
+                      <span className="invite-buddy-done"><Gauge size={14} /> +1 h of 2x</span>
                     ) : (
                       <span className="invite-buddy-pending">{3 - r.managers} manager{3 - r.managers !== 1 ? 's' : ''} to go</span>
                     )}

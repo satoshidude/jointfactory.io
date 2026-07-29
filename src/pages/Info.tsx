@@ -86,8 +86,9 @@ export default function InfoPage() {
               <Zap size={24} className="info-icon gold" />
               <div>
                 <h3>Lightning Economy</h3>
-                <p>Deposit sats to unlock speed upgrades. Withdraw your earnings
-                  anytime — it's real Bitcoin over Lightning. Get a Lightning wallet at{' '}
+                <p>Sats buy timed boosts and extra managers — speed itself is paid
+                  for in joints. Withdraw your earnings anytime — it's real Bitcoin
+                  over Lightning. Get a Lightning wallet at{' '}
                   <a href="https://getalby.com" target="_blank" rel="noopener noreferrer" className="info-link gold">
                     getalby.com <ExternalLink size={10} />
                   </a>.
@@ -100,7 +101,7 @@ export default function InfoPage() {
               <div>
                 <h3>Lottery</h3>
                 <p>Spend joints on lottery tickets for a chance to win the pot
-                  in real sats. Draws happen 6 times daily.</p>
+                  in real sats. Draws Tue, Thu &amp; Sat at 21:00.</p>
               </div>
             </div>
 
@@ -117,10 +118,10 @@ export default function InfoPage() {
               <UserPlus size={24} className="info-icon green" />
               <div>
                 <h3>Invite Friends</h3>
-                <p>Share your personal invite link and grow your crew. When your buddy
-                  unlocks 3 auto-managers, you both get rewarded with 10 sats. Your first
-                  referral also earns you a free auto-manager. The more friends you bring,
-                  the more you earn.</p>
+                <p>Share your personal invite link and grow your crew. Once your buddy
+                  automates all three stations, you get an hour of Full Throttle —
+                  double output from plantations, courier and factory. Every buddy adds
+                  another hour, and the hours stack.</p>
               </div>
             </div>
           </div>
