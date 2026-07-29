@@ -26,10 +26,10 @@ export function getActiveBoosts(npub) {
 }
 
 /**
- * Put a boost on an account without charging for it — the invite reward.
- * Extends an already running one, exactly like a purchase does.
+ * Start a boost without charging for it — used when an invite reward is
+ * claimed. Extends an already running one, exactly like a purchase does.
  */
-export function grantBoost(npub, type, reason = '') {
+export function activateBoost(npub, type, reason = '') {
   const def = BOOSTS[type];
   if (!def) return null;
   const now = Math.floor(Date.now() / 1000);
@@ -40,7 +40,7 @@ export function grantBoost(npub, type, reason = '') {
     `INSERT INTO active_boosts (npub, type, expires_at) VALUES (?, ?, ?)
      ON CONFLICT(npub, type) DO UPDATE SET expires_at = excluded.expires_at`
   ).run(npub, type, expires_at);
-  console.log(`[Boost] Granted ${type} to ${npub.slice(0, 8)}…${reason ? ` (${reason})` : ''}, until ${new Date(expires_at * 1000).toISOString()}`);
+  console.log(`[Boost] Activated ${type} for ${npub.slice(0, 8)}…${reason ? ` (${reason})` : ''}, until ${new Date(expires_at * 1000).toISOString()}`);
   return { type, expires_at };
 }
 

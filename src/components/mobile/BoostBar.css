@@ -110,3 +110,37 @@
   color: var(--text-secondary);
   text-align: center;
 }
+
+/* ── Invite rewards ─────────────────────────────────────────────────────────
+   Green, not gold: these cost nothing, and the colour separates them at a
+   glance from the four tiles that spend sats. */
+.boost-grants {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.boost-grant.ready {
+  border-color: rgba(57, 255, 20, .5);
+  background: rgba(57, 255, 20, .08);
+}
+
+.boost-grant.ready .boost-btn-meta {
+  color: var(--neon-green);
+}
+
+.boost-grant.ready:hover:not(:disabled) {
+  border-color: rgba(57, 255, 20, .8);
+  background: rgba(57, 255, 20, .14);
+}
+
+/* Locked tiles stay legible — they are the notice that someone joined, not
+   just a disabled button. */
+.boost-grant.locked {
+  border-color: rgba(160, 160, 160, .25);
+  background: rgba(255, 255, 255, .03);
+  opacity: .75;
+}
+
+.boost-grant.locked .boost-btn-meta {
+  color: var(--text-secondary);
+}

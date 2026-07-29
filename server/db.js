@@ -119,6 +119,18 @@ try { db.exec(`ALTER TABLE players ADD COLUMN joints_rev INTEGER DEFAULT 0`); } 
 // Replaces the prestige/seed system: one currency, one ladder, no reset.
 try { db.exec(`ALTER TABLE players ADD COLUMN speed_level INTEGER DEFAULT 0`); } catch(_) {}
 
+// When the referrer collected the hour of double output their buddy earned.
+// The reward is claimed by hand from the boost card rather than starting on its
+// own, so it is never spent while nobody is watching — and an unclaimed tile is
+// how a referrer notices someone took their link at all.
+//
+// Referrals rewarded under the old sats scheme are backfilled as claimed: they
+// were paid out at the time, and they would otherwise appear as free hours.
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN referral_claimed_at INTEGER`);
+  db.exec(`UPDATE players SET referral_claimed_at = unixepoch() WHERE referral_rewarded = 1`);
+} catch(_) {}
+
 // Key-value store for bot state (e.g. nostr event IDs)
 db.exec(`
   CREATE TABLE IF NOT EXISTS kv_store (

@@ -8,7 +8,8 @@ import fastifyJwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import * as wsHub from './ws.js';
-import { verifyNostrAuth, getOrCreatePlayer, checkReferralReward, REFERRAL_BOOST } from './auth.js';
+import { verifyNostrAuth, getOrCreatePlayer, checkReferralReward, listReferralBoosts,
+        claimReferralBoost, REFERRAL_BOOST } from './auth.js';
 import { loadState, saveState, updateProfile, deletePlayer } from './game.js';
 import { createInvoice, handleWebhook, payToLightningAddress, SAT_PACKS } from './lightning.js';
 import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
@@ -201,6 +202,8 @@ fastify.get('/api/game/state', { preHandler: requireAuth }, async (req) => {
   return {
     ...state,
     boosts: getActiveBoosts(req.user.npub),
+    // Unclaimed invite rewards — rendered as tiles in the boost card.
+    boost_grants: listReferralBoosts(req.user.npub),
     speed: speedStatus(req.user.npub),
   };
 });
@@ -247,6 +250,19 @@ fastify.post('/api/game/boost', { preHandler: requireAuth }, async (req, reply) 
   broadcastPotUpdate();
   wsHub.notifySatsUpdate(req.user.npub, result.sats);
   return result;
+});
+
+// Claim the hour of double output a buddy earned. Free, so no pot share and no
+// sats move — the only thing that changes hands is time.
+fastify.post('/api/game/boost/claim', { preHandler: requireAuth }, async (req, reply) => {
+  const { buddy_npub } = req.body || {};
+  const result = claimReferralBoost(req.user.npub, buddy_npub);
+  if (!result.ok) return reply.code(400).send({ error: result.reason });
+  return {
+    ...result,
+    boosts: getActiveBoosts(req.user.npub),
+    boost_grants: listReferralBoosts(req.user.npub),
+  };
 });
 
 // Delete own account
@@ -677,24 +693,18 @@ fastify.get('/api/player/payments', { preHandler: requireAuth }, async (req) => 
 fastify.get('/api/player/invite', { preHandler: requireAuth }, async (req) => {
   const player = db.prepare('SELECT invite_code FROM players WHERE npub = ?').get(req.user.npub);
   const referrals = db.prepare(`
-    SELECT npub, display_name, created_at, referral_rewarded, game_state
+    SELECT npub, display_name, created_at, referral_rewarded, referral_claimed_at, game_state
     FROM players WHERE referred_by = ? ORDER BY created_at DESC
-  `).all(req.user.npub).map(r => {
-    let mgrs = 0;
-    try {
-      const gs = JSON.parse(r.game_state || '{}');
-      if (gs.plantagen?.[0]?.managerLevel > 0) mgrs++;
-      if (gs.courier?.mgrLevel > 0) mgrs++;
-      if (gs.fabrik?.mgrLevel > 0) mgrs++;
-    } catch {}
-    return {
-      npub: r.npub,
-      display_name: r.display_name,
-      created_at: r.created_at,
-      rewarded: !!r.referral_rewarded,
-      managers: mgrs,
-    };
-  });
+  `).all(req.user.npub).map(r => ({
+    npub: r.npub,
+    display_name: r.display_name,
+    created_at: r.created_at,
+    rewarded: !!r.referral_rewarded,
+    // The hour is collected by hand from the boost card, so the page shows
+    // whether it is still waiting there.
+    claimed: !!r.referral_claimed_at,
+    managers: countLotteryManagers(r.game_state),
+  }));
   const rewardedCount = referrals.filter(r => r.rewarded).length;
   const reward = BOOSTS[REFERRAL_BOOST];
   return {

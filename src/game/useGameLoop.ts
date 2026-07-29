@@ -52,6 +52,16 @@ export interface ActiveBoost {
   expires_at: number
 }
 
+/** An invite reward waiting to be collected — one per buddy, see server/auth.js. */
+export interface BoostGrant {
+  buddy_npub: string
+  buddy_name: string
+  managers: number
+  required: number
+  ready: boolean
+  created_at: number
+}
+
 export interface GameState {
   cannabis: number
   cannabisAtFactory: number
@@ -189,7 +199,7 @@ function saveLocal(gs: GameState) {
 }
 
 type LoadResult =
-  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number; boosts: ActiveBoost[]; speedLevel: number; jointsRev: number }
+  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number; boosts: ActiveBoost[]; grants: BoostGrant[]; speedLevel: number; jointsRev: number }
   | { status: 'no-auth' }
   | { status: 'error' }
 
@@ -210,6 +220,7 @@ async function loadFromServer(): Promise<LoadResult> {
       sats: data.sats ?? 0,
       totalJointsEarned: data.total_joints_earned ?? 0,
       boosts: (data.boosts ?? []) as ActiveBoost[],
+      grants: (data.boost_grants ?? []) as BoostGrant[],
       speedLevel: data.speed_level ?? 0,
       jointsRev: data.joints_rev ?? 0,
     }
@@ -217,6 +228,12 @@ async function loadFromServer(): Promise<LoadResult> {
 }
 
 let _pendingManagerSats = 0
+
+// A buddy automating their chain unlocks a reward on someone else's account, so
+// the referrer cannot learn about it from anything they do themselves. Every
+// save answers with the current list, which makes the tile appear within one
+// autosave interval — no extra request, no polling.
+let _grantsListener: ((grants: BoostGrant[]) => void) | null = null
 
 export function addManagerSatsSpent(amount: number) {
   _pendingManagerSats += amount
@@ -243,6 +260,10 @@ async function saveToServer(gs: GameState, joints: number, sats: number, totalJo
     })
     if (res.ok) {
       _pendingManagerSats -= mgrSats
+      if (_grantsListener) {
+        const data = await res.json().catch(() => null)
+        if (data?.boost_grants) _grantsListener(data.boost_grants as BoostGrant[])
+      }
     }
   } catch { /* silent */ }
 }
@@ -322,6 +343,7 @@ export function useGameLoop(
   const satsRef = useRef(authSats)
   const totalEarnedRef = useRef(0)
   const boostsRef = useRef<ActiveBoost[]>([])
+  const [boostGrants, setBoostGrants] = useState<BoostGrant[]>([])
   const speedLevelRef = useRef(0)
   const jointsRevRef = useRef(0)
   const readyRef = useRef(false)
@@ -335,6 +357,10 @@ export function useGameLoop(
 
   // Sync external auth values — only when saving is active and not in a transition
   const inTransitionRef = useRef(false)
+  useEffect(() => {
+    _grantsListener = setBoostGrants
+    return () => { _grantsListener = null }
+  }, [])
   useEffect(() => { onJointsChangeRef.current = onJointsChange }, [onJointsChange])
   useEffect(() => { onSatsChangeRef.current = onSatsChange }, [onSatsChange])
   useEffect(() => { if (canSaveRef.current && !inTransitionRef.current) satsRef.current = authSats }, [authSats])
@@ -418,6 +444,7 @@ export function useGameLoop(
             satsRef.current = result.sats
             totalEarnedRef.current = result.totalJointsEarned
             boostsRef.current = result.boosts
+            setBoostGrants(result.grants)
             speedLevelRef.current = result.speedLevel
         jointsRevRef.current = result.jointsRev
             jointsRevRef.current = result.jointsRev
@@ -467,6 +494,7 @@ export function useGameLoop(
         satsRef.current = result.sats
         totalEarnedRef.current = result.totalJointsEarned
         boostsRef.current = result.boosts
+        setBoostGrants(result.grants)
         speedLevelRef.current = result.speedLevel
         jointsRevRef.current = result.jointsRev
         onJointsChange?.(result.joints)
@@ -890,6 +918,31 @@ export function useGameLoop(
   }, [flush])
 
   /**
+   * Collect the hour a buddy earned. Costs nothing — the server checks that the
+   * reward exists, is unlocked and has not been taken, and starts (or extends)
+   * the boost itself.
+   */
+  const claimBoost = useCallback(async (buddyNpub: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const auth = JSON.parse(localStorage.getItem('jf_auth') || '{}')
+      if (!auth.token) return { ok: false, error: 'Log in to claim rewards' }
+      const res = await fetch('/api/game/boost/claim', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buddy_npub: buddyNpub }),
+      })
+      const data = await res.json()
+      if (!res.ok) return { ok: false, error: data?.error || 'Claim failed' }
+      boostsRef.current = (data.boosts ?? []) as ActiveBoost[]
+      setBoostGrants((data.boost_grants ?? []) as BoostGrant[])
+      flush()
+      return { ok: true }
+    } catch {
+      return { ok: false, error: 'Network error' }
+    }
+  }, [flush])
+
+  /**
    * Buy one speed step. The server owns the price — it is a share of the
    * player's own production, so the client cannot compute it from stale state.
    */
@@ -939,8 +992,9 @@ export function useGameLoop(
       upgradePlantLevel, buyPlantManager,
       upgradeCourierCap, buyCourierManager,
       upgradeFabrikCap, buyFabrikManager,
-      unlockPlantation, buyBoost, buySpeed,
+      unlockPlantation, buyBoost, buySpeed, claimBoost,
     },
+    boostGrants,
   }
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Copy, Check, Gauge, Zap, Shield, Clock, Users, MessageSquare, X } from 'lucide-react';
+import { UserPlus, Copy, Check, Gauge, Gift, Zap, Shield, Clock, Users, MessageSquare, X } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { apiFetch } from '../lib/api';
 import { useAuth } from '../stores/authStore';
@@ -10,6 +10,7 @@ interface Referral {
   display_name: string | null;
   created_at: number;
   rewarded: boolean;
+  claimed: boolean;
   managers: number;
 }
 
@@ -338,9 +339,19 @@ export default function InvitePage() {
                   </div>
                   <div className="invite-buddy-status">
                     {r.rewarded ? (
-                      <span className="invite-buddy-done"><Gauge size={14} /> +1 h of 2x</span>
+                      <span className="invite-buddy-done">
+                        {r.claimed
+                          ? <><Gauge size={14} /> collected</>
+                          : <><Gift size={14} /> claim in Boosts</>}
+                      </span>
                     ) : (
-                      <span className="invite-buddy-pending">{3 - r.managers} manager{3 - r.managers !== 1 ? 's' : ''} to go</span>
+                      // Unlocking happens on the buddy's next save, so the count
+                      // can briefly read 3/3 while the reward is still pending.
+                      <span className="invite-buddy-pending">
+                        {r.managers >= 3
+                          ? 'unlocking…'
+                          : `${3 - r.managers} manager${3 - r.managers !== 1 ? 's' : ''} to go`}
+                      </span>
                     )}
                   </div>
                   <button className="invite-buddy-delete" onClick={() => {

@@ -1,5 +1,5 @@
 import { db } from './db.js';
-import { grantBoost } from './boosts.js';
+import { activateBoost } from './boosts.js';
 import { countLotteryManagers, REQUIRED_MANAGERS } from '../shared/economy.js';
 import { verifyEvent } from 'nostr-tools';
 
@@ -94,7 +94,14 @@ export function getOrCreatePlayer(npub, referralCode) {
  * is the invited player automating their chain: three managers, all of them
  * free, so nobody has to spend anything for an invite to pay off.
  *
- * No cap on referrals; each one grants another hour, stacking as duration.
+ * The hour is *claimable*, not automatic. A boost that starts by itself is
+ * usually spent while the referrer is not looking, and an unclaimed tile in the
+ * boost card is also how they find out someone took their link. Every buddy is
+ * one tile: locked while that buddy is still setting up, clickable once they
+ * automate, gone once collected. Several buddies mean several tiles, and
+ * claiming them one after another stacks the duration.
+ *
+ * No cap on referrals.
  */
 export const REFERRAL_BOOST = 'fullthrottle';
 
@@ -105,18 +112,55 @@ const _referralRewardTx = db.transaction((npub) => {
   if (!player?.referred_by || player.referral_rewarded) return null;
   if (countLotteryManagers(player.game_state) < REQUIRED_MANAGERS) return null;
 
-  // Atomic mark, so two concurrent saves cannot both grant the reward.
+  // Atomic mark, so two concurrent saves cannot both unlock the same reward.
   const marked = db.prepare('UPDATE players SET referral_rewarded = 1 WHERE npub = ? AND referral_rewarded = 0').run(npub);
   if (marked.changes === 0) return null;
 
   const referrerNpub = player.referred_by;
-  const granted = grantBoost(referrerNpub, REFERRAL_BOOST, `referral by ${npub.slice(0, 8)}`);
-
   const rewardedCount = db.prepare('SELECT COUNT(*) as c FROM players WHERE referred_by = ? AND referral_rewarded = 1').get(referrerNpub)?.c || 0;
-  console.log(`[Invite] Reward #${rewardedCount} for ${referrerNpub.slice(0, 8)}… — buddy ${npub.slice(0, 8)}… automated their chain`);
-  return { referrerNpub, rewardedCount, buddyNpub: npub, boost: granted };
+  console.log(`[Invite] Reward #${rewardedCount} unlocked for ${referrerNpub.slice(0, 8)}… — buddy ${npub.slice(0, 8)}… automated their chain`);
+  return { referrerNpub, rewardedCount, buddyNpub: npub };
 });
 
 export function checkReferralReward(npub) {
   return _referralRewardTx(npub);
+}
+
+/**
+ * The referrer's outstanding invite rewards, one entry per buddy who has not
+ * been collected yet — including those still short of three managers, so the
+ * tile appears the moment someone signs up through the link.
+ */
+export function listReferralBoosts(npub) {
+  const rows = db.prepare(`
+    SELECT npub, display_name, referral_rewarded, created_at, game_state
+    FROM players WHERE referred_by = ? AND referral_claimed_at IS NULL
+    ORDER BY referral_rewarded DESC, created_at
+  `).all(npub);
+  return rows.map(r => ({
+    buddy_npub: r.npub,
+    buddy_name: r.display_name || 'Buddy',
+    managers: countLotteryManagers(r.game_state),
+    required: REQUIRED_MANAGERS,
+    ready: r.referral_rewarded === 1,
+    created_at: r.created_at,
+  }));
+}
+
+const _claimReferralBoostTx = db.transaction((npub, buddyNpub) => {
+  // One statement decides it: the row moves out of the claimable set and nobody
+  // else can take it, so a double click cannot collect the same hour twice.
+  const claimed = db.prepare(`
+    UPDATE players SET referral_claimed_at = unixepoch()
+    WHERE npub = ? AND referred_by = ? AND referral_rewarded = 1 AND referral_claimed_at IS NULL
+  `).run(buddyNpub, npub);
+  if (claimed.changes === 0) return { ok: false, reason: 'Nothing to claim from this buddy' };
+
+  const boost = activateBoost(npub, REFERRAL_BOOST, `invite by ${buddyNpub.slice(0, 8)}`);
+  return { ok: true, boost };
+});
+
+export function claimReferralBoost(npub, buddyNpub) {
+  if (!buddyNpub) return { ok: false, reason: 'No buddy given' };
+  return _claimReferralBoostTx(npub, buddyNpub);
 }

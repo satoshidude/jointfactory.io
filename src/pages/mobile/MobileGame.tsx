@@ -19,7 +19,7 @@ export default function MobileGame() {
   const auth = useAuth()
   const gd = useGameDisplay()
 
-  const { state, actions } = useGameLoop(
+  const { state, actions, boostGrants } = useGameLoop(
     auth.isLoggedIn ? auth.joints : 0,
     auth.isLoggedIn ? auth.sats : 0,
     auth.isLoggedIn ? auth.jointsRev : 0,
@@ -81,9 +81,11 @@ export default function MobileGame() {
 
         <BoostBar
           boosts={state.boosts}
+          grants={boostGrants}
           sats={state.sats}
           isLoggedIn={auth.isLoggedIn}
           onBuy={actions.buyBoost}
+          onClaim={actions.claimBoost}
         />
 
         <SpeedCard
