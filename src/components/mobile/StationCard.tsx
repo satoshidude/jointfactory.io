@@ -427,6 +427,7 @@ export function FactoryCard({ fabrik, courier, cannabisAtFactory, joints, manage
     : 0
   const demand = fabrik.mgrLevel > 0 ? batch / cycleTime : 0
   const starved = demand > 0 && intake < demand
+  const queued = batch > 0 ? Math.floor(cannabisAtFactory / batch) : 0
   const progress = fabrik.processing ? 1 - (fabrik.timer / fabrik.processTime) : 0
   const isAuto = fabrik.mgrLevel > 0
   const canRoll = !fabrik.processing && cannabisAtFactory > 0
@@ -453,21 +454,27 @@ export function FactoryCard({ fabrik, courier, cannabisAtFactory, joints, manage
         />
         <div className="station-info">
           <div className="station-stats">
-            {/* Weed the courier has delivered, against what one batch eats.
-                Below the batch size means the next run is only partly filled,
-                so the chain is readable end to end: the courier card shows what
-                is still out in the fields, this shows what made it here. */}
+            {/* Weed the courier has delivered and the factory can still roll.
+                It used to read "664.1K / 78.0K" against the batch size, which
+                scans as "664 of 78" — the wrong way round, since the second
+                figure is what one run consumes, not a ceiling. The relation is
+                now spelled out on its own line, and only when it says something. */}
             <div className="station-stat-row">
-              <span className="station-stat-label">Stock</span>
+              <span className="station-stat-label">Ready to roll</span>
               <span className="station-stat-value" style={{ color: starved ? 'var(--neon-gold)' : 'var(--neon-green)' }}>
                 <Cannabis size={12} /> {fmtNum(cannabisAtFactory)}
-                <span className="station-stat-of"> / {fmtNum(batch)}</span>
               </span>
             </div>
-            {starved && (
+            {starved ? (
               <div className="station-stat-row">
                 <span className="station-stat-label station-stat-warn">
-                  Courier delivers {fmtNum(intake)}/s, factory eats {fmtNum(demand)}/s
+                  Courier brings {fmtNum(intake)}/s, factory rolls {fmtNum(demand)}/s — send more
+                </span>
+              </div>
+            ) : queued >= 1 && (
+              <div className="station-stat-row">
+                <span className="station-stat-label station-stat-note">
+                  {queued === 1 ? 'one batch' : `${fmtNum(queued)} batches`} queued · {fmtNum(batch)} per run
                 </span>
               </div>
             )}
