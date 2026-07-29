@@ -3,7 +3,6 @@ import {
   rehydrate, FREE_MANAGERS, throughput, boostMultipliers,
   courierTripTime, fabrikCycleTime, PLANTATION_DEFS,
   initialState, newPlantation, takeParkedUpgrades, prestigeMultiplier,
-  MAX_SPEED_LEVEL, getSpeedUpgrade,
 } from '../../shared/economy.js'
 
 // ── Plantation definitions (matching production) ─────────────────────────────
@@ -86,22 +85,15 @@ export interface DisplayState {
 
 const COST_SCALE = 2.5          // courier/fabrik cap upgrade cost multiplier
 
-// Speed upgrades come from the shared module: 60 levels, 1x-3x, 21-210 sats.
-// The old 1000-level curve asked ~302k sats per station for +0.7 % a level and
-// the entire player base bought 132 of 8000 levels. Stored speedLevel values
-// are converted by scripts/season-reset.mjs, so this switch and that migration
-// have to go live in the same step.
-export { MAX_SPEED_LEVEL, getSpeedUpgrade }
+// Speed levels are no longer for sale — boosts are the sats sink now. Existing
+// levels keep working: `speed` still divides every cycle time, so nothing a
+// player paid for is lost, there is just no way to buy more.
+// scripts/season-reset.mjs still converts stored levels onto the current scale.
 
 // ── Cost helpers (exported for UI) ───────────────────────────────────────────
 
 export function plantLevelCost(p: PlantationState): number {
   return Math.floor(p.upgBase * Math.pow(p.upgMult, p.level))
-}
-
-export function plantSpeedCost(p: PlantationState): number {
-  const next = getSpeedUpgrade(p.speedLevel)
-  return next ? next.cost : 0
 }
 
 export function plantManagerCost(p: PlantationState): number {
@@ -790,18 +782,6 @@ export function useGameLoop(
     }
   }, [flush])
 
-  const upgradeCourierSpeed = useCallback(() => {
-    const c = gsRef.current.courier
-    const next = getSpeedUpgrade(c.speedLevel)
-    if (!next) return
-    if (spendSats(next.cost)) {
-      c.speedLevel++
-      c.speed = next.speed
-      addManagerSatsSpent(next.cost)
-      flushAndSave()
-    }
-  }, [spendSats, flushAndSave])
-
   const upgradeFabrikCap = useCallback(() => {
     const f = gsRef.current.fabrik
     if (jointsRef.current >= f.capCost) {
@@ -811,18 +791,6 @@ export function useGameLoop(
       flush()
     }
   }, [flush])
-
-  const upgradeFabrikSpeed = useCallback(() => {
-    const f = gsRef.current.fabrik
-    const next = getSpeedUpgrade(f.speedLevel)
-    if (!next) return
-    if (spendSats(next.cost)) {
-      f.speedLevel++
-      f.speed = next.speed
-      addManagerSatsSpent(next.cost)
-      flushAndSave()
-    }
-  }, [spendSats, flushAndSave])
 
   // Count total managers across all stations
   const countManagers = useCallback((): number => {
@@ -855,19 +823,6 @@ export function useGameLoop(
       }
     }
   }, [spendSats, flushAndSave, countManagers])
-
-  const upgradePlantSpeed = useCallback((index: number) => {
-    const p = gsRef.current.plantagen[index]
-    if (!p) return
-    const next = getSpeedUpgrade(p.speedLevel)
-    if (!next) return
-    if (spendSats(next.cost)) {
-      p.speedLevel++
-      p.speed = next.speed
-      addManagerSatsSpent(next.cost)
-      flushAndSave()
-    }
-  }, [spendSats, flushAndSave])
 
   const buyCourierManager = useCallback(() => {
     const c = gsRef.current.courier
@@ -988,9 +943,9 @@ export function useGameLoop(
     state: display,
     actions: {
       grow, sendCourier, rollJoints,
-      upgradePlantLevel, upgradePlantSpeed, buyPlantManager,
-      upgradeCourierCap, upgradeCourierSpeed, buyCourierManager,
-      upgradeFabrikCap, upgradeFabrikSpeed, buyFabrikManager,
+      upgradePlantLevel, buyPlantManager,
+      upgradeCourierCap, buyCourierManager,
+      upgradeFabrikCap, buyFabrikManager,
       unlockPlantation, buyBoost, prestige,
     },
   }

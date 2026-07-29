@@ -3,7 +3,6 @@ import { useGameLoop, PLANTATION_DEFS,
   plantLevelCost, plantMilestoneInfo,
   plantEffectiveCycle, plantOutput, plantRate,
   courierTripTime, fabrikCycleTime,
-  getSpeedUpgrade, MAX_SPEED_LEVEL,
 } from '../game/useGameLoop'
 import { useAuth } from '../stores/authStore'
 import { apiFetch } from '../lib/api'
@@ -607,21 +606,6 @@ export default function Game() {
                 onClick={actions.upgradeFabrikCap}>
                 <span>Cap x2</span>|<span className="cost">{fmtNum(state.fabrik.capCost)}</span>
               </button>
-              {state.fabrik.mgrLevel > 0 && (
-                state.fabrik.speedLevel < MAX_SPEED_LEVEL ? (() => {
-                  const next = getSpeedUpgrade(state.fabrik.speedLevel)!
-                  return (
-                    <button className="upgrade-btn sats-upgrade" disabled={state.sats < next.cost}
-                      onClick={() => { actions.upgradeFabrikSpeed(); triggerSatsFlash() }}>
-                      <span>Speed {next.label}</span>|<span className="cost sats">{next.cost} sats</span>
-                    </button>
-                  )
-                })() : (
-                  <button className="upgrade-btn sats-upgrade" disabled>
-                    <span>MAX</span>
-                  </button>
-                )
-              )}
               {state.fabrik.mgrLevel === 0 && (
                 <button
                   className={`action-btn fabrik${state.fabrik.processing ? ' active' : ''}`}
@@ -712,21 +696,6 @@ export default function Game() {
                 onClick={actions.upgradeCourierCap}>
                 <span>Cap x2</span>|<span className="cost">{fmtNum(state.courier.capCost)}</span>
               </button>
-              {state.courier.mgrLevel > 0 && (
-                state.courier.speedLevel < MAX_SPEED_LEVEL ? (() => {
-                  const next = getSpeedUpgrade(state.courier.speedLevel)!
-                  return (
-                    <button className="upgrade-btn sats-upgrade" disabled={state.sats < next.cost}
-                      onClick={() => { actions.upgradeCourierSpeed(); triggerSatsFlash() }}>
-                      <span>Speed {next.label}</span>|<span className="cost sats">{next.cost} sats</span>
-                    </button>
-                  )
-                })() : (
-                  <button className="upgrade-btn sats-upgrade" disabled>
-                    <span>Speed MAX</span>
-                  </button>
-                )
-              )}
               {state.courier.mgrLevel === 0 && (
                 <button
                   className={`action-btn courier${state.courier.state !== 'idle' ? ' active' : ''}`}
@@ -1093,19 +1062,7 @@ export default function Game() {
                             <span>Auto Manager</span>|<span className="cost">{!auth.isLoggedIn ? 'Login + Deposit 50 sats' : `Deposit ${50 - auth.totalDeposited} more sats`}</span>
                           </button>
                         )
-                      ) : p.speedLevel < MAX_SPEED_LEVEL ? (() => {
-                        const next = getSpeedUpgrade(p.speedLevel)!
-                        return (
-                          <button className="upgrade-btn sats-upgrade" disabled={state.sats < next.cost}
-                            onClick={() => { actions.upgradePlantSpeed(i); triggerSatsFlash() }}>
-                            <span>Speed {next.label}</span>|<span className="cost sats">{next.cost} sats</span>
-                          </button>
-                        )
-                      })() : (
-                        <button className="upgrade-btn sats-upgrade" disabled>
-                          <span>Speed MAX</span>
-                        </button>
-                      )}
+                      ) : null}
                       {p.managerLevel === 0 && (
                         <button
                           className={`action-btn plantage mini${isGrowing ? ' active' : ''}`}

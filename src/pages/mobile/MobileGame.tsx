@@ -102,7 +102,6 @@ export default function MobileGame() {
           boosts={state.boosts}
           seeds={state.seeds}
           onUpgradeCap={actions.upgradeFabrikCap}
-          onUpgradeSpeed={actions.upgradeFabrikSpeed}
           onBuyManager={actions.buyFabrikManager}
           onRoll={actions.rollJoints}
         />
@@ -116,7 +115,6 @@ export default function MobileGame() {
           boosts={state.boosts}
           seeds={state.seeds}
           onUpgradeCap={actions.upgradeCourierCap}
-          onUpgradeSpeed={actions.upgradeCourierSpeed}
           onBuyManager={actions.buyCourierManager}
           onSend={actions.sendCourier}
         />
@@ -134,7 +132,6 @@ export default function MobileGame() {
           boosts={state.boosts}
           seeds={state.seeds}
           onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
-          onUpgradeSpeed={(i) => actions.upgradePlantSpeed(i)}
           onBuyManager={(i) => actions.buyPlantManager(i)}
           onGrow={(i) => actions.grow(i)}
           onUnlock={actions.unlockPlantation}

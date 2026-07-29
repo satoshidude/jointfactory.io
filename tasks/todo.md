@@ -257,6 +257,26 @@ unter den Gewinnern die Alternative.
 - [x] `upgMult` 1.28 → 1.12
 - [x] Speed-Kurve 60 Level, 1×→3×, 21–210 Sats
 
+## Speed-Upgrades entfernt (Entscheidung 2026-07-29)
+Boosts sind der bessere und übersichtlichere Sats-Sink, also fallen die
+permanenten Speed-Upgrades **überall** weg — Plantagen, Kurier, Fabrik.
+
+Sats haben danach genau zwei Verwendungen: Boosts (wiederkehrend) und Manager
+ab dem vierten (einmalig). Damit versickert keine Kaufkraft mehr in dauerhaften
+Upgrades, und jeder ausgegebene Sat läuft durch den Pot-Kreislauf.
+
+**Bestandsschutz statt Rückerstattung.** 16 Spieler haben 3.694 Sats in
+Speed-Level gesteckt. Eine Rückzahlung würde den Solvenz-Spielraum von 1.117
+sprengen und das Spiel mit −2.577 ins Minus drehen. Stattdessen verschwindet
+nur die Kaufmöglichkeit: `speed` teilt weiterhin jede Zykluszeit, gekaufte
+Level bleiben also wirksam. Nichts vernichtet, nichts geschöpft.
+
+- [x] Kauf-Aktionen `upgradePlantSpeed` / `upgradeCourierSpeed` /
+      `upgradeFabrikSpeed` entfernt
+- [x] Speed-Buttons aus `StationCard` und aus der alten `Game.tsx`
+- [x] `getSpeedUpgrade` bleibt in `shared`, wird nur noch von
+      `migrateSpeedLevel` für die Season-Umrechnung gebraucht
+
 ## Lokaler Probelauf 2026-07-29 — bestanden
 Migration auf `data/jointfactory.db` gefahren, Rückweg unter `data/pre-season1.db`.
 Als `satoshidude` (343 Seeds, ×18,15) im Browser geprüft: Kurier-Kapazität 363
