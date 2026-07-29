@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Zap, Ticket, TicketPlus, Users, Timer, Trophy, TrendingUp, ExternalLink, ChevronLeft, ChevronRight, Cannabis } from 'lucide-react'
 import { apiFetch, wsUrl } from '../../lib/api'
-import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime, fmtNum as fmtSats } from '../../lib/format'
+import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime, fmtNum as fmtSats, fmtSpan } from '../../lib/format'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { nip19 } from 'nostr-tools'
@@ -64,6 +64,9 @@ export default function MobileLottery() {
   // the Grow page, so on a direct visit here its store is empty and every
   // player looked ineligible.
   const [serverElig, setServerElig] = useState<{ eligible: boolean; missing: number } | null>(null)
+  // Joints per second the price is measured against — turns a shortfall into
+  // "another 3.4 h of production", which is what the number actually means.
+  const [rate, setRate] = useState(0)
   const [countdown, setCountdown] = useState(0)
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState(false)
@@ -83,6 +86,7 @@ export default function MobileLottery() {
         setMyTickets(res.my_tickets ?? 0)
         setNextCost(res.next_ticket_cost ?? 0)
         if (res.eligibility) setServerElig(res.eligibility)
+        if (res.production_rate) setRate(res.production_rate)
         setTicketsToday(res.tickets_today ?? 0)
         setPricePreview(res.price_preview ?? [])
         drawAtRef.current = res.round.draws_at
@@ -271,7 +275,10 @@ export default function MobileLottery() {
                   <span className="ml-hint">Daily allowance used — the next tickets unlock 24 h after each purchase</span>
                 )}
                 {!dayLimitReached && nextCost > auth.joints && eligible && (
-                  <span className="ml-hint">Need {fmtSats(nextCost - Math.floor(auth.joints))} more Joints</span>
+                  <span className="ml-hint">
+                    Need {fmtSats(nextCost - Math.floor(auth.joints))} more Joints
+                    {rate > 0 && <> — about {fmtSpan((nextCost - auth.joints) / rate)} of production</>}
+                  </span>
                 )}
                 {buyError && <span className="ml-error">{buyError}</span>}
               </div>

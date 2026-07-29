@@ -205,3 +205,12 @@
 .lottery-mini-avail svg {
   color: var(--neon-green);
 }
+
+.lottery-mini-hint {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+}

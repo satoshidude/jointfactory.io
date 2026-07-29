@@ -5,7 +5,7 @@ import { apiFetch, wsUrl } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import './LotteryMini.css'
-import { fmtNum as fmtSats, fmtCountdown, fmtDrawTime } from '../../lib/format'
+import { fmtNum as fmtSats, fmtCountdown, fmtDrawTime, fmtSpan } from '../../lib/format'
 import { potPayout, MAX_TICKETS_PER_DAY } from '../../../shared/economy.js'
 
 interface MiniRound {
@@ -27,6 +27,7 @@ export default function LotteryMini() {
   const [buying, setBuying] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [lastResult, setLastResult] = useState<{ winner: string | null; payout: number } | null>(null)
+  const [rate, setRate] = useState(0)
   const drawAtRef = useRef(0)
   const prevCountdownRef = useRef(0)
 
@@ -37,6 +38,7 @@ export default function LotteryMini() {
         setMyTickets(res.my_tickets ?? 0)
         setNextCost(res.next_ticket_cost ?? 0)
         setTicketsToday(res.tickets_today ?? 0)
+        setRate(res.production_rate ?? 0)
         drawAtRef.current = res.round.draws_at
         setCountdown(Math.max(0, res.round.draws_at - Math.floor(Date.now() / 1000)))
       }
@@ -168,6 +170,13 @@ export default function LotteryMini() {
               <span className="lottery-mini-avail">{ticketsToday}/{MAX_TICKETS_PER_DAY} today</span>
             </>}
           </button>
+          {/* A ticket is priced in production time, so the gap is best read the
+              same way — "3.4 h of production" is a plan, "543 T more" is a wall. */}
+          {!dayLimitReached && nextCost > auth.joints && rate > 0 && (
+            <span className="lottery-mini-hint">
+              {fmtSpan((nextCost - auth.joints) / rate)} of production to go
+            </span>
+          )}
         </div>
       )}
     </div>

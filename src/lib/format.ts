@@ -84,3 +84,15 @@ export function fmtDateTime(unixSeconds: number): string {
   return d.toLocaleDateString(LOCALE, { day: '2-digit', month: 'short' })
     + ' ' + d.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false })
 }
+
+/**
+ * A span in the largest unit that still reads naturally — "40 min", "3.4 h",
+ * "1.2 d". Used to express a joint shortfall as production time, which is the
+ * unit the price is denominated in anyway.
+ */
+export function fmtSpan(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0 min'
+  if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))} min`
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)} h`
+  return `${(seconds / 86400).toFixed(1)} d`
+}
