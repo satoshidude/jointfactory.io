@@ -26,8 +26,9 @@ export default function InfoPage() {
             <a href="https://nostr.how/en/what-is-nostr" target="_blank" rel="noopener noreferrer" className="info-link purple">
               Nostr <ExternalLink size={10} />
             </a>{' '}
-            and Bitcoin Lightning. Login with your Nostr key to save progress,
-            unlock auto managers, and earn real sats. No email, no password — just your keys.
+            and Bitcoin Lightning. Play as a guest — the first three managers are
+            free for everyone. Log in with your Nostr key to save progress and earn
+            real sats. No email, no password — just your keys.
           </p>
           <p className="info-intro">
             Grow your weed, transport it, produce joints, and climb the leaderboard —

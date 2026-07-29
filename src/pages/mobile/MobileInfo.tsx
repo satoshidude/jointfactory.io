@@ -25,8 +25,9 @@ export default function MobileInfo() {
         <p className="mi-intro">
           Joint Factory is a real-time idle factory game built on{' '}
           <a href="https://nostr.how/en/what-is-nostr" target="_blank" rel="noopener noreferrer" className="mi-link purple">Nostr</a> and Bitcoin Lightning. Grow cannabis, roll joints, and earn real sats.
-          Login with your Nostr key to save progress, unlock auto managers,
-          and compete on the leaderboard.
+          Play as a guest — the first three managers are free for everyone.
+          Log in with your Nostr key to save progress, play for sats and
+          compete on the leaderboard.
         </p>
       </div>
 
