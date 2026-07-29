@@ -464,7 +464,8 @@ fastify.get('/api/health/solvency', async () => solvency());
 fastify.get('/api/players', async () => {
   // Get players
   const allPlayers = db.prepare(`
-    SELECT npub, display_name, joints, total_joints_earned, joints_per_sec, last_seen_at, created_at, game_state
+    SELECT npub, display_name, joints, total_joints_earned, joints_per_sec, speed_level,
+           last_seen_at, created_at, game_state
     FROM players WHERE COALESCE(is_bot, 0) = 0
     ORDER BY total_joints_earned DESC LIMIT 1000
   `).all().map(p => {

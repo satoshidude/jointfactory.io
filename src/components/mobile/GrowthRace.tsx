@@ -5,6 +5,7 @@ import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import './GrowthRace.css'
 import { fmtNum } from '../../lib/format'
+import { speedMultiplier } from '../../../shared/economy.js'
 
 interface PlayerInfo {
   npub: string
@@ -12,6 +13,7 @@ interface PlayerInfo {
   joints_per_sec: number
   total_joints_earned: number
   total_won_sats: number
+  speed_level?: number
 }
 
 interface RateLog {
@@ -150,7 +152,11 @@ export default function GrowthRace() {
         }
       }
 
-      return { name: isYou ? 'YOU' : (p.display_name || 'anon'), npub: p.npub, rate, color: c.stroke, glow: c.glow, isYou, isActive, trendPct, points }
+      return {
+        name: isYou ? 'YOU' : (p.display_name || 'anon'), npub: p.npub, rate,
+        speedLevel: p.speed_level ?? 0,
+        color: c.stroke, glow: c.glow, isYou, isActive, trendPct, points,
+      }
     }).sort((a, b) => b.rate - a.rate)
 
     const maxProduction = Math.max(...lines.flatMap(l => l.points), 1)
@@ -160,7 +166,17 @@ export default function GrowthRace() {
   if (!raceData || raceData.lines.length === 0) return null
 
   const { lines, maxProduction } = raceData
-  const topRate = lines[0]?.rate || 1
+
+  // Bars are logarithmic. Rates span nine orders of magnitude on production —
+  // 1.25/s for a fresh account against 1.6 billion/s at the top — so a linear
+  // bar gave everyone but the leader the 8 % minimum and the race showed
+  // nothing. On a log scale the whole field is legible at once.
+  const rates = lines.map(l => l.rate).filter(r => r > 0)
+  const topRate = Math.max(...rates, 1)
+  const floorRate = Math.min(...rates, topRate)
+  const span = Math.log10(topRate / floorRate) || 1
+  const barPct = (rate: number) =>
+    rate <= 0 ? 8 : Math.max(8, 8 + (Math.log10(rate / floorRate) / span) * 92)
 
   return (
     <div className="gr-card">
@@ -220,7 +236,7 @@ export default function GrowthRace() {
       {/* Racing bars */}
       <div className="gr-bars">
         {lines.map((line, i) => {
-          const pct = Math.max(8, (line.rate / topRate) * 100)
+          const pct = barPct(line.rate)
           const isFirst = i === 0
           return (
             <div key={line.npub} className={`gr-row${line.isYou ? ' gr-you' : ''}${isFirst ? ' gr-leader' : ''}${!line.isActive ? ' gr-inactive' : ''}`}>
@@ -237,6 +253,11 @@ export default function GrowthRace() {
                 }} />
               </div>
               <div className="gr-stats">
+                {line.speedLevel > 0 && (
+                  <span className="gr-speed" title={`Speed level ${line.speedLevel}`}>
+                    ×{speedMultiplier(line.speedLevel).toFixed(2)}
+                  </span>
+                )}
                 <span className="gr-rate" style={{ color: line.color }}>{fmtNum(line.rate)}/s</span>
                 <span className={`gr-trend${line.trendPct > 1 ? ' up' : line.trendPct < -1 ? ' down' : ''}`}>
                   {line.trendPct > 1 ? <TrendingUp size={10} /> : line.trendPct < -1 ? <TrendingDown size={10} /> : <Minus size={10} />}

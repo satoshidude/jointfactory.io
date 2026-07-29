@@ -69,7 +69,7 @@
 
 .lb-head-row {
   display: grid;
-  grid-template-columns: 28px 1fr 70px 80px;
+  grid-template-columns: 28px 1fr 54px 70px 80px;
   gap: 6px;
   padding: 0 6px;
   font-family: var(--font-body);
@@ -80,6 +80,7 @@
   letter-spacing: 0.5px;
 }
 
+.lb-h-speed,
 .lb-h-sats,
 .lb-h-total {
   text-align: right;
@@ -93,7 +94,7 @@
 
 .lb-row {
   display: grid;
-  grid-template-columns: 28px 1fr 70px 80px;
+  grid-template-columns: 28px 1fr 54px 70px 80px;
   align-items: center;
   gap: 6px;
   padding: 5px 6px;
@@ -192,4 +193,16 @@
 .lb-total svg {
   color: var(--neon-green);
   flex-shrink: 0;
+}
+
+
+/* Bought speed. A small comparable figure beside two that span orders of
+   magnitude — the one column where players can read each other directly. */
+.lb-speed {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--neon-green);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  z-index: 1;
 }

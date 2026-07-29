@@ -5,6 +5,7 @@ import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import './Leaderboard.css'
 import { fmtNum as fmtSats } from '../../lib/format'
+import { speedMultiplier } from '../../../shared/economy.js'
 
 interface PlayerInfo {
   npub: string
@@ -12,6 +13,7 @@ interface PlayerInfo {
   joints_per_sec: number
   total_won_sats: number
   total_joints_earned: number
+  speed_level?: number
 }
 
 const COLORS = ['#ffd700', '#39ff14', '#cc44ff', '#00d4ff', '#ff6b6b', '#ff69b4', '#ff8c00']
@@ -39,7 +41,10 @@ export default function Leaderboard() {
 
   if (players.length === 0) return null
 
-  const maxRate = Math.max(...players.map(p => p.joints_per_sec), 1)
+  const rates = players.map(p => p.joints_per_sec).filter(r => r > 0)
+  const maxRate = Math.max(...rates, 1)
+  const minRate = Math.min(...rates, maxRate)
+  const rateSpan = Math.log10(maxRate / minRate) || 1
   const totalPages = Math.ceil(players.length / PER_PAGE)
   const pagePlayers = players.slice(page * PER_PAGE, (page + 1) * PER_PAGE)
 
@@ -63,6 +68,7 @@ export default function Leaderboard() {
       <div className="lb-head-row">
         <span className="lb-h-rank">#</span>
         <span className="lb-h-name">Name</span>
+        <span className="lb-h-speed">Speed</span>
         <span className="lb-h-sats">Earnings</span>
         <span className="lb-h-total">Total</span>
       </div>
@@ -70,7 +76,11 @@ export default function Leaderboard() {
         {pagePlayers.map((p, i) => {
           const globalIdx = page * PER_PAGE + i
           const isYou = auth.npub === p.npub
-          const barPct = p.joints_per_sec > 0 ? Math.min(100, (p.joints_per_sec / maxRate) * 100) : 0
+          // Log-scaled, like the growth race: rates span nine orders of
+          // magnitude on production, so a linear bar shows only the leader.
+          const barPct = p.joints_per_sec > 0
+            ? Math.max(4, 4 + (Math.log10(p.joints_per_sec / minRate) / rateSpan) * 96)
+            : 0
           const barColor = isYou ? 'var(--neon-gold)' : COLORS[globalIdx % COLORS.length]
           return (
             <div key={p.npub} className={`lb-row${isYou ? ' lb-row-you' : ''}${globalIdx < 3 ? ` lb-row-top${globalIdx + 1}` : ''}`}>
@@ -79,6 +89,7 @@ export default function Leaderboard() {
                 {globalIdx < 3 ? <Trophy size={12} className={`lb-trophy-${globalIdx + 1}`} /> : `#${globalIdx + 1}`}
               </span>
               <a className="lb-name" href={`/u/${(() => { try { return nip19.npubEncode(p.npub) } catch { return p.npub } })()}`}>{isYou ? 'YOU' : (p.display_name || 'anon')}</a>
+              <span className="lb-speed">×{speedMultiplier(p.speed_level ?? 0).toFixed(2)}</span>
               <span className="lb-sats"><Zap size={11} /> {fmtSats(p.total_won_sats)}</span>
               <span className="lb-total"><Cannabis size={11} /> {fmtSats(p.total_joints_earned)}</span>
             </div>

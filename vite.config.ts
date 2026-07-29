@@ -32,12 +32,21 @@ export default defineConfig({
         secure: true,
         ws: true,
         configure: (proxy) => {
-          // Restarting the API server closes the upstream socket mid-write. The
-          // resulting EPIPE is unhandled by default and takes the whole dev
-          // server down, so every backend restart also killed Vite.
-          proxy.on('error', (err: Error) => {
-            console.warn('[vite] ws proxy:', err.message)
+          // Restarting the API server closes the upstream socket mid-write and
+          // the resulting EPIPE took the whole dev server down on every backend
+          // restart. Both ends need a handler: the proxy for connection errors,
+          // and each upgraded socket for write errors after the upgrade — the
+          // latter is where the fatal one came from.
+          const quiet = (what: string) => (err: Error) => {
+            console.warn(`[vite] ws ${what}:`, err.message)
+          }
+          proxy.on('error', quiet('proxy'))
+          proxy.on('econnreset', quiet('reset'))
+          proxy.on('proxyReqWs', (proxyReq, _req, socket) => {
+            proxyReq.on('error', quiet('upstream'))
+            socket.on('error', quiet('client'))
           })
+          proxy.on('open', (socket) => socket.on('error', quiet('upstream socket')))
         },
       },
     },

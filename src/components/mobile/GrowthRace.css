@@ -185,3 +185,13 @@
   color: #ff6b6b;
   opacity: 1;
 }
+
+/* Bought speed, next to the rate. A small comparable number where the rate
+   itself spans nine orders of magnitude. */
+.gr-speed {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--neon-green);
+  font-variant-numeric: tabular-nums;
+  opacity: .85;
+}
