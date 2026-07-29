@@ -7,13 +7,13 @@ import './HarvestCard.css'
 /**
  * Harvest — the way past the upgrade wall.
  *
- * Plantation costs outgrow plantation output, so a run eventually stalls: the
- * top live account needs 18 days of idling for one more level. A harvest trades
- * that stalled run for seeds, a permanent chain-wide multiplier.
+ * Plantation costs outgrow plantation output, so a run eventually stalls. A
+ * harvest trades the stalled run for seeds: a permanent, chain-wide multiplier.
  *
- * The card is deliberately explicit about what survives. Players will not press
- * a reset button they do not trust, and everything they paid sats for does
- * survive — speed levels, managers, the wallet.
+ * The card says what a seed does and what a harvest costs in plain words. The
+ * first version showed "Seeds 343 / Ready +0 / ×18.15" and nothing else, which
+ * is meaningless to anyone who has not met the mechanic before — and players do
+ * not press a reset button they do not understand.
  */
 export default function HarvestCard({ seeds, gain, lifetime, nextAt, isLoggedIn, onHarvest }: {
   seeds: number
@@ -27,7 +27,6 @@ export default function HarvestCard({ seeds, gain, lifetime, nextAt, isLoggedIn,
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
-  // Nothing to show before the first harvest is even in reach.
   if (!isLoggedIn || (seeds === 0 && gain === 0 && lifetime < PRESTIGE.minLifetime / 100)) return null
 
   const run = async () => {
@@ -39,6 +38,8 @@ export default function HarvestCard({ seeds, gain, lifetime, nextAt, isLoggedIn,
     setTimeout(() => setMessage(null), 4000)
   }
 
+  const progress = nextAt > 0 ? Math.min(100, (lifetime / nextAt) * 100) : 0
+
   return (
     <div className="harvest-card">
       <div className="harvest-header">
@@ -47,14 +48,24 @@ export default function HarvestCard({ seeds, gain, lifetime, nextAt, isLoggedIn,
         <span className="harvest-mult">×{prestigeMultiplier(seeds).toFixed(2)}</span>
       </div>
 
+      <p className="harvest-lead">
+        A harvest resets your plantations and pays you <strong>seeds</strong>.
+        Every seed adds +5 % to everything you produce — plantations, courier and
+        factory alike — and it never goes away.
+      </p>
+
       <div className="harvest-stats">
         <div className="harvest-stat">
-          <span className="harvest-stat-label">Seeds</span>
+          <span className="harvest-stat-label">Seeds owned</span>
           <span className="harvest-stat-value">{fmtNum(seeds)}</span>
+          <span className="harvest-stat-note">
+            {seeds > 0 ? `+5 % each → ×${prestigeMultiplier(seeds).toFixed(2)}` : 'no bonus yet'}
+          </span>
         </div>
         <div className="harvest-stat">
-          <span className="harvest-stat-label">Ready</span>
+          <span className="harvest-stat-label">Waiting for you</span>
           <span className={`harvest-stat-value${gain > 0 ? ' ready' : ''}`}>+{fmtNum(gain)}</span>
+          <span className="harvest-stat-note">{gain > 0 ? 'ready to collect' : 'keep producing'}</span>
         </div>
       </div>
 
@@ -62,12 +73,14 @@ export default function HarvestCard({ seeds, gain, lifetime, nextAt, isLoggedIn,
         confirming ? (
           <div className="harvest-confirm">
             <p className="harvest-warn">
-              Resets plantation levels, capacities and unlocks, and your joints.
-              Keeps everything sats paid for — speed levels, managers, your wallet.
+              <strong>You lose:</strong> plantation levels, courier and factory capacity,
+              the plantations you unlocked, and your joints.<br />
+              <strong>You keep:</strong> your sats, your managers, and every seed —
+              old and new.
             </p>
             <div className="harvest-confirm-row">
               <button className="harvest-btn harvest-btn-go" onClick={run} disabled={busy}>
-                {busy ? 'Harvesting…' : `Harvest +${gain}`}
+                {busy ? 'Harvesting…' : 'Yes, harvest'}
               </button>
               <button className="harvest-btn" onClick={() => setConfirming(false)} disabled={busy}>
                 Cancel
@@ -75,18 +88,21 @@ export default function HarvestCard({ seeds, gain, lifetime, nextAt, isLoggedIn,
             </div>
           </div>
         ) : (
-          <button className="harvest-btn harvest-btn-go" onClick={() => setConfirming(true)}>
-            <TrendingUp size={14} /> Harvest +{gain} seeds → ×{prestigeMultiplier(seeds + gain).toFixed(2)}
-          </button>
+          <>
+            <button className="harvest-btn harvest-btn-go" onClick={() => setConfirming(true)}>
+              <TrendingUp size={14} /> Harvest {gain} seeds
+            </button>
+            <p className="harvest-next">
+              Production goes ×{prestigeMultiplier(seeds).toFixed(2)} → <strong>×{prestigeMultiplier(seeds + gain).toFixed(2)}</strong>,
+              and your plantations start from scratch.
+            </p>
+          </>
         )
       ) : (
         <div className="harvest-next">
-          Next seed at {fmtNum(nextAt)} lifetime joints
+          <span>Your next seed lands at {fmtNum(nextAt)} lifetime joints — you are at {fmtNum(lifetime)}.</span>
           <span className="harvest-progress-track">
-            <span
-              className="harvest-progress-bar"
-              style={{ width: `${Math.min(100, nextAt > 0 ? (lifetime / nextAt) * 100 : 0)}%` }}
-            />
+            <span className="harvest-progress-bar" style={{ width: `${progress}%` }} />
           </span>
         </div>
       )}

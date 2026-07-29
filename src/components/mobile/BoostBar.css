@@ -34,17 +34,11 @@
   text-align: right;
 }
 
-/* Two columns at 393px, four across once there is room. */
+/* Always 2x2 — four across made the labels cramped and the card wide. */
 .boost-bar-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-}
-
-@media (min-width: 560px) {
-  .boost-bar-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
 }
 
 .boost-btn {

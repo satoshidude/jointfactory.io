@@ -77,6 +77,13 @@ export default function MobileGame() {
       <div className="mgp-col mgp-col-left">
         <LotteryMini />
 
+        <BoostBar
+          boosts={state.boosts}
+          sats={state.sats}
+          isLoggedIn={auth.isLoggedIn}
+          onBuy={actions.buyBoost}
+        />
+
         <HarvestCard
           seeds={state.seeds}
           gain={seedGain}
@@ -84,13 +91,6 @@ export default function MobileGame() {
           nextAt={nextSeedAt(state.seeds + seedGain)}
           isLoggedIn={auth.isLoggedIn}
           onHarvest={actions.prestige}
-        />
-
-        <BoostBar
-          boosts={state.boosts}
-          sats={state.sats}
-          isLoggedIn={auth.isLoggedIn}
-          onBuy={actions.buyBoost}
         />
 
         <FactoryCard
