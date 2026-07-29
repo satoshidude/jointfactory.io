@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Draw checks: winner quota and fairness of the odds.
+ * Draw checks: winner quota, fairness of the odds, and where an unentered
+ * round's pot ends up.
  *
  *   node scripts/test-draw.mjs
  */
@@ -14,6 +15,7 @@ process.env.JF_NOSTR_OFFLINE = '1'
 
 const { db } = await import('../server/db.js')
 const { runDraw } = await import('../server/lottery.js')
+const { houseBalance } = await import('../server/house.js')
 
 async function scenario(label, players, pot) {
   db.prepare('DELETE FROM lottery_tickets').run()
@@ -69,5 +71,22 @@ check('0 Teilnehmer → 0 Gewinner', winnerCount(0) === 0)
 check('Gewinnfrequenz entspricht dem Losanteil (±3 %)',
       Math.abs(wins.spieler_a/3000 - 19/44) < 0.03 &&
       Math.abs(wins.spieler_c/3000 - 6/44) < 0.03)
+// ── A round nobody entered ──────────────────────────────────────────────────
+// The pot used to roll into the next round, which paid the operator's own sats
+// forward forever; it is revenue now.
+console.log('\n  ── Runde ohne Teilnehmer ──')
+db.prepare('DELETE FROM lottery_tickets').run()
+db.prepare('DELETE FROM lottery_rounds').run()
+const houseBefore = houseBalance()
+const empty = db.prepare("INSERT INTO lottery_rounds (draws_at, status, total_sats_collected) VALUES (unixepoch()-1,'open',?)").run(700)
+const emptyRes = await runDraw(empty.lastInsertRowid)
+const nextRound = db.prepare("SELECT total_sats_collected FROM lottery_rounds WHERE status='open' ORDER BY id DESC LIMIT 1").get()
+console.log(`    Pot 700 → House ${houseBefore} → ${houseBalance()}, nächste Runde startet bei ${nextRound?.total_sats_collected ?? 0}`)
+check('kein Gewinner', emptyRes.winners.length === 0)
+check('Pot geht ans Haus', houseBalance() - houseBefore === 700)
+check('kein Übertrag in die nächste Runde', (nextRound?.total_sats_collected ?? 0) === 0)
+check('Runde ist geschlossen',
+      db.prepare('SELECT status FROM lottery_rounds WHERE id=?').get(empty.lastInsertRowid).status === 'closed')
+
 console.log(fail ? `\n${fail} Fehler\n` : '\nAlle Ziehungs-Checks bestanden\n')
 process.exit(fail ? 1 : 0)

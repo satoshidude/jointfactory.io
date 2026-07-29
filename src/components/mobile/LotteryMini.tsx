@@ -153,7 +153,7 @@ export default function LotteryMini() {
           {lastResult.winner ? (
             <><span className="lottery-mini-last-label">Last win</span> <Zap size={12} /> {fmtSats(lastResult.payout)}</>
           ) : (
-            <><span className="lottery-mini-last-label">No winner — pot rolls over!</span></>
+            <><span className="lottery-mini-last-label">No entries — that pot went to the house</span></>
           )}
         </div>
       )}

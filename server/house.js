@@ -64,6 +64,12 @@ export function solvency() {
   const deposited = db.prepare(`SELECT COALESCE(SUM(amount_sats), 0) AS s FROM lightning_payments WHERE status = 'paid'`).get().s;
   const withdrawn = db.prepare('SELECT COALESCE(SUM(amount_sats), 0) AS s FROM withdrawals').get().s;
   const house = houseBalance();
+  // Sats sitting in the open pot belong to nobody yet — at the draw they split
+  // into player balances and the ledger. Leaving them out made the books jump
+  // at every draw and flattered the gap while a pot was filling.
+  const pot = db.prepare(`SELECT COALESCE(total_sats_collected, 0) AS s FROM lottery_rounds
+                          WHERE status = 'open' ORDER BY id DESC LIMIT 1`).get()?.s ?? 0;
   const backing = deposited - withdrawn;
-  return { held, house, liability: held + house, deposited, withdrawn, backing, gap: backing - (held + house) };
+  const liability = held + house + pot;
+  return { held, house, pot, liability, deposited, withdrawn, backing, gap: backing - liability };
 }

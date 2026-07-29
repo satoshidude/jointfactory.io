@@ -77,7 +77,7 @@ Authentication is handled via **Nostr** (NIP-07 browser extension, nsec import, 
   taken once, at payout
 - 80 % of the pot is paid out via Lightning, split among up to a third of the
   round's participants, capped at 21 winners
-- Unclaimed pots roll over into the next round
+- A round nobody entered settles to the house ledger rather than rolling over
 - Full draw history and pot history charts
 
 ### Invites

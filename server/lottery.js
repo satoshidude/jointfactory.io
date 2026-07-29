@@ -103,18 +103,22 @@ export async function runDraw(roundId) {
   db.prepare(`UPDATE lottery_rounds SET status='drawing' WHERE id=?`).run(round.id);
   const tickets = getRoundTickets(round.id);
   if (tickets.length === 0) {
-    // Nobody entered — carry the pot to the next round. The UI has always
-    // promised "pot rolls over"; the sats used to be stranded on the closed
-    // round instead, and the next one started at zero.
-    const carry = round.total_sats_collected || 0;
+    // Nobody entered — the pot goes to the house.
+    //
+    // It used to roll into the next round, which sounds generous but pays the
+    // operator's own sats forward indefinitely: a dormant week compounds a pot
+    // nobody played for, and the money can only leave again as a payout. An
+    // unentered round has no claim on it, so it settles as revenue. The pot
+    // players see is fed by what players spend, not by what an empty round
+    // carried over.
+    const unclaimed = round.total_sats_collected || 0;
     db.prepare(`UPDATE lottery_rounds SET status='closed' WHERE id=?`).run(round.id);
     ensureOpenRound();
-    if (carry > 0) {
-      db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ?
-                  WHERE id = (SELECT id FROM lottery_rounds WHERE status = 'open' ORDER BY id DESC LIMIT 1)`).run(carry);
-      console.log(`[Lottery] Round ${round.id} had no entries — ${carry} sats rolled over`);
+    if (unclaimed > 0) {
+      houseCredit(unclaimed, `round ${round.id} unclaimed — no entries`);
+      console.log(`[Lottery] Round ${round.id} had no entries — ${unclaimed} sats to the house`);
     }
-    return { ok:true, winners:[], rolled_over: carry };
+    return { ok:true, winners:[], to_house: unclaimed };
   }
   // Count tickets per player
   const ticketsByPlayer = {};
