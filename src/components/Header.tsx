@@ -48,7 +48,7 @@ export default function Header() {
     <>
       <header className="header">
         <Cannabis size={36} style={{ color: 'var(--neon-green)', filter: 'drop-shadow(0 0 8px rgba(57,255,20,.5))' }} />
-        <span className="overview-title" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>JOINT FACTORY</span>
+        <span className="overview-title" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>JOINTFACTORY</span>
         <span className="overview-version">v0.2</span>
 
         {auth.isLoggedIn ? (

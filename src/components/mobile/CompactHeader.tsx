@@ -21,8 +21,8 @@ export default function CompactHeader() {
       <header className="compact-header">
         <div className="compact-header-title" onClick={() => navigate('/')}>
           <Cannabis size={42} className="compact-header-logo-icon" />
-          JOINT FACTORY
-          <span className="compact-header-version">v0.2</span>
+          JOINTFACTORY
+          <span className="compact-header-version">v0.3</span>
         </div>
 
         <div className="compact-header-row">
