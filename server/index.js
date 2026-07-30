@@ -22,7 +22,8 @@ import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount,
 import { buyBoost, getActiveBoosts } from './boosts.js';
 import { buySpeed, speedStatus } from './speed.js';
 import { solvency, houseBalance } from './house.js';
-import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder, OWNER_HEX } from './zap.js';
+import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder, OWNER_HEX, botSigner } from './zap.js';
+import { recipients, campaigns, sendBroadcast } from './broadcast.js';
 import { nip19 } from 'nostr-tools';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -269,12 +270,61 @@ fastify.post('/api/game/boost/claim', { preHandler: requireAuth }, async (req, r
   };
 });
 
+// ── Admin ───────────────────────────────────────────────────────────────────
+// Everything below is owner-only. The check is here rather than in a preHandler
+// so there is exactly one line to read when asking who can send DMs.
+async function requireOwner(req, reply) {
+  try { await req.jwtVerify(); } catch { return reply.code(401).send({ error: 'Unauthorized' }); }
+  if (req.user.npub !== OWNER_HEX) return reply.code(403).send({ error: 'Forbidden' });
+}
+
+/** Who a campaign would reach, and what has gone out already. */
+fastify.get('/api/admin/broadcast', { preHandler: requireOwner }, async (req) => {
+  const campaign = String(req.query?.campaign || '');
+  const signer = botSigner();
+  const list = recipients(campaign, signer.pubkey);
+  return {
+    ok: true,
+    bot: { pubkey: signer.pubkey, offline: signer.offline },
+    campaign,
+    total: list.length,
+    pending: list.filter(r => !r.sent_at).length,
+    recipients: list.map(r => ({
+      npub: r.npub,
+      name: r.display_name,
+      last_seen_at: r.last_seen_at,
+      created_at: r.created_at,
+      sent_at: r.sent_at,
+    })),
+    campaigns: campaigns(),
+  };
+});
+
+/**
+ * Send the broadcast. Dry by default — `dry_run: false` has to be asked for, and
+ * `confirm` has to spell out the campaign name, because there is no unsending a
+ * DM that reached a relay.
+ */
+fastify.post('/api/admin/broadcast', { preHandler: requireOwner }, async (req, reply) => {
+  const { message, campaign, dry_run = true, limit = 0, only = null, confirm = null } = req.body || {};
+  const live = dry_run === false;
+  if (live && confirm !== campaign) {
+    return reply.code(400).send({ error: 'To send for real, confirm must repeat the campaign name' });
+  }
+  const signer = botSigner();
+  const result = await sendBroadcast(
+    { message, campaign, dryRun: !live, limit: Number(limit) || 0, only },
+    signer.publish,
+    signer.secretKey,
+  );
+  if (!result.ok) return reply.code(400).send({ error: result.reason });
+  return result;
+});
+
 // ── Metrics ─────────────────────────────────────────────────────────────────
 // Aggregates only, no npubs, so it can be read from a browser without exposing
 // anyone's account. Owner-only all the same: it is revenue and retention data.
-fastify.get('/api/health/metrics', async (req, reply) => {
-  try { await req.jwtVerify(); } catch { return reply.code(401).send({ error: 'Unauthorized' }); }
-  if (req.user.npub !== OWNER_HEX) return reply.code(403).send({ error: 'Forbidden' });
+fastify.get('/api/health/metrics', { preHandler: requireOwner }, async (req) => {
   const days = Math.min(365, Math.max(1, Number(req.query?.days) || 30));
   // Today is rolled up on a half-hour cron; refresh it here so a look is current.
   rollupDay();

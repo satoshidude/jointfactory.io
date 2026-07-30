@@ -1,0 +1,228 @@
+.adm-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.adm-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--neon-gold);
+}
+
+.adm-head h1 {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  margin: 0;
+}
+
+.adm-offline {
+  margin-left: auto;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--neon-gold);
+}
+
+.adm-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+
+.adm-denied {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-body);
+  color: var(--text-secondary);
+}
+
+.adm-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.adm-note {
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.adm-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: #ff6b6b;
+}
+
+.adm-dim {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.adm-input,
+.adm-textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .35);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.adm-textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.adm-input-num { max-width: 120px; }
+
+.adm-input:focus,
+.adm-textarea:focus {
+  outline: none;
+  border-color: rgba(57, 255, 20, .5);
+}
+
+.adm-counts {
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+}
+
+.adm-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--neon-green);
+}
+
+.adm-count-val {
+  font-family: var(--font-heading);
+  font-size: 17px;
+}
+
+.adm-count-lbl {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.adm-refresh {
+  margin-left: auto;
+  padding: 6px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.adm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.adm-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.adm-confirm { min-width: 210px; }
+
+.adm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity .15s, border-color .15s, background .15s;
+}
+
+.adm-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.adm-btn-dry {
+  border: 1px solid rgba(57, 255, 20, .4);
+  background: rgba(57, 255, 20, .08);
+  color: var(--neon-green);
+}
+
+/* Gold, not green: this one leaves the building. */
+.adm-btn-live {
+  border: 1px solid rgba(255, 215, 0, .55);
+  background: rgba(255, 215, 0, .12);
+  color: var(--neon-gold);
+}
+
+.adm-btn-live:not(:disabled):hover {
+  background: rgba(255, 215, 0, .2);
+}
+
+.adm-result-head {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.adm-result-list,
+.adm-recipients {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.adm-result-row,
+.adm-recipient {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .03);
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.adm-recipient { justify-content: space-between; }
+.adm-recipient.done { opacity: .55; }
+.adm-result-row { color: var(--neon-green); }
+.adm-result-row.bad { color: #ff6b6b; }
+
+.adm-campaign {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-primary);
+}

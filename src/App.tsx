@@ -9,6 +9,7 @@ import MobileInfo from './pages/mobile/MobileInfo'
 import InvitePage from './pages/Invite'
 import PlayerProfile from './pages/PlayerProfile'
 import NostrProfileEdit from './pages/mobile/NostrProfileEdit'
+import MobileAdmin from './pages/mobile/MobileAdmin'
 import { GameDisplayProvider } from './stores/gameDisplayStore'
 import './App.css'
 
@@ -43,6 +44,8 @@ export default function App() {
           <Route path="/invite" element={<InvitePage />} />
           <Route path="/u/:npub" element={<PlayerProfile />} />
           <Route path="/r/:code" element={<RefRedirect />} />
+          {/* Not in the nav — owner-only, and the server enforces it. */}
+          <Route path="/admin" element={<MobileAdmin />} />
         </Routes>
       </MobileLayout>
     </GameDisplayProvider>

@@ -143,6 +143,16 @@ function publishToRelay(event) {
   return publishToAllRelays(event);
 }
 
+/**
+ * The bot's identity and relay publisher, for callers that build their own
+ * events — the owner broadcast signs one DM per recipient, so it needs the key
+ * rather than a ready-made helper. Kept as an explicit export so there is one
+ * place to look when asking what else can sign as the bot.
+ */
+export function botSigner() {
+  return { secretKey: serverSecretKey, pubkey: serverPubkeyHex, publish: publishToAllRelays, offline: NOSTR_OFFLINE };
+}
+
 // ---------------------------------------------------------------------------
 // Generic note publishing (Kind 1)
 // ---------------------------------------------------------------------------
