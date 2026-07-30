@@ -214,3 +214,13 @@
   color: var(--neon-green);
 }
 
+
+/* A declined purchase has to say so — silence reads as a broken button. */
+.lottery-mini-error {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: #ff6b6b;
+  text-align: center;
+}

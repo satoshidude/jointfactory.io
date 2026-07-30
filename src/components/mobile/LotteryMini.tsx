@@ -27,6 +27,7 @@ export default function LotteryMini() {
   const [buying, setBuying] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [lastResult, setLastResult] = useState<{ winner: string | null; payout: number } | null>(null)
+  const [buyError, setBuyError] = useState<string | null>(null)
   const drawAtRef = useRef(0)
   const prevCountdownRef = useRef(0)
 
@@ -98,12 +99,23 @@ export default function LotteryMini() {
     return () => ws.close()
   }, [fetchCurrent, fetchLastResult])
 
+  useEffect(() => {
+    if (!buyError) return
+    const id = setTimeout(() => setBuyError(null), 4000)
+    return () => clearTimeout(id)
+  }, [buyError])
+
   const handleBuy = async (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!auth.isLoggedIn || buying) return
     setBuying(true)
+    setBuyError(null)
     try {
       const res = await apiFetch('/lottery/buy', { method: 'POST' })
+      // A refusal used to vanish here: no else, no catch. The player saw a click
+      // that did nothing and a ticket count that stayed at zero, which reads as a
+      // broken purchase rather than a declined one.
+      if (!res.ok) setBuyError(res.error || res.reason || 'Purchase failed')
       if (res.ok) {
         setMyTickets(res.my_tickets || 0)
         setNextCost(res.next_ticket_cost || 0)
@@ -114,7 +126,9 @@ export default function LotteryMini() {
         if (typeof res.joints === 'number') auth.setJoints(res.joints, res.joints_rev)
         fetchCurrent()
       }
-    } catch {} finally {
+    } catch {
+      setBuyError('Network error')
+    } finally {
       setBuying(false)
     }
   }
@@ -172,6 +186,7 @@ export default function LotteryMini() {
               <span className="lottery-mini-avail">{ticketsToday}/{MAX_TICKETS_PER_DAY} today</span>
             </>}
           </button>
+          {buyError && <span className="lottery-mini-error">{buyError}</span>}
         </div>
       )}
     </div>
