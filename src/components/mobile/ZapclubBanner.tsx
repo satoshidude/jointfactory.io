@@ -43,7 +43,7 @@ export default function ZapclubBanner() {
       </div>
       <div className="zc-copy">
         <span className="zc-wordmark">zapclub<span className="zc-dot">.io</span></span>
-        <span className="zc-slogan">Listen together while the joints roll</span>
+        <span className="zc-slogan">DJ and listen together while rolling your joints!</span>
         <span className="zc-sub">Open a club that belongs to you — same crew, same beat, real zaps.</span>
         <span className="zc-cta">Open a club →</span>
       </div>
