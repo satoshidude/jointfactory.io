@@ -12,6 +12,7 @@ import LotteryMini from '../../components/mobile/LotteryMini'
 import BoostBar from '../../components/mobile/BoostBar'
 import SpeedCard from '../../components/mobile/SpeedCard'
 import GrowthRace from '../../components/mobile/GrowthRace'
+import ZapclubBanner from '../../components/mobile/ZapclubBanner'
 import Leaderboard from '../../components/mobile/Leaderboard'
 import './MobilePages.css'
 
@@ -144,6 +145,8 @@ export default function MobileGame() {
         />
 
         <GrowthRace />
+
+        <ZapclubBanner />
       </div>
     </div>
   )
