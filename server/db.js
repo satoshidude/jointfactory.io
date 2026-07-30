@@ -153,6 +153,59 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_active_boosts_expiry ON active_boosts(expires_at);
 `);
 
+// ── Event log ────────────────────────────────────────────────────────────────
+// Every table above holds *state*: the current speed level, the boosts running
+// right now, what a game_state looks like at this second. None of it says when
+// anything happened, so questions the next round of balancing depends on —
+// what do players spend on first, how long until a chain is automated, does a
+// boost lead to a ticket — cannot be answered afterwards at any price.
+//
+// One append-only row per decision closes that. Cheap: a few hundred rows a day
+// at the current player count, and the aggregates in server/metrics.js roll them
+// into one row per day so the raw rows can be pruned without losing the trend.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL DEFAULT (unixepoch()),
+    npub TEXT,
+    type TEXT NOT NULL,
+    amount INTEGER DEFAULT 0,   -- sats or joints, whichever the type spends
+    meta TEXT                   -- JSON, type-specific detail
+  );
+  CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
+  CREATE INDEX IF NOT EXISTS idx_events_type_ts ON events(type, ts);
+  CREATE INDEX IF NOT EXISTS idx_events_npub_ts ON events(npub, ts);
+
+  CREATE TABLE IF NOT EXISTS daily_stats (
+    day TEXT PRIMARY KEY,       -- YYYY-MM-DD, Berlin
+    data TEXT NOT NULL,         -- JSON blob, see server/metrics.js
+    built_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+`);
+
+const _logEventStmt = db.prepare(
+  'INSERT INTO events (npub, type, amount, meta) VALUES (?, ?, ?, ?)'
+);
+
+/**
+ * Record something a player did. Never throws — an analytics write must not be
+ * able to fail a purchase.
+ *
+ * @param {string|null} npub
+ * @param {string} type   'signup' | 'active' | 'manager' | 'speed' | 'boost' |
+ *                        'boost_claim' | 'ticket' | 'deposit' | 'withdraw' |
+ *                        'draw' | 'win' | 'invite_signup' | 'invite_unlock'
+ * @param {number} [amount] sats for sats spends, joints for joints spends
+ * @param {object} [meta]
+ */
+export function logEvent(npub, type, amount = 0, meta = null) {
+  try {
+    _logEventStmt.run(npub || null, type, Math.round(amount || 0), meta ? JSON.stringify(meta) : null);
+  } catch (err) {
+    console.warn('[Events] write failed:', err.message);
+  }
+}
+
 // Draw schedule lives in shared/schedule.js — pure date math, no DB, testable.
 
 export function ensureOpenRound() {

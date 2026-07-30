@@ -1,5 +1,5 @@
 import { randomInt } from 'crypto';
-import { db, ensureOpenRound } from './db.js';
+import { db, ensureOpenRound, logEvent } from './db.js';
 import { DRAW_LABEL } from '../shared/schedule.js';
 import { potPayout, ticketPrice, ticketPreview, winnerCount, countLotteryManagers,
          MAX_WINNERS, MAX_TICKETS_PER_DAY, REQUIRED_MANAGERS } from '../shared/economy.js';
@@ -7,6 +7,7 @@ import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
 import { houseCredit, solvency } from './house.js';
+import { rollupDay, yesterday, pruneEvents } from './metrics.js';
 import { playerRate } from './speed.js';
 
 export { MAX_WINNERS };
@@ -110,6 +111,7 @@ export function buyTicket(npub) {
   // next autosave used to undo it outright.
   const bal = db.prepare('SELECT joints, joints_rev FROM players WHERE npub=?').get(npub);
   const balance = bal?.joints ?? 0;
+  logEvent(npub, 'ticket', result.cost, { round: round.id, nth_today: result.boughtToday });
 
   return { ok:true, round_id:round.id, my_tickets:result.myCount, total_tickets:allTickets.length,
     pool_sats:updatedRound.total_sats_collected, draws_at:round.draws_at,
@@ -140,6 +142,7 @@ export async function runDraw(roundId) {
     ensureOpenRound();
     if (unclaimed > 0) {
       houseCredit(unclaimed, `round ${round.id} unclaimed — no entries`);
+      logEvent(null, 'draw', unclaimed, { round: round.id, entries: 0, to_house: unclaimed });
       console.log(`[Lottery] Round ${round.id} had no entries — ${unclaimed} sats to the house`);
     }
     return { ok:true, winners:[], to_house: unclaimed };
@@ -201,6 +204,9 @@ export async function runDraw(roundId) {
     }
   }
   db.prepare(`UPDATE lottery_rounds SET winner_paid_at=unixepoch() WHERE id=?`).run(round.id);
+  logEvent(null, 'draw', gross, { round: round.id, entries: new Set(pool).size, tickets: totalTickets,
+                                  winners: winners.length, paid: payoutPool - botShare, cut: gross - payoutPool, bot_share: botShare });
+  for (const npub of winners) logEvent(npub, 'win', payouts[npub] || 0, { round: round.id, tickets: ticketsByPlayer[npub] });
 
   // Broadcast result via WS
   const winnerList = winners.map(npub => {
@@ -251,6 +257,20 @@ export function startCron() {
       unique_players: uniquePlayers,
     });
   }, 1000);
+
+  // Roll yesterday up shortly after Berlin midnight, and today again every
+  // hour, so a look at the numbers is never more than an hour stale. Rebuilding
+  // a day is idempotent — every figure is derived, nothing is incremented.
+  cron.schedule('12 0 * * *', () => {
+    try {
+      rollupDay(yesterday());
+      pruneEvents();
+    } catch (err) { console.error('[Metrics] daily rollup failed:', err.message); }
+  }, { timezone: 'Europe/Berlin' });
+
+  cron.schedule('*/30 * * * *', () => {
+    try { rollupDay(); } catch (err) { console.error('[Metrics] rollup failed:', err.message); }
+  }, { timezone: 'Europe/Berlin' });
 
   // Hourly solvency check. A shortfall means sats were credited that no
   // deposit backs, so a withdrawal run could not be honoured.

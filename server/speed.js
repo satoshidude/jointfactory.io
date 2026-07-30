@@ -23,7 +23,7 @@
  * decision: chance at sats, or permanent growth.
  */
 
-import { db } from './db.js';
+import { db, logEvent } from './db.js';
 import { speedCost, speedMultiplier, throughput } from '../shared/economy.js';
 
 /**
@@ -87,5 +87,6 @@ export function buySpeed(npub) {
 
   const player = db.prepare('SELECT joints, joints_rev FROM players WHERE npub = ?').get(npub);
   console.log(`[Speed] ${npub.slice(0, 8)}… bought level ${result.level} for ${result.cost} joints (x${result.multiplier.toFixed(2)})`);
+  logEvent(npub, 'speed', result.cost, { level: result.level, multiplier: Number(result.multiplier.toFixed(3)) });
   return { ...result, joints: player?.joints ?? 0, joints_rev: player?.joints_rev ?? 0, ...speedStatus(npub) };
 }

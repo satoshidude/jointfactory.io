@@ -1,5 +1,5 @@
-import { db } from './db.js';
-import { rehydrate, throughput } from '../shared/economy.js';
+import { db, logEvent } from './db.js';
+import { rehydrate, throughput, countManagers } from '../shared/economy.js';
 
 export function loadState(npub) {
   const player = db.prepare('SELECT * FROM players WHERE npub = ?').get(npub);
@@ -51,6 +51,9 @@ const _saveStateTx = db.transaction((npub, payload) => {
       db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ?
                   WHERE id = (SELECT id FROM lottery_rounds WHERE status = 'open' ORDER BY id DESC LIMIT 1)`).run(mgrSpent);
       console.log(`[Lottery] Adding ${mgrSpent} sats from ${npub.slice(0, 8)}... to pot`);
+      // Managers are the only sats spend the client reports rather than requests,
+      // so this is where that money becomes visible to the analytics.
+      logEvent(npub, 'manager', mgrSpent, { managers: countManagers(gameState) });
       potUpdated = true;
     } else {
       console.warn(`[Game] Spend of ${mgrSpent} sats by ${npub.slice(0, 12)}… exceeds balance — not deducted`);
@@ -60,6 +63,13 @@ const _saveStateTx = db.transaction((npub, payload) => {
   const existing = db.prepare(
     'SELECT joints, total_joints_earned, speed_level, last_seen_at, joints_rev FROM players WHERE npub = ?'
   ).get(npub);
+
+  // One row per player per session, for retention: last_seen_at only ever holds
+  // the latest visit, so how often anyone came back was unrecoverable. A gap of
+  // half an hour counts as a new session.
+  if (existing && (Math.floor(Date.now() / 1000) - (existing.last_seen_at || 0)) > 1800) {
+    logEvent(npub, 'active', 0, { away_hours: Math.round((Date.now() / 1000 - (existing.last_seen_at || 0)) / 360) / 10 });
+  }
 
   // Guard: reject saves that would reset a player's progress to zero
   const incomingTotal = Math.floor(total_joints_earned || 0);

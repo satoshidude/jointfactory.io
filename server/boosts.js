@@ -14,7 +14,7 @@
  * cannot extend a boost by lying about the clock.
  */
 
-import { db } from './db.js';
+import { db, logEvent } from './db.js';
 import { BOOSTS } from '../shared/economy.js';
 
 export function getActiveBoosts(npub) {
@@ -41,6 +41,7 @@ export function activateBoost(npub, type, reason = '') {
      ON CONFLICT(npub, type) DO UPDATE SET expires_at = excluded.expires_at`
   ).run(npub, type, expires_at);
   console.log(`[Boost] Activated ${type} for ${npub.slice(0, 8)}…${reason ? ` (${reason})` : ''}, until ${new Date(expires_at * 1000).toISOString()}`);
+  logEvent(npub, 'boost_claim', 0, { boost: type, reason });
   return { type, expires_at };
 }
 
@@ -94,5 +95,6 @@ export function buyBoost(npub, type) {
   if (!result.ok) return result;
 
   console.log(`[Boost] ${npub.slice(0, 8)}… bought ${type} for ${result.cost} sats (${result.toPot} to pot)`);
+  logEvent(npub, 'boost', result.cost, { boost: type, minutes: BOOSTS[type].durationSec / 60 });
   return { ...result, boosts: getActiveBoosts(npub) };
 }

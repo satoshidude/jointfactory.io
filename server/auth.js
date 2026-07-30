@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { db, logEvent } from './db.js';
 import { activateBoost } from './boosts.js';
 import { countLotteryManagers, REQUIRED_MANAGERS } from '../shared/economy.js';
 import { verifyEvent } from 'nostr-tools';
@@ -73,6 +73,8 @@ export function getOrCreatePlayer(npub, referralCode) {
     `).run(npub, name, inviteCode, referredBy);
     player = db.prepare('SELECT * FROM players WHERE npub = ?').get(npub);
     is_new = true;
+    logEvent(npub, 'signup', 0, { referred: !!referredBy });
+    if (referredBy) logEvent(referredBy, 'invite_signup', 0, { buddy: npub });
     console.log('[Auth] New player:', npub.slice(0, 16) + '...', 'name:', name, 'invite:', inviteCode, referredBy ? 'ref:' + referredBy.slice(0, 8) : '');
   }
   // Backfill invite_code for existing players
@@ -118,6 +120,7 @@ const _referralRewardTx = db.transaction((npub) => {
 
   const referrerNpub = player.referred_by;
   const rewardedCount = db.prepare('SELECT COUNT(*) as c FROM players WHERE referred_by = ? AND referral_rewarded = 1').get(referrerNpub)?.c || 0;
+  logEvent(referrerNpub, 'invite_unlock', 0, { buddy: npub, nth: rewardedCount });
   console.log(`[Invite] Reward #${rewardedCount} unlocked for ${referrerNpub.slice(0, 8)}… — buddy ${npub.slice(0, 8)}… automated their chain`);
   return { referrerNpub, rewardedCount, buddyNpub: npub };
 });
