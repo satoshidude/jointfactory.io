@@ -31,7 +31,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 initZapDb(db);
 initLotteryReminder(db);
 
-const fastify = Fastify({ logger: false, bodyLimit: 1048576 });
+// trustProxy: Caddy terminates TLS on the same host and forwards, so without
+// this every request arrives as 127.0.0.1 — which the rate limiter's allow list
+// then waved through. The limit existed on paper and applied to nobody. Only the
+// loopback proxy is trusted, so a forged X-Forwarded-For from outside is ignored.
+const fastify = Fastify({ logger: false, bodyLimit: 1048576, trustProxy: '127.0.0.1' });
 
 fastify.addContentTypeParser('text/plain', { parseAs: 'string' }, (req, body, done) => {
   try { done(null, JSON.parse(body)); } catch(e) { done(null, body); }
@@ -41,10 +45,15 @@ fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bo
   try { done(null, JSON.parse(body)); } catch(e) { done(null, {}); }
 });
 
+// 120/min: a playing client makes a handful of requests a minute (autosave every
+// 30 s, lottery refreshes, purchases), so this leaves room for several players
+// behind one address while still stopping a scripted flood.
 await fastify.register(fastifyRateLimit, {
-  max: 60,
+  max: 120,
   timeWindow: '1 minute',
-  allowList: ['127.0.0.1'],
+  // The webhook is LNbits calling in; it is verified against LNbits anyway and
+  // must not be dropped because a burst of players shared its address.
+  allowList: (req) => req.url?.startsWith('/api/lightning/webhook'),
 });
 await fastify.register(fastifyCors, { origin: ['https://jointfactory.io', 'https://dev.jointfactory.io'] });
 await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET || 'devsecret' });
