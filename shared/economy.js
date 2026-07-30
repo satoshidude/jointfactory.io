@@ -327,12 +327,24 @@ export const DAY_SECONDS = 86400
  * Share of one day's production each of the four daily tickets costs, for a
  * player at the top anchor. Rising, so a further ticket the same day costs
  * more; the four together are exactly one day of output.
+ *
+ * The first was 15 %, i.e. 3.6 hours of production. Reachable in principle, but
+ * not in practice: levels pay themselves back in seconds, so an active player's
+ * balance is always freshly spent and the ticket sat permanently out of reach.
+ * At 10 % the first one is about two and a half hours of output — long enough to
+ * be a decision, short enough to be a plan. The steeper tail keeps the full
+ * allowance at one day, so nobody sweeps a round cheaply.
  */
-export const TICKET_DAY_SHARE = [0.15, 0.22, 0.28, 0.35]
+export const TICKET_DAY_SHARE = [0.10, 0.18, 0.28, 0.44]
 
 /** A fresh plantation with the three free managers: 1.25 joints/s. */
 export const RATE_BEGINNER = 1.25
-/** Today's endgame players sit at ~1.6 billion joints/s. */
+/**
+ * Where the beginner discount runs out: at or above this rate a ticket costs
+ * exactly its share of the buyer's day. It was set from the fastest player at
+ * the time; the leaders have since passed it by more than an order of magnitude,
+ * which changes nothing for them — the scale simply bottoms out at 1.
+ */
 export const RATE_TOP = 1.6e9
 
 // Beginner target: the first ticket of the day costs two days of production.
