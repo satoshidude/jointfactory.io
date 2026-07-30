@@ -28,3 +28,15 @@ dist-ssr
 .env
 data/
 server/index.js.backup.*
+
+# Database copies, wherever they land. Snapshots pulled for local testing and
+# the pre-deploy backups on the server hold every player's npub, balance and
+# game state — one `git add -A` in the wrong directory would publish the lot.
+backups/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite*
+
+# Agent/editor scratch that only makes sense on one machine
+.claude/
