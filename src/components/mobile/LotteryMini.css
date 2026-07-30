@@ -104,6 +104,14 @@
   color: var(--neon-gold) !important;
 }
 
+/* The round's ticket count and the player's own sat side by side as two
+   identical icons — "🎫 5 … 🎫 0" reads as one number twice. */
+.lottery-mini-my .lottery-mini-stat-label {
+  font-size: 13px;
+  color: var(--neon-gold);
+  opacity: .8;
+}
+
 .lottery-mini-my svg {
   color: var(--neon-gold) !important;
   filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4)) !important;
@@ -206,11 +214,3 @@
   color: var(--neon-green);
 }
 
-.lottery-mini-hint {
-  display: block;
-  margin-top: 6px;
-  font-family: var(--font-body);
-  font-size: 11px;
-  color: var(--text-secondary);
-  text-align: center;
-}

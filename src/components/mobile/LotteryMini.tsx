@@ -5,7 +5,7 @@ import { apiFetch, wsUrl } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import './LotteryMini.css'
-import { fmtNum as fmtSats, fmtCountdown, fmtDrawTime, fmtSpan } from '../../lib/format'
+import { fmtNum as fmtSats, fmtCountdown, fmtDrawTime } from '../../lib/format'
 import { potPayout, MAX_TICKETS_PER_DAY } from '../../../shared/economy.js'
 
 interface MiniRound {
@@ -27,7 +27,6 @@ export default function LotteryMini() {
   const [buying, setBuying] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [lastResult, setLastResult] = useState<{ winner: string | null; payout: number } | null>(null)
-  const [rate, setRate] = useState(0)
   const drawAtRef = useRef(0)
   const prevCountdownRef = useRef(0)
 
@@ -38,7 +37,6 @@ export default function LotteryMini() {
         setMyTickets(res.my_tickets ?? 0)
         setNextCost(res.next_ticket_cost ?? 0)
         setTicketsToday(res.tickets_today ?? 0)
-        setRate(res.production_rate ?? 0)
         drawAtRef.current = res.round.draws_at
         setCountdown(Math.max(0, res.round.draws_at - Math.floor(Date.now() / 1000)))
       }
@@ -123,6 +121,8 @@ export default function LotteryMini() {
 
   // Four tickets per rolling day, so a hoarded balance cannot empty a round.
   const dayLimitReached = ticketsToday >= MAX_TICKETS_PER_DAY
+  // What is still missing for the next ticket, 0 when it is affordable.
+  const short = Math.max(0, Math.ceil(nextCost - auth.joints))
   const canBuy = auth.isLoggedIn && auth.joints >= nextCost && nextCost > 0
     && !buying && gd.eligible && !dayLimitReached
 
@@ -142,11 +142,11 @@ export default function LotteryMini() {
       </div>
       <div className="lottery-mini-stats">
         <span className="lottery-mini-stat"><span className="lottery-mini-stat-label">Pot</span> <Zap size={14} /> {fmtSats(round.pot_sats)}</span>
-        <span className="lottery-mini-stat"><Ticket size={14} /> {round.total_tickets}</span>
-        <span className="lottery-mini-stat"><Users size={14} /> {round.unique_players}</span>
+        <span className="lottery-mini-stat" title="Tickets in this round"><Ticket size={14} /> {round.total_tickets}</span>
+        <span className="lottery-mini-stat" title="Players in this round"><Users size={14} /> {round.unique_players}</span>
         {auth.isLoggedIn && (
-          <span className="lottery-mini-stat lottery-mini-my" title="Tickets this round">
-            <Ticket size={14} /> {myTickets}
+          <span className="lottery-mini-stat lottery-mini-my" title="Your tickets in this round">
+            <span className="lottery-mini-stat-label">Yours</span> <Ticket size={14} /> {myTickets}
           </span>
         )}
       </div>
@@ -164,19 +164,14 @@ export default function LotteryMini() {
           <button className="lottery-mini-buy-btn" onClick={handleBuy} disabled={!canBuy}>
             {buying ? 'Buying...' : dayLimitReached ? <>
               <Ticket size={14} /> {MAX_TICKETS_PER_DAY}/{MAX_TICKETS_PER_DAY} today — back tomorrow
+            </> : short > 0 ? <>
+              <Cannabis size={12} /> {fmtSats(short)} more for a ticket
             </> : <>
               <TicketPlus size={14} /> Ticket — <Cannabis size={12} /> {fmtSats(nextCost)}
               <span className="lottery-mini-pipe">|</span>
               <span className="lottery-mini-avail">{ticketsToday}/{MAX_TICKETS_PER_DAY} today</span>
             </>}
           </button>
-          {/* A ticket is priced in production time, so the gap is best read the
-              same way — "3.4 h of production" is a plan, "543 T more" is a wall. */}
-          {!dayLimitReached && nextCost > auth.joints && rate > 0 && (
-            <span className="lottery-mini-hint">
-              {fmtSpan((nextCost - auth.joints) / rate)} of production to go
-            </span>
-          )}
         </div>
       )}
     </div>

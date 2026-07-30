@@ -405,7 +405,7 @@ fastify.get('/api/lottery/current', async (req) => {
   const tickets = getRoundTickets(round.id);
   const uniquePlayers = new Set(tickets.map(t => t.npub)).size;
 
-  let myTickets = 0, nextCost = 0, preview = [], ticketsToday = 0, eligibility = null, rate = 0;
+  let myTickets = 0, nextCost = 0, preview = [], ticketsToday = 0, eligibility = null;
   try {
     await req.jwtVerify();
     myTickets    = getMyTicketCount(req.user.npub, round.id);
@@ -416,9 +416,6 @@ fastify.get('/api/lottery/current', async (req) => {
     // which only runs on the Grow page — landing on /lottery directly told a
     // fully automated player to "hire more managers".
     eligibility  = ticketEligibility(req.user.npub);
-    // The rate the price is measured against, so the page can turn a shortfall
-    // into a waiting time instead of quoting an unreachable-looking number.
-    rate         = speedStatus(req.user.npub).rate;
   } catch(e) {
     // Anonymous visitor: no game state, so no meaningful price to quote.
     preview = [];
@@ -442,7 +439,6 @@ fastify.get('/api/lottery/current', async (req) => {
     next_ticket_cost: nextCost,
     price_preview: preview,
     eligibility,
-    production_rate: rate,
     my_total_won_sats: req.user ? (() => {
       const rows = db.prepare(`
         SELECT winner_payout_sats FROM lottery_rounds
