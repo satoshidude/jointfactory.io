@@ -26,7 +26,9 @@ const DEFAULT_MESSAGE = `Hey {name}, JOINTFACTORY just got a big update!
 
 Lottery draws are now Tue, Thu & Sat at 21:00 — bigger pots, and up to a third of the players in a round win a share.
 
-New: spend joints for permanent speed on the whole chain, timed boosts for sats, and all three managers are free for everyone now.
+New: spend joints for permanent speed on the whole chain, timed boosts for sats (2x grow, 3x courier, 2x factory, or 2x everything), and all three managers are free for everyone now.
+
+Invites pay in boosts instead of sats: every buddy who automates their chain earns you an hour of Full Throttle — 2x on plantations, courier and factory. They show up as a tile in your boost card, one click starts the hour, and several buddies stack.
 
 Your factory kept producing while you were away. Come see what piled up:
 https://jointfactory.io`
