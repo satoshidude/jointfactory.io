@@ -11,17 +11,18 @@ import * as wsHub from './ws.js';
 import { verifyNostrAuth, getOrCreatePlayer, checkReferralReward, listReferralBoosts,
         claimReferralBoost, REFERRAL_BOOST } from './auth.js';
 import { loadState, saveState, updateProfile, deletePlayer } from './game.js';
-import { createInvoice, handleWebhook, payToLightningAddress, SAT_PACKS } from './lightning.js';
+import { createInvoice, confirmAndCredit, payToLightningAddress, SAT_PACKS, WEBHOOK_SECRET } from './lightning.js';
 import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         startCron, getTicketPrice, getMyTicketCount, getPriceCurvePreview,
         MAX_WINNERS, SAT_PER_TICKET, ticketsBoughtToday, ticketEligibility } from './lottery.js';
-import { db, logRateChange } from './db.js';
+import { db, logRateChange, logEvent } from './db.js';
+import { rollupDay, recentStats } from './metrics.js';
 import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount,
          MAX_TICKETS_PER_DAY, boostMultipliers, BOOSTS } from '../shared/economy.js';
 import { buyBoost, getActiveBoosts } from './boosts.js';
 import { buySpeed, speedStatus } from './speed.js';
 import { solvency, houseBalance } from './house.js';
-import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder } from './zap.js';
+import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder, OWNER_HEX } from './zap.js';
 import { nip19 } from 'nostr-tools';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -268,6 +269,18 @@ fastify.post('/api/game/boost/claim', { preHandler: requireAuth }, async (req, r
   };
 });
 
+// ── Metrics ─────────────────────────────────────────────────────────────────
+// Aggregates only, no npubs, so it can be read from a browser without exposing
+// anyone's account. Owner-only all the same: it is revenue and retention data.
+fastify.get('/api/health/metrics', async (req, reply) => {
+  try { await req.jwtVerify(); } catch { return reply.code(401).send({ error: 'Unauthorized' }); }
+  if (req.user.npub !== OWNER_HEX) return reply.code(403).send({ error: 'Forbidden' });
+  const days = Math.min(365, Math.max(1, Number(req.query?.days) || 30));
+  // Today is rolled up on a half-hour cron; refresh it here so a look is current.
+  rollupDay();
+  return { ok: true, solvency: solvency(), days: recentStats(days) };
+});
+
 // Delete own account
 fastify.delete('/api/game/profile', { preHandler: requireAuth }, async (req) => {
   const npub = req.user.npub;
@@ -305,11 +318,18 @@ fastify.post('/api/lightning/invoice', { preHandler: requireAuth }, async (req, 
   try { return await createInvoice(req.user.npub, packId); }
   catch(e) { return reply.code(400).send({ error: e.message }); }
 });
-fastify.post('/api/lightning/webhook', async (req) => {
+fastify.post('/api/lightning/webhook', async (req, reply) => {
+  // LNbits calls back with the token that was baked into the webhook URL at
+  // invoice creation. Nothing is credited on the strength of this alone — the
+  // amount is confirmed with LNbits either way — but it keeps unsolicited
+  // callers from making us do the lookup at all.
+  if (WEBHOOK_SECRET && req.query?.token !== WEBHOOK_SECRET) {
+    return reply.code(401).send({ ok: false });
+  }
   const body = req.body || {};
   const payment_hash = body.payment_hash || body.checking_id;
   if (!payment_hash) return { ok: false };
-  const result = handleWebhook(payment_hash);
+  const result = await confirmAndCredit(payment_hash);
   // Notify player via WS if paid
   if (result?.ok && result?.npub && result?.sats) {
     const player = db.prepare('SELECT sats FROM players WHERE npub=?').get(result.npub);
@@ -436,6 +456,7 @@ fastify.post('/api/game/withdraw', { preHandler: requireAuth }, async (req, repl
   try {
     await payToLightningAddress(lightning_address, amt, 'Withdraw from Joint Factory');
     db.prepare('INSERT INTO withdrawals (npub, amount_sats, lightning_address) VALUES (?, ?, ?)').run(req.user.npub, amt, lightning_address);
+    logEvent(req.user.npub, 'withdraw', amt, { to: lightning_address.split('@')[1] || null });
     const updated = db.prepare('SELECT sats FROM players WHERE npub=?').get(req.user.npub);
     wsHub.notifySatsUpdate(req.user.npub, updated?.sats || 0);
     return reply.send({ ok:true, paid:amt });
@@ -639,22 +660,17 @@ fastify.get('/api/lightning/status/:hash', { preHandler: requireAuth }, async (r
   const row = db.prepare('SELECT status, amount_sats, npub FROM lightning_payments WHERE payment_hash = ? AND npub = ?').get(hash, req.user.npub);
   if (!row) return { paid: false, found: false };
   if (row.status === 'paid') return { paid: true, status: 'paid', amount_sats: row.amount_sats };
-  // Check LNbits directly if not yet marked paid
+  // Not marked paid yet — ask LNbits through the same verified path the webhook
+  // uses, so there is one place that decides whether a deposit is real.
   try {
-    const lnRes = await fetch(`${process.env.LNBITS_URL || 'https://lnbits.nsnip.io'}/api/v1/payments/${hash}`, {
-      headers: { 'X-Api-Key': process.env.LNBITS_INVOICE_KEY || '' },
-    });
-    if (lnRes.ok) {
-      const lnData = await lnRes.json();
-      if (lnData.paid === true) {
-        const result = handleWebhook(hash);
-        if (result?.ok && result?.npub && result?.sats) {
-          const player = db.prepare('SELECT sats FROM players WHERE npub=?').get(result.npub);
-          wsHub.notifyPaymentConfirmed(result.npub, result.sats);
-          if (player) wsHub.notifySatsUpdate(result.npub, player.sats);
-        }
-        return { paid: true, status: 'paid', amount_sats: row.amount_sats };
+    const result = await confirmAndCredit(hash);
+    if (result?.ok) {
+      if (result.npub && result.sats) {
+        const player = db.prepare('SELECT sats FROM players WHERE npub=?').get(result.npub);
+        wsHub.notifyPaymentConfirmed(result.npub, result.sats);
+        if (player) wsHub.notifySatsUpdate(result.npub, player.sats);
       }
+      return { paid: true, status: 'paid', amount_sats: row.amount_sats };
     }
   } catch(_) {}
   return { paid: false, status: row.status, amount_sats: row.amount_sats };

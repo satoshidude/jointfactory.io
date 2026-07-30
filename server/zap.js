@@ -570,7 +570,7 @@ cron.schedule('* * * * *', async () => {
 // New user report DM to satoshidude (3x daily)
 // ---------------------------------------------------------------------------
 
-const OWNER_HEX = '661419f8f48b1b496e2249aee97a6ad9d5bea907149dc7bf3eb7479f2bce555e';
+export const OWNER_HEX = '661419f8f48b1b496e2249aee97a6ad9d5bea907149dc7bf3eb7479f2bce555e';
 const KV_LAST_REPORT_KEY = 'last_user_report_ts';
 
 // Runs at 08:00, 16:00, 22:00 Berlin time
