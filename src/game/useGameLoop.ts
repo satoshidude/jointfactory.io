@@ -235,6 +235,14 @@ let _pendingManagerSats = 0
 // autosave interval — no extra request, no polling.
 let _grantsListener: ((grants: BoostGrant[]) => void) | null = null
 
+// The server is the authority on the balance. It clamps a figure that could not
+// plausibly have been earned since the last save, and it keeps its own when a
+// purchase arrived in between — but it never said so, so a client that had run
+// ahead kept showing a balance the account did not have and every purchase
+// failed against a number the player could see. Saves answer with the stored
+// figure now, and this adopts it.
+let _balanceListener: ((joints: number, rev: number) => void) | null = null
+
 export function addManagerSatsSpent(amount: number) {
   _pendingManagerSats += amount
 }
@@ -260,9 +268,11 @@ async function saveToServer(gs: GameState, joints: number, sats: number, totalJo
     })
     if (res.ok) {
       _pendingManagerSats -= mgrSats
-      if (_grantsListener) {
-        const data = await res.json().catch(() => null)
-        if (data?.boost_grants) _grantsListener(data.boost_grants as BoostGrant[])
+      const data = await res.json().catch(() => null)
+      if (data?.boost_grants && _grantsListener) _grantsListener(data.boost_grants as BoostGrant[])
+      if (data?.corrected && typeof data.joints === 'number' && _balanceListener) {
+        console.warn('[JF] Balance corrected by the server:', Math.floor(joints), '→', data.joints)
+        _balanceListener(data.joints, data.joints_rev ?? 0)
       }
     }
   } catch { /* silent */ }
@@ -359,7 +369,13 @@ export function useGameLoop(
   const inTransitionRef = useRef(false)
   useEffect(() => {
     _grantsListener = setBoostGrants
-    return () => { _grantsListener = null }
+    _balanceListener = (serverJoints: number, rev: number) => {
+      jointsRef.current = serverJoints
+      jointsRevRef.current = rev
+      onJointsChangeRef.current?.(serverJoints)
+      flush()
+    }
+    return () => { _grantsListener = null; _balanceListener = null }
   }, [])
   useEffect(() => { onJointsChangeRef.current = onJointsChange }, [onJointsChange])
   useEffect(() => { onSatsChangeRef.current = onSatsChange }, [onSatsChange])

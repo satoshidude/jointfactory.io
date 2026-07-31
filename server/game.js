@@ -1,4 +1,5 @@
 import { db, logEvent } from './db.js';
+import { getActiveBoosts } from './boosts.js';
 import { rehydrate, throughput, countManagers } from '../shared/economy.js';
 
 export function loadState(npub) {
@@ -98,6 +99,7 @@ const _saveStateTx = db.transaction((npub, payload) => {
   // the rest of the state still saves. Without this a ticket or speed purchase
   // refunded itself on the next autosave — the plausibility ceiling below is
   // far too generous to catch it, by design.
+  const reported = plausible;
   const staleBalance = existing && joints_rev !== undefined && joints_rev !== existing.joints_rev;
   if (staleBalance) {
     console.warn(`[Game] Stale balance from ${npub.slice(0, 12)}… (rev ${joints_rev} vs ${existing.joints_rev}) — keeping server figure`);
@@ -105,13 +107,31 @@ const _saveStateTx = db.transaction((npub, payload) => {
   } else if (existing) {
     const elapsed = Math.max(0, Math.floor(Date.now() / 1000) - (existing.last_seen_at || 0));
     let rate = 0;
-    try { rate = throughput(gameState, { speedLevel: existing.speed_level || 0 }).jointsPerSec; } catch { /* no output */ }
+    try {
+      // Boosts count towards what is plausible. Express Run alone triples the
+      // courier, and a chain bottlenecked there legitimately produces three
+      // times the unboosted rate — right at the old headroom, so an honest
+      // boosted player was being clamped and quietly losing what they earned.
+      rate = throughput(gameState, {
+        speedLevel: existing.speed_level || 0,
+        boosts: getActiveBoosts(npub),
+        nowSec: Math.floor(Date.now() / 1000),
+      }).jointsPerSec;
+    } catch { /* no output */ }
     const ceiling = existing.joints + rate * elapsed * 3 + 1000;
     if (plausible > ceiling) {
       console.warn(`[Game] Clamped joints for ${npub.slice(0, 12)}…: reported ${plausible}, ceiling ${Math.floor(ceiling)}`);
       plausible = Math.floor(ceiling);
     }
   }
+
+  // Whatever the server decided is what the account has. Telling the client is
+  // the half that was missing: a clamped client kept its own inflated figure,
+  // re-posted it every thirty seconds, and showed a balance that did not exist.
+  // Purchases then failed for "not enough joints" against a number the player
+  // could see on screen — which reads as being robbed, not as being corrected.
+  const corrected = plausible !== reported;
+  if (corrected) logEvent(npub, 'clamp', reported - plausible, { reported, kept: plausible, stale: !!staleBalance });
 
   // Save game state — sats is NEVER written from client
   db.prepare(`
@@ -130,7 +150,8 @@ const _saveStateTx = db.transaction((npub, payload) => {
     npub
   );
 
-  return { ok: true, potUpdated };
+  const rev = db.prepare('SELECT joints_rev FROM players WHERE npub = ?').get(npub)?.joints_rev ?? 0;
+  return { ok: true, potUpdated, joints: plausible, joints_rev: rev, corrected };
 });
 
 export function saveState(npub, payload) {
