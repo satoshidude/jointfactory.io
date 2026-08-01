@@ -116,6 +116,11 @@ const _saveStateTx = db.transaction((npub, payload) => {
         speedLevel: existing.speed_level || 0,
         boosts: getActiveBoosts(npub),
         nowSec: Math.floor(Date.now() / 1000),
+        // What the chain could do with every station running, not just the
+        // automated ones: tapping by hand is legitimate production, and a
+        // player who has not hired all three managers had a modelled rate of
+        // zero — so everything they earned by hand was clamped away.
+        ignoreManagers: true,
       }).jointsPerSec;
     } catch { /* no output */ }
     const ceiling = existing.joints + rate * elapsed * 3 + 1000;

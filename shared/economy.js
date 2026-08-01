@@ -239,7 +239,7 @@ export function speedMultiplier(level) {
  * @param {{ speedLevel?: number, boosts?: Array<{ type: string, expires_at: number }>, nowSec?: number }} [opts]
  * @returns {{ plant: number, courier: number, fabrik: number, jointsPerSec: number }}
  */
-export function throughput(gs, { speedLevel = 0, boosts = [], nowSec = 0 } = {}) {
+export function throughput(gs, { speedLevel = 0, boosts = [], nowSec = 0, ignoreManagers = false } = {}) {
   const empty = { plant: 0, courier: 0, fabrik: 0, jointsPerSec: 0 }
   if (!gs || !gs.plantagen) return empty
 
@@ -249,16 +249,23 @@ export function throughput(gs, { speedLevel = 0, boosts = [], nowSec = 0 } = {})
   // sitting behind a narrow courier buys nothing.
   const speed = speedMultiplier(speedLevel)
 
+  // ignoreManagers asks what the chain could produce if every station ran flat
+  // out — which is what a player tapping by hand is aiming at. It is the ceiling
+  // the save guard needs: measured against automated output alone, a newcomer
+  // who has not hired all three managers has a modelled rate of zero, and every
+  // joint they tapped for was clamped away on the next save.
+  const runs = (level) => ignoreManagers || level > 0
+
   let plant = 0
   for (const p of gs.plantagen) {
-    if (p.managerLevel > 0) plant += plantRate(p, speed * m.plant)
+    if (runs(p.managerLevel)) plant += plantRate(p, speed * m.plant)
   }
 
   const c = gs.courier
   const f = gs.fabrik
   // Courier does a round trip per load, so throughput is capacity / (2 × trip).
-  const courier = c && c.mgrLevel > 0 ? speed * c.capacity / (2 * courierTripTime(c, m.courier)) : 0
-  const fabrik = f && f.mgrLevel > 0 ? speed * f.capacity / fabrikCycleTime(f, m.fabrik) : 0
+  const courier = c && runs(c.mgrLevel) ? speed * c.capacity / (2 * courierTripTime(c, m.courier)) : 0
+  const fabrik = f && runs(f.mgrLevel) ? speed * f.capacity / fabrikCycleTime(f, m.fabrik) : 0
 
   return { plant, courier, fabrik, jointsPerSec: Math.min(plant, courier, fabrik) }
 }
