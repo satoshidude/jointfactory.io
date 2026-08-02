@@ -99,16 +99,29 @@ To test against real data, pull a snapshot with `sqlite3 … ".backup"` rather t
 The economy is covered by standalone scripts, each against a throwaway database:
 
 ```bash
+node scripts/test-save-clamp.mjs    # what a client may claim to have earned
 node scripts/test-lightning.mjs     # forged webhooks, overreaching payout invoices
+node scripts/test-draw.mjs          # winner count, prize ladder, carried rounds
+node scripts/test-ticket-price.mjs  # four per draw, beginner vs. leader, eligibility
 node scripts/test-speed.mjs         # price curve, atomic deduction, chain-wide effect
-node scripts/test-ticket-price.mjs  # four a day, beginner vs. leader, eligibility
-node scripts/test-draw.mjs          # winner quota, payout split, unentered rounds
 node scripts/test-boosts.mjs        # expiry, extension, pot share
 node scripts/test-invite.mjs        # locked → unlocked → claimed, no sats
+node scripts/test-broadcast.mjs     # owner DMs: dry run, resume, no double send
 node scripts/test-ledger.mjs        # every credited sat has a source
 node scripts/test-schedule.mjs      # Tue/Thu/Sat 21:00 across DST
 node scripts/sim-economy.mjs 30     # 30-day simulation of a greedy player
 ```
+
+### What the server decides
+
+The client owns its joint count and posts an absolute figure, so the server bounds
+it (`saveState` in `server/game.js`): a balance may only grow by what the *stored*
+state could have produced in the meantime — including boosts, hand play and a
+backlog being drained — minus the cost of any upgrade the incoming state claims
+(`progressCost` in `shared/economy.js`). Whatever it decides comes back in the
+response and the client adopts it, so a divergence corrects itself within one
+save instead of growing. Everything priced in real money is server-side outright:
+tickets, speed, boosts, deposits and payouts.
 
 ### Data for balancing
 
@@ -118,6 +131,15 @@ folds each Berlin day into one row of `daily_stats`; `GET /api/health/metrics`
 returns the last n days (owner only, aggregates without npubs).
 `scripts/backfill-events.mjs` reconstructs history from the tables that carry
 timestamps.
+
+---
+
+## Admin
+
+`/admin` is owner-only and unlisted. It sends one encrypted Nostr DM per player —
+dry run first, campaign name typed back to unlock the real send, and a log that
+makes a second run resume rather than repeat. `GET /api/health/metrics` and
+`/api/health/solvency` answer for the same owner npub.
 
 ---
 

@@ -63,7 +63,8 @@ const _saveStateTx = db.transaction((npub, payload) => {
   }
 
   const existing = db.prepare(
-    'SELECT joints, total_joints_earned, speed_level, last_seen_at, joints_rev, game_state FROM players WHERE npub = ?'
+    `SELECT joints, total_joints_earned, speed_level, last_seen_at, joints_rev, game_state,
+            COALESCE(state_saved_at, last_seen_at) AS state_saved_at FROM players WHERE npub = ?`
   ).get(npub);
 
   // One row per player per session, for retention: last_seen_at only ever holds
@@ -106,7 +107,10 @@ const _saveStateTx = db.transaction((npub, payload) => {
     console.warn(`[Game] Stale balance from ${npub.slice(0, 12)}… (rev ${joints_rev} vs ${existing.joints_rev}) — keeping server figure`);
     plausible = existing.joints;
   } else if (existing) {
-    const elapsed = Math.max(0, Math.floor(Date.now() / 1000) - (existing.last_seen_at || 0));
+    // Since the last *save*, not since the last sign-in: logging in sets
+    // last_seen_at to now, so measuring against it charged a returning player
+    // for the entire time they were away.
+    const elapsed = Math.max(0, Math.floor(Date.now() / 1000) - (existing.state_saved_at || existing.last_seen_at || 0));
 
     // The ceiling is built from the *stored* state, never the incoming one.
     // Reading the rate out of the state being validated let a client raise its
@@ -195,7 +199,8 @@ const _saveStateTx = db.transaction((npub, payload) => {
       joints = ?,
       total_joints_earned = ?,
       joints_per_sec = ?,
-      last_seen_at = unixepoch()
+      last_seen_at = unixepoch(),
+      state_saved_at = unixepoch()
     WHERE npub = ?
   `).run(
     JSON.stringify(gameState || {}),

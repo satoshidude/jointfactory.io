@@ -170,6 +170,27 @@ console.log('\n── Halde in der Kette ──')
   check('Guthaben steht wie gemeldet', balance('backlog') === 1_000_000 + earned)
 }
 
+// ── Coming back after a long absence ────────────────────────────────────────
+// Offline production is credited by the client on load. The guard measured the
+// window from last_seen_at — which signing in had just set to now — so a player
+// returning after weeks had every joint they earned while away clamped off. It
+// cost the Joint Factory account 110.5 trillion in one save.
+console.log('\n── Rückkehr nach langer Abwesenheit ──')
+{
+  const gs = chain(3)
+  const away = 78 * 86400
+  db.prepare(`INSERT INTO players (npub, display_name, sats, joints, game_state, total_joints_earned, last_seen_at, state_saved_at)
+              VALUES (?,?,0,?,?,?,?,?)`)
+    .run('returner', 'Returner', 1_000_000, JSON.stringify(gs), 1_000_000, now(), now() - away)
+  const rate = throughput(gs, { ignoreManagers: true }).jointsPerSec
+  const offline = Math.floor(rate * away * 0.5)      // client credits half the theoretical maximum
+  console.log(`  ${(away / 86400).toFixed(0)} Tage weg · ${fmt(rate)}/s → Client meldet ${fmt(offline)} nachgeholt`)
+  const res = save('returner', gs, 1_000_000 + offline)
+  check('die Offline-Produktion bleibt', res.corrected === false && balance('returner') === 1_000_000 + offline)
+  check('Anmeldezeit spielt keine Rolle',
+        db.prepare("SELECT last_seen_at > state_saved_at - 10 AS x FROM players WHERE npub='returner'").get().x === 1)
+}
+
 // ── A brand-new account ─────────────────────────────────────────────────────
 // The first save has nothing stored to measure against. An empty baseline meant
 // a rate of zero and a ceiling of "balance + 1000", so everything a newcomer

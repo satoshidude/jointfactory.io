@@ -131,6 +131,18 @@ try {
   db.exec(`UPDATE players SET referral_claimed_at = unixepoch() WHERE referral_rewarded = 1`);
 } catch(_) {}
 
+// When the game state was last written — which is not the same as when the
+// player was last seen.
+//
+// The save guard measures how much production a client may claim against the
+// time since its last save. It used last_seen_at, and logging in sets that to
+// now: a player returning after 78 days had their offline earnings measured
+// against a window of seconds and clamped away. Only saveState touches this.
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN state_saved_at INTEGER`);
+  db.exec(`UPDATE players SET state_saved_at = last_seen_at WHERE state_saved_at IS NULL`);
+} catch(_) {}
+
 // Key-value store for bot state (e.g. nostr event IDs)
 db.exec(`
   CREATE TABLE IF NOT EXISTS kv_store (

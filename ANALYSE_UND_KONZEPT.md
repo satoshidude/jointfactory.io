@@ -1,6 +1,10 @@
 # Joint Factory — Analyse & Anschlusskonzept
 
-Stand: 2026-06-07 | Version: v0.3 (Retention-Pivot) | Branch: dev/mobile
+Stand: 2026-08-02 | Version: v0.3 | Branch: main
+
+> Abschnitt 1–3 beschreiben das Spiel, wie es heute laeuft. Abschnitt 5 ist die
+> Analyse vom 2026-06-07, die den Umbau ausgeloest hat — sie bleibt als Beleg
+> stehen, mit dem Stand der Umsetzung dahinter.
 
 ---
 
@@ -10,26 +14,40 @@ Stand: 2026-06-07 | Version: v0.3 (Retention-Pivot) | Branch: dev/mobile
 
 | Feature | Beschreibung |
 |---------|-------------|
-| **Plantagen-System** | 6 Stufen (Balcony Grow → MegaFarm), je mit Level, Speed, Multiplier-Meilensteinen |
-| **Courier** | Transportiert Cannabis von Plantagen zur Fabrik, Kapazitaet/Speed upgradebar |
-| **Fabrik** | Verarbeitet Cannabis zu Joints (In-Game-Waehrung), Batch-Groesse + Speed upgradebar |
-| **Manager** | Auto-Betrieb fuer Plantagen/Courier/Fabrik, erste 2 gratis, ab 3. kosten Sats |
-| **Lightning Lottery** | 6 Ziehungen taeglich, Tickets kosten Joints, Gewinne in echten Sats (80/20 Split) |
-| **Lightning Wallet** | Deposit (LNbits Invoice) + Withdraw (LNURL), echte Bitcoin-Transaktionen |
-| **Leaderboard** | Ranking nach Lifetime-Joints + Earnings (Sats), paginiert |
-| **Growth Race** | Live-Chart der Produktionsraten aller Spieler (letzten 6h) |
-| **Invite-System** | Referral-Links (/r/CODE), +10 Sats bei Deposit, Free Manager fuer ersten Referral |
+| **Plantagen-System** | 6 Plots (Balcony Grow → MegaFarm), Level kosten Joints, Meilensteine verdoppeln — gedeckelt bei zehn Verdopplungen (x1024, Level 145) |
+| **Courier** | Transportiert Cannabis zur Fabrik, Kapazitaet mit Joints upgradebar |
+| **Fabrik** | Verarbeitet Cannabis zu Joints, Batch-Groesse mit Joints upgradebar |
+| **Manager** | Auto-Betrieb je Station, **erste 3 gratis** (auch fuer Gaeste), danach 100–300 Sats |
+| **Speed** | Dauerhaft +2 % auf die ganze Kette je Stufe, bezahlt in **Joints**, Preis in Sekunden der eigenen Produktion (Deckel 3,26 Tage/Stufe) |
+| **Boosts** | Zeitlich begrenzte Multiplikatoren fuer **Sats**: 2x Grow / 3x Courier / 2x Factory je 21 Sats, Full Throttle 2x alles 50 Sats |
+| **Lightning Lottery** | Di/Do/Sa 21:00, max. 4 Lose je Ziehung, Preis als Anteil eines Tagesausstoßes, Gewinne nach Rang gestaffelt (80/20 Split) |
+| **Lightning Wallet** | Deposit (LNbits Invoice) + Withdraw (LNURL), jede Gutschrift gegen LNbits verifiziert |
+| **Leaderboard** | Ranking nach Lifetime-Joints + Speed-Stufe + Earnings |
+| **Growth Race** | Live-Chart der Produktionsraten (6h), Boost-Phasen als dicke Linie markiert |
+| **Invite-System** | Referral-Links (/r/CODE); jeder Geworbene, der seine Kette automatisiert, schaltet **eine Stunde Full Throttle** frei — keine Sats |
 | **Nostr-Login** | NIP-07 (Browser Extension) oder nsec-Eingabe, kein Email/Passwort |
-| **Nostr-Bot** | Postet Lottery-Gewinner, Erinnerungen, DM-Reports an Owner |
-| **Profil-Manager** | Nostr-Profil direkt in der App bearbeiten |
-| **Offline Catch-Up** | Simuliert Produktion bei Rueckkehr (Speed=1, Bottleneck-basiert) |
+| **Nostr-Bot** | Lottery-Erinnerungen, Gewinner-Notes, Owner-Reports, Broadcast-DMs aus dem Admin |
+| **Admin** | `/admin` (nur Owner): Rundmail an alle Spieler mit Trockenlauf, Kampagnen-Log und Wiederaufnahme |
+| **Monitoring** | `events`-Log je Spielerentscheidung, Tagesaggregate in `daily_stats`, `/api/health/metrics` |
+| **Offline Catch-Up** | Simuliert Produktion bei Rueckkehr (Bottleneck-basiert, ohne Boosts) |
 
 ### Sicherheit
 
 - **PoW-Challenge** bei Registrierung (4 leading zeros SHA256)
 - **Honeypot-Feld** gegen einfache Bots
-- **Atomare DB-Transaktionen** fuer alle kritischen Operationen (Tickets, Deposits, Referrals)
+- **Atomare DB-Transaktionen** fuer alle kritischen Operationen (Tickets, Deposits, Boosts, Speed)
 - **NIP-98 Auth** mit Zeitfenster-Validierung (±10s)
+- **Speicher-Schranke** (`saveState`): der Client meldet seinen Kontostand absolut,
+  der Server begrenzt ihn auf das, was der *gespeicherte* Stand in der Zwischenzeit
+  produziert haben kann — inklusive Boosts, Handbetrieb und Haldenabbau — abzueglich
+  der Kosten jedes Ausbaus, den der neue Stand behauptet (`progressCost`). Das
+  Ergebnis geht in der Antwort zurueck, der Client uebernimmt es.
+- **Lightning verifiziert**: Einzahlungen werden nie auf Zuruf gutgeschrieben, sondern
+  bei LNbits nachgefragt; Auszahlungsrechnungen werden vor dem Bezahlen dekodiert und
+  auf den Betrag geprueft; der Webhook traegt ein Token.
+- **House-Ledger** (`server/house.js`): jede gutgeschriebene Sat hat eine Herkunft,
+  stuendliche Solvenzpruefung.
+- **Ratenbegrenzung** 120/min je Adresse (Fastify hinter Caddy, `trustProxy`).
 
 ### Echtzeit
 
@@ -48,44 +66,69 @@ Plantagen → Courier → Fabrik → Joints
 (Cannabis)   (Transport)  (Verarbeitung)  (Waehrung)
 ```
 
+Der Ausstoß ist das **Minimum** der drei Stufen, keine Summe: eine Plantage, die
+dem Kurier davonwaechst, bringt nichts. Genau das benennt die Fabrik-Karte auch,
+wenn sie stockt — sie zeigt die langsamste Stufe davor.
+
 **Plantagen** produzieren Cannabis in Zyklen. Jede Plantage hat:
-- **Level** (Kapazitaet, exponentiell steigend)
-- **Speed** (Zykluszeit, 1000 Stufen a 20-500 Sats)
-- **Multiplier-Meilensteine** (z.B. "4x in 17 Levels")
+- **Level** (Kosten `upgBase × 1,12^level`, in Joints)
+- **Meilensteine**: Verdopplung alle 10, dann 15, dann 20 Level im Wechsel,
+  **hoechstens zehn** — ab x1024 (Level 145) waechst nur noch der lineare Anteil
+- Alte Per-Station-Speed-Stufen bleiben unter Bestandsschutz wirksam, werden aber
+  nicht mehr verkauft — die globale Speed-Leiter hat sie ersetzt
 
 **Courier** holt Cannabis ab und liefert an die Fabrik:
 - State-Machine: idle → toFactory → toPlant → idle
-- Upgrade: Kapazitaet (x2) und Speed (+1%)
+- Upgrade: Kapazitaet (x2) fuer Joints
 
 **Fabrik** rollt Joints:
 - Batch-Verarbeitung mit Timer
-- Upgrade: Kapazitaet (x2) und Speed (+1%)
+- Upgrade: Kapazitaet (x2) fuer Joints
 
 ### Waehrungssystem (Dual Currency)
 
 | | Joints | Sats |
 |--|--------|------|
-| **Herkunft** | Fabrik-Produktion | Lightning Deposit, Lottery-Gewinn, Referral |
-| **Ausgabe** | Lottery-Tickets, Plantagen-Level | Speed-Upgrades, Manager (ab 3.) |
-| **Konvertierung** | Nie in Sats umwandelbar | — |
-| **Tracking** | Lifetime-Total fuer Leaderboard | Wallet-Balance |
+| **Herkunft** | Fabrik-Produktion | Lightning Deposit, Lottery-Gewinn |
+| **Ausgabe** | Plantagen-Level, Kurier-/Fabrik-Kapazitaet, **Speed**, Lottery-Tickets | **Boosts**, Manager ab dem 4. |
+| **Konvertierung** | Nie direkt in Sats — nur ueber die Lottery als Chance | Auszahlbar per LNURL |
+| **Preisbildung** | Los und Speed kosten einen Anteil der **eigenen** Tagesproduktion | Feste Sats-Preise |
+| **Tracking** | Lifetime-Total fuer Leaderboard | Wallet-Balance, House-Ledger |
+
+Nichts erzeugt Sats aus dem Nichts: es gibt kein Startguthaben, keine Gratis-Sats
+fuer Invites und keine Bot-Gewinne auf echten Konten.
 
 ### Lottery-Mechanik
 
-- **Zeitplan**: 0:00, 5:00, 11:00, 16:00, 19:00, 21:00 Uhr (Berlin)
-- **Ticket-Preiskurve**: 21 Tickets pro Runde, Start bei 500 Joints, Peak bei 7.000
-- **Gewinner**: Bis zu 21 unique Spieler, Auszahlung proportional zu Tickets
-- **Split**: 80% an Gewinner, 20% House
-- **Fake-Aktivitaet**: 40% der Runden generieren 2-3 Fake-Spieler (psychologischer Effekt)
-- **Nostr-Announcements**: Gewinner werden gepostet, alte Notes nach 6 Stueck geloescht
+- **Zeitplan**: Di, Do, Sa um 21:00 Berlin (DST-sicher, `shared/schedule.js`)
+- **Lose**: hoechstens **4 je Ziehung**, Preis 10/18/28/44 % eines Tagesausstoßes
+  des Kaeufers — vier Lose kosten also genau einen Tag. Ein Einsteiger zahlt fuer
+  sein erstes Los zwei Produktionstage, ein Spitzenspieler zweieinhalb Stunden.
+- **Voraussetzung**: drei Manager (serverseitig geprueft — ohne Kette faellt der
+  Preis auf den Boden von einem Joint)
+- **Gewinnerzahl**: ein aufgerundetes Drittel der Teilnehmer, **mindestens zwei**,
+  hoechstens 21 und nie mehr als Teilnehmer
+- **Verteilung nach Rang**: 70/30, 60/25/15, 50/25/15/10 … Die Ziehung ist nach
+  Losen gewichtet und bestimmt die Reihenfolge; Platz 1 folgt exakt dem Losanteil.
+- **Split**: 80 % an die Gewinner, 20 % ins House-Ledger — der Schnitt faellt
+  genau einmal, beim Auszahlen
+- **Pot**: gespeist aus Sats-Ausgaben (Boosts, Manager), brutto
+- **Zu wenige Teilnehmer**: unter zwei Spielern wird nicht gezogen — Pot **und**
+  Lose wandern in die naechste Runde. Ohne jedes Los faellt der Pot ans Haus.
+- **Bot-Aktivitaet**: nur auf eigens angelegten Konten (`is_bot`), Gewinne fliessen
+  in den Pot zurueck statt auf ein Guthaben
+- **Nostr-Announcements**: Erinnerung eine Stunde vorher, Gewinner-Note danach
 
 ### Progression
 
-1. Spieler startet mit 1 Plantage (Balcony Grow) + 210 Sats Startguthaben
-2. Cannabis produzieren → Courier → Fabrik → Joints sammeln
-3. Mit Joints: Plantagen leveln, neue Plantagen freischalten, Lottery-Tickets kaufen
-4. Mit Sats: Speed-Upgrades, Manager (Automatisierung), Withdraw
-5. Langzeitziel: Alle 6 Plantagen + maximale Speed + Leaderboard-Rang
+1. Spieler startet mit einer Plantage (Balcony Grow), **ohne Startguthaben**
+2. Von Hand: Grow → Courier → Roll. Die ersten **drei Manager sind gratis**, damit
+   die Kette ohne Einzahlung laufen kann — das ist zugleich die Bedingung fuer die
+   Lottery
+3. Mit Joints: Level, Kapazitaet, neue Plantagen, dauerhafter Speed, Lose
+4. Mit Sats: Boosts (die wiederkehrende Senke) und Manager ab dem vierten
+5. Langzeitziel: alle 6 Plantagen, Speed-Leiter, Rang im Leaderboard und Sats
+   aus der Lottery
 
 ---
 
@@ -127,16 +170,23 @@ Plantagen → Courier → Fabrik → Joints
 | **Analytics** | GoatCounter (Port 8093) |
 | **DB** | SQLite mit 8 Tabellen |
 
-### Datenbank-Schema (8 Tabellen)
+### Datenbank-Schema
 
-- `players` — Spielerdaten, Joints/Sats, Game State (JSON), Invite-Code
-- `lottery_rounds` — Runden-Status, Pot, Gewinner
-- `lottery_tickets` — Ticket-Kaeufe pro Runde
+- `players` — Spielerdaten, Joints/Sats, Game State (JSON), Invite-Code,
+  `speed_level`, `joints_rev` (Revision je serverseitiger Abbuchung),
+  `referral_rewarded`/`referral_claimed_at`, `is_bot`
+- `lottery_rounds` — Runden-Status, Pot (brutto), Gewinner + Auszahlung je Rang
+- `lottery_tickets` — Loskaeufe je Runde
+- `active_boosts` — laufende Boosts je Spieler und Typ (Ablauf serverseitig)
 - `lightning_payments` — Deposit-Invoices + Status
 - `withdrawals` — Auszahlungslog
-- `rate_log` — Produktionsraten fuer Growth Race
+- `rate_log` — Produktionsraten fuer Growth Race, inkl. Boost-Faktor
+- `events` — Ereignislog je Spielerentscheidung (Signup, Manager, Speed, Boost,
+  Ticket, Deposit, Withdraw, Draw, Win, Invite, Clamp, DM)
+- `daily_stats` — Tagesaggregat je Berliner Tag (`server/metrics.js`)
+- `dm_log` — verschickte Broadcast-DMs je Kampagne (macht Wiederholungen sicher)
 - `zap_receipts` — Legacy (Kompatibilitaet)
-- `kv_store` — Bot-State (Win-Note-IDs, Report-Timestamps)
+- `kv_store` — Bot-State (Note-IDs, Report-Timestamps) und House-Ledger
 
 ---
 
@@ -146,7 +196,7 @@ Plantagen → Courier → Fabrik → Joints
 
 | Verbesserung | Aufwand | Impact |
 |-------------|---------|--------|
-| **Prestige/Reset-System** — Alles zuruecksetzen fuer permanente Multiplier | Mittel | Hoch — gibt Langzeit-Motivation |
+| ~~Prestige/Reset-System~~ — **verworfen**, zweimal an der Verstaendlichkeit gescheitert. Ersetzt durch die Speed-Leiter: Joints kaufen dauerhaft +2 % auf die ganze Kette, Preis in Sekunden der eigenen Produktion | — | umgesetzt |
 | **Achievements** — Meilensteine mit Belohnungen (z.B. "1M Joints produziert") | Gering | Mittel — Dopamin-Hits |
 | **Tages-Quests** — "Kaufe 3 Lottery-Tickets", "Erreiche Level 50" | Mittel | Hoch — taegliche Retention |
 | **Plantagen-Spezialisierung** — Verschiedene Sorten mit Traits (Speed vs. Ertrag) | Mittel | Mittel — strategische Tiefe |
@@ -166,8 +216,8 @@ Plantagen → Courier → Fabrik → Joints
 
 | Verbesserung | Aufwand | Impact |
 |-------------|---------|--------|
-| **Sat-Sink erweitern** — Mehr Gruende Sats auszugeben (Cosmetics, Boosts) | Mittel | Hoch — gesunde Economy |
-| **Temporaere Boosts** — 2x Production fuer 1h (kostet Sats) | Gering | Mittel |
+| ~~Sat-Sink erweitern~~ — **umgesetzt**: Boosts sind die wiederkehrende Senke, 80 % jeder Ausgabe landen im Pot | — | umgesetzt |
+| ~~Temporaere Boosts~~ — **umgesetzt**: 21 Sats / 30 min je Station, Full Throttle 50 Sats / 60 min | — | umgesetzt |
 | **Premium-Plantage** — Nur mit Sats kaufbar, hoher Output | Gering | Mittel |
 | **Lottery-Sidebet** — Wette auf Gewinnerzahl (Over/Under) | Mittel | Mittel |
 
