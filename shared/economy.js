@@ -520,6 +520,61 @@ export function initialState() {
  * managerLevel, totalProduced, capacity, capCost.
  */
 /** @template T @param {T} gs @returns {T} */
+/**
+ * Joints the difference between two saved states must have cost.
+ *
+ * Levels, capacity and unlocks are bought in the client — the server only ever
+ * sees the result. Without pricing the difference, a state that claims a higher
+ * level while reporting an untouched balance is indistinguishable from an honest
+ * one, and the upgrade is free. The save guard subtracts this from what the
+ * balance may plausibly be.
+ *
+ * Prices come from the *previous* state, which is the one the player actually
+ * paid against. Anything that did not grow costs nothing.
+ *
+ * @param {any} prev stored state
+ * @param {any} next incoming state
+ * @returns {number} joints
+ */
+export function progressCost(prev, next) {
+  if (!prev?.plantagen || !next?.plantagen) return 0
+  let cost = 0
+
+  for (let i = 0; i < next.plantagen.length; i++) {
+    const before = prev.plantagen[i]
+    const after = next.plantagen[i]
+    if (!after) continue
+    if (!before) {
+      // A plot that was not there before had to be unlocked.
+      cost += PLANTATION_DEFS[i]?.unlockCost || 0
+      continue
+    }
+    // Each level is priced from the level below it.
+    const walker = { ...before }
+    for (let lvl = before.level; lvl < (after.level || 0); lvl++) {
+      walker.level = lvl
+      cost += plantLevelCost(walker)
+    }
+  }
+
+  // Capacity doubles per purchase and the price scales with it, so the cost of
+  // going from one capacity to another is the geometric run of capCost.
+  for (const key of ['courier', 'fabrik']) {
+    const before = prev[key]
+    const after = next[key]
+    if (!before || !after) continue
+    let capacity = before.capacity || 0
+    let price = before.capCost || 0
+    while (capacity > 0 && capacity < (after.capacity || 0)) {
+      cost += price
+      capacity *= 2
+      price = Math.floor(price * COST_SCALE)
+    }
+  }
+
+  return cost
+}
+
 export function rehydrate(gs) {
   if (!gs || !gs.plantagen) return gs
 

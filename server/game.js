@@ -1,6 +1,6 @@
 import { db, logEvent } from './db.js';
 import { getActiveBoosts } from './boosts.js';
-import { rehydrate, throughput, countManagers } from '../shared/economy.js';
+import { rehydrate, throughput, countManagers, progressCost } from '../shared/economy.js';
 
 export function loadState(npub) {
   const player = db.prepare('SELECT * FROM players WHERE npub = ?').get(npub);
@@ -62,7 +62,7 @@ const _saveStateTx = db.transaction((npub, payload) => {
   }
 
   const existing = db.prepare(
-    'SELECT joints, total_joints_earned, speed_level, last_seen_at, joints_rev FROM players WHERE npub = ?'
+    'SELECT joints, total_joints_earned, speed_level, last_seen_at, joints_rev, game_state FROM players WHERE npub = ?'
   ).get(npub);
 
   // One row per player per session, for retention: last_seen_at only ever holds
@@ -106,27 +106,58 @@ const _saveStateTx = db.transaction((npub, payload) => {
     plausible = existing.joints;
   } else if (existing) {
     const elapsed = Math.max(0, Math.floor(Date.now() / 1000) - (existing.last_seen_at || 0));
-    let rate = 0;
+
+    // The ceiling is built from the *stored* state, never the incoming one.
+    // Reading the rate out of the state being validated let a client raise its
+    // own allowance: claim higher levels, and the ceiling that is supposed to
+    // check them rises with the claim.
+    let stored = {};
+    try { stored = JSON.parse(existing.game_state || '{}'); rehydrate(stored); } catch { /* empty */ }
+
+    const opts = {
+      speedLevel: existing.speed_level || 0,
+      boosts: getActiveBoosts(npub),
+      nowSec: Math.floor(Date.now() / 1000),
+      // What the chain could do with every station running, not just the
+      // automated ones: tapping by hand is legitimate production, and a player
+      // who has not hired all three managers had a modelled rate of zero — so
+      // everything they earned by hand was clamped away.
+      ignoreManagers: true,
+    };
+
+    let rate = 0, downstream = 0;
     try {
-      // Boosts count towards what is plausible. Express Run alone triples the
-      // courier, and a chain bottlenecked there legitimately produces three
-      // times the unboosted rate — right at the old headroom, so an honest
-      // boosted player was being clamped and quietly losing what they earned.
-      rate = throughput(gameState, {
-        speedLevel: existing.speed_level || 0,
-        boosts: getActiveBoosts(npub),
-        nowSec: Math.floor(Date.now() / 1000),
-        // What the chain could do with every station running, not just the
-        // automated ones: tapping by hand is legitimate production, and a
-        // player who has not hired all three managers had a modelled rate of
-        // zero — so everything they earned by hand was clamped away.
-        ignoreManagers: true,
-      }).jointsPerSec;
+      const t = throughput(stored, opts);
+      rate = t.jointsPerSec;
+      // Stock already harvested is converted at whatever the courier and factory
+      // manage, which is above the chain rate whenever the plantations are the
+      // slow stage. Akki had 3.4 trillion cannabis sitting in the fields and was
+      // clamped 34 times in an hour for turning it into joints — the guard was
+      // pricing steady-state output while the player was legitimately draining a
+      // backlog.
+      downstream = Math.min(t.courier || 0, t.fabrik || 0);
     } catch { /* no output */ }
-    const ceiling = existing.joints + rate * elapsed * 3 + 1000;
+
+    const stock = Math.max(0, (stored.cannabis || 0) + (stored.cannabisAtFactory || 0));
+    const fromStock = Math.min(stock, Math.max(0, downstream - rate) * elapsed);
+
+    // Anything the incoming state claims to have bought has to have been paid
+    // for. Priced from the stored state, so the cost is what the player would
+    // actually have been charged.
+    let spent = 0;
+    try { spent = progressCost(stored, gameState); } catch { /* unreadable */ }
+
+    // Half again on top of what the model says, not triple.
+    //
+    // The old factor of three was headroom for everything the model did not
+    // know: boosts, hand play, a backlog being drained. All three are accounted
+    // for above now, so the slack can shrink — and it has to, because slack is
+    // also where an unpaid upgrade hides. At three times, anything costing less
+    // than two windows of production was invisible.
+    const ceiling = existing.joints + (rate * elapsed + fromStock) * 1.5 + 1000 - spent;
     if (plausible > ceiling) {
-      console.warn(`[Game] Clamped joints for ${npub.slice(0, 12)}…: reported ${plausible}, ceiling ${Math.floor(ceiling)}`);
-      plausible = Math.floor(ceiling);
+      console.warn(`[Game] Clamped joints for ${npub.slice(0, 12)}…: reported ${plausible}, ceiling ${Math.floor(ceiling)}${spent > 0 ? ` (upgrades ${spent})` : ''}`);
+      plausible = Math.max(0, Math.floor(ceiling));
     }
   }
 

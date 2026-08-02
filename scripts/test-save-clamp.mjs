@@ -24,7 +24,7 @@ process.env.JF_NOSTR_OFFLINE = '1'
 
 const { db } = await import('../server/db.js')
 const { saveState } = await import('../server/game.js')
-const { initialState, throughput, BOOSTS } = await import('../shared/economy.js')
+const { initialState, throughput, BOOSTS, plantLevelCost, progressCost } = await import('../shared/economy.js')
 
 let fail = 0
 const check = (label, cond) => { console.log(`  ${cond ? '✓' : '✗'} ${label}`); if (!cond) fail++ }
@@ -110,6 +110,64 @@ console.log('\n── Kauf zwischen zwei Speicherungen ──')
   check('Abbuchung bleibt bestehen', balance('buyer') === 4_000_000)
   check('Korrektur wird gemeldet', res.corrected === true && res.joints === 4_000_000)
   check('neue Revision kommt mit', res.joints_rev === before + 1)
+}
+
+// ── An upgrade has to be paid for ───────────────────────────────────────────
+// Levels are bought in the client; the server only sees the result. A state that
+// claims a higher level while reporting an untouched balance used to be
+// indistinguishable from an honest one — the upgrade was free.
+console.log('\n── Stufenkauf ──')
+{
+  const gs = chain(3)
+  seed('leveler', gs, 1_000_000_000, 30)
+  // Twenty levels at once — the shape of an actual cheat, and far above the
+  // slack the guard leaves for clock drift.
+  const next = JSON.parse(JSON.stringify(gs))
+  let cost = 0
+  for (let i = 0; i < 20; i++) cost += plantLevelCost({ ...gs.plantagen[0], level: gs.plantagen[0].level + i })
+  next.plantagen[0].level += 20
+  console.log(`  20 Stufen ab ${gs.plantagen[0].level} kosten ${fmt(cost)} Joints`)
+  check('Kosten werden erkannt', progressCost(gs, next) === cost)
+
+  // Honest: level up and pay for it.
+  const honest = save('leveler', next, 1_000_000_000 - cost)
+  check('bezahlter Kauf bleibt unangetastet', honest.corrected === false && balance('leveler') === 1_000_000_000 - cost)
+
+  // Dishonest: same level, balance untouched.
+  const base = chain(3)
+  seed('cheat2', base, 1_000_000_000, 30)
+  const free = save('cheat2', next, 1_000_000_000)
+  // The cheat is charged, but the production the account really made in those
+  // thirty seconds still counts — the guard bills the upgrade, it does not fine
+  // the player.
+  const allowance = throughput(base, { ignoreManagers: true }).jointsPerSec * 30 * 1.5 + 1000
+  const expected = Math.floor(1_000_000_000 + allowance - cost)
+  console.log(`  ohne Abbuchung gemeldet → Server behält ${fmt(free.joints)} (erwartet ${fmt(expected)})`)
+  check('unbezahlter Kauf wird abgerechnet', free.corrected === true && free.joints === expected)
+  check('die ehrliche Produktion bleibt', free.joints > 1_000_000_000 - cost)
+}
+
+// ── A backlog is legitimate production ──────────────────────────────────────
+// The chain rate is the steady state; a player with cannabis already in the
+// field converts it at whatever the courier and factory manage. Akki was clamped
+// 34 times in an hour for exactly that.
+console.log('\n── Halde in der Kette ──')
+{
+  const gs = chain(3)
+  // Plantations slow, courier and factory fast, with a full field.
+  gs.plantagen[0].level = 5
+  gs.courier.capacity = 50_000_000
+  gs.fabrik.capacity = 50_000_000
+  gs.cannabis = 500_000_000
+  seed('backlog', gs, 1_000_000, 30)
+  const t = throughput(gs, { ignoreManagers: true })
+  const downstream = Math.min(t.courier, t.fabrik)
+  console.log(`  Kette ${fmt(t.jointsPerSec)}/s · Kurier+Fabrik ${fmt(downstream)}/s · Halde ${fmt(gs.cannabis)}`)
+  // 30 seconds of draining the backlog, which the chain rate alone would forbid.
+  const earned = Math.floor(downstream * 30)
+  const res = save('backlog', gs, 1_000_000 + earned)
+  check('Abbau der Halde wird nicht gekappt', res.corrected === false)
+  check('Guthaben steht wie gemeldet', balance('backlog') === 1_000_000 + earned)
 }
 
 rmSync(dir, { recursive: true, force: true })
