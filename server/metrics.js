@@ -18,7 +18,7 @@
 
 import { db } from './db.js';
 import { houseBalance } from './house.js';
-import { REQUIRED_MANAGERS, countLotteryManagers } from '../shared/economy.js';
+import { REQUIRED_MANAGERS, countLotteryManagers, throughput } from '../shared/economy.js';
 import { berlinFields, berlinWallClockToUtc } from '../shared/schedule.js';
 
 /**
@@ -47,6 +47,10 @@ export function today() {
 }
 
 const sumOf = (rows, type) => rows.filter(r => r.type === type).reduce((s, r) => s + r.amount, 0);
+/** Sum a field out of the meta JSON of every event of one type. */
+const metaSum = (rows, type, field) => rows
+  .filter(r => r.type === type)
+  .reduce((s, r) => { try { return s + (JSON.parse(r.meta || '{}')[field] || 0) } catch { return s } }, 0);
 const countOf = (rows, type) => rows.filter(r => r.type === type).length;
 const playersOf = (rows, type) => new Set(rows.filter(r => r.type === type && r.npub).map(r => r.npub)).size;
 
@@ -70,6 +74,19 @@ export function rollupDay(day = today()) {
   const automated = players.filter(p => countLotteryManagers(p.game_state) >= REQUIRED_MANAGERS).length;
   const speedLevels = players.reduce((s, p) => s + (p.speed_level || 0), 0);
 
+  // Which stage holds each chain back. If everyone is stuck behind the same one,
+  // that is a design answer, not a player choice — and it is invisible in any
+  // per-event count.
+  const bottleneck = { plantations: 0, courier: 0, factory: 0, idle: 0 };
+  for (const p of players) {
+    let t = null;
+    try { t = throughput(JSON.parse(p.game_state || '{}'), { speedLevel: p.speed_level || 0 }) } catch { /* unreadable */ }
+    if (!t || t.jointsPerSec <= 0) { bottleneck.idle++; continue }
+    if (t.jointsPerSec === t.plant) bottleneck.plantations++;
+    else if (t.jointsPerSec === t.courier) bottleneck.courier++;
+    else bottleneck.factory++;
+  }
+
   // A draw event carries the gross pot as its amount and the split in its meta.
   const draws = rows.filter(r => r.type === 'draw').map(r => {
     let meta = {};
@@ -92,7 +109,14 @@ export function rollupDay(day = today()) {
     boosts_bought: countOf(rows, 'boost'),
     boosts_claimed: countOf(rows, 'boost_claim'),
 
-    // Joints sinks
+    // Joints sinks — where the earned currency actually goes
+    upgrade_spend: sumOf(rows, 'upgrade'),
+    levels_bought: metaSum(rows, 'upgrade', 'levels'),
+    level_spend: metaSum(rows, 'upgrade', 'level_cost'),
+    capacity_bought: metaSum(rows, 'upgrade', 'capacity'),
+    capacity_spend: metaSum(rows, 'upgrade', 'capacity_cost'),
+    unlocks: metaSum(rows, 'upgrade', 'unlocks'),
+    unlock_spend: metaSum(rows, 'upgrade', 'unlock_cost'),
     ticket_spend: sumOf(rows, 'ticket'),
     tickets: countOf(rows, 'ticket'),
     ticket_buyers: playersOf(rows, 'ticket'),
@@ -111,9 +135,15 @@ export function rollupDay(day = today()) {
     invite_signups: countOf(rows, 'invite_signup'),
     invite_unlocks: countOf(rows, 'invite_unlock'),
 
+    // How the guard behaved — a spike here means it is taking from honest play
+    clamps: countOf(rows, 'clamp'),
+    clamped_joints: sumOf(rows, 'clamp'),
+    restored_joints: sumOf(rows, 'restore'),
+
     // Standings at the end of the day
     players_total: players.length,
     players_automated: automated,
+    bottleneck,
     speed_levels_total: speedLevels,
     sats_held: players.reduce((s, p) => s + (p.sats || 0), 0),
     house_balance: houseBalance(),

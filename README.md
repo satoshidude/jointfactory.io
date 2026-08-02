@@ -125,12 +125,24 @@ tickets, speed, boosts, deposits and payouts.
 
 ### Data for balancing
 
-`events` records what players decide — signups, sessions, managers, speed steps,
-boosts, tickets, deposits, withdrawals, draws, wins, invites. `server/metrics.js`
-folds each Berlin day into one row of `daily_stats`; `GET /api/health/metrics`
-returns the last n days (owner only, aggregates without npubs).
-`scripts/backfill-events.mjs` reconstructs history from the tables that carry
-timestamps.
+`events` records what players decide — signups, sessions, plot levels and
+capacity (itemised: how many, at what cost), speed steps, boosts, tickets,
+managers, deposits, withdrawals, draws, wins, invites, and every correction the
+save guard made. `server/metrics.js` folds each Berlin day into one row of
+`daily_stats`, including where the joints went and which stage bottlenecks each
+chain; `GET /api/health/metrics` returns the last n days (owner only, aggregates
+without npubs).
+
+```bash
+node scripts/report-decisions.mjs 30   # what players spend on, what limits them,
+                                       # who returns, where newcomers stop
+node scripts/backfill-events.mjs       # reconstruct history from the older tables
+```
+
+The report is built around the five questions a balance change should answer
+before it is made: where earned joints go, what holds each chain back, whether
+the sats loop turns, who comes back and after how long, and where new players
+stop.
 
 ---
 

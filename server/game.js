@@ -1,6 +1,6 @@
 import { db, logEvent } from './db.js';
 import { getActiveBoosts } from './boosts.js';
-import { rehydrate, throughput, countManagers, progressCost, maxLevelJump,
+import { rehydrate, throughput, countManagers, progressBreakdown, maxLevelJump,
          MAX_LEVEL_STEP, initialState } from '../shared/economy.js';
 
 export function loadState(npub) {
@@ -102,6 +102,7 @@ const _saveStateTx = db.transaction((npub, payload) => {
   // refunded itself on the next autosave — the plausibility ceiling below is
   // far too generous to catch it, by design.
   const reported = plausible;
+  let bought = null;
   const staleBalance = existing && joints_rev !== undefined && joints_rev !== existing.joints_rev;
   if (staleBalance) {
     console.warn(`[Game] Stale balance from ${npub.slice(0, 12)}… (rev ${joints_rev} vs ${existing.joints_rev}) — keeping server figure`);
@@ -155,7 +156,7 @@ const _saveStateTx = db.transaction((npub, payload) => {
     // for. Priced from the stored state, so the cost is what the player would
     // actually have been charged.
     let spent = 0;
-    try { spent = progressCost(stored, gameState); } catch { /* unreadable */ }
+    try { bought = progressBreakdown(stored, gameState); spent = bought.cost; } catch { /* unreadable */ }
 
     const allowance = (rate * elapsed + fromStock) * 1.5 + 1000;
 
@@ -189,6 +190,17 @@ const _saveStateTx = db.transaction((npub, payload) => {
   // re-posted it every thirty seconds, and showed a balance that did not exist.
   // Purchases then failed for "not enough joints" against a number the player
   // could see on screen — which reads as being robbed, not as being corrected.
+  // What the player bought since the last save. This is the biggest joints sink
+  // in the game and it happens entirely in the client — without recording it
+  // here, no later analysis can say what people actually spend on.
+  if (bought && bought.cost > 0) {
+    logEvent(npub, 'upgrade', bought.cost, {
+      levels: bought.levels, level_cost: bought.level_cost,
+      capacity: bought.capacity, capacity_cost: bought.capacity_cost,
+      unlocks: bought.unlocks, unlock_cost: bought.unlock_cost,
+    });
+  }
+
   const corrected = plausible !== reported;
   if (corrected) logEvent(npub, 'clamp', reported - plausible, { reported, kept: plausible, stale: !!staleBalance });
 

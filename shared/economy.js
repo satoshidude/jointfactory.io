@@ -577,8 +577,28 @@ export function maxLevelJump(prev, next) {
 }
 
 export function progressCost(prev, next) {
-  if (!prev?.plantagen || !next?.plantagen) return 0
-  let cost = 0
+  return progressBreakdown(prev, next).cost
+}
+
+/**
+ * The same difference, itemised — which is what makes the spending readable
+ * afterwards. Levels, capacity and unlocks are bought in the client, so without
+ * this the largest joints sink in the game leaves no trace at all: the server
+ * only ever sees the resulting state.
+ *
+ * @param {any} prev stored state
+ * @param {any} next incoming state
+ * @returns {{cost: number, levels: number, level_cost: number, capacity: number,
+ *            capacity_cost: number, unlocks: number, unlock_cost: number}}
+ */
+export function progressBreakdown(prev, next) {
+  const out = {
+    cost: 0,
+    levels: 0, level_cost: 0,
+    capacity: 0, capacity_cost: 0,
+    unlocks: 0, unlock_cost: 0,
+  }
+  if (!prev?.plantagen || !next?.plantagen) return out
 
   for (let i = 0; i < next.plantagen.length; i++) {
     const before = prev.plantagen[i]
@@ -586,7 +606,8 @@ export function progressCost(prev, next) {
     if (!after) continue
     if (!before) {
       // A plot that was not there before had to be unlocked.
-      cost += PLANTATION_DEFS[i]?.unlockCost || 0
+      out.unlocks += 1
+      out.unlock_cost += PLANTATION_DEFS[i]?.unlockCost || 0
       continue
     }
     // Each level is priced from the level below it, up to a bounded number of
@@ -596,7 +617,8 @@ export function progressCost(prev, next) {
     const top = Math.min(after.level || 0, before.level + MAX_LEVEL_STEP)
     for (let lvl = before.level; lvl < top; lvl++) {
       walker.level = lvl
-      cost += plantLevelCost(walker)
+      out.levels += 1
+      out.level_cost += plantLevelCost(walker)
     }
   }
 
@@ -611,13 +633,15 @@ export function progressCost(prev, next) {
     // Doubling reaches any reachable number in a few dozen steps; the bound is
     // there so a nonsense capacity cannot spin the loop.
     for (let step = 0; step < 64 && capacity > 0 && capacity < (after.capacity || 0); step++) {
-      cost += price
+      out.capacity += 1
+      out.capacity_cost += price
       capacity *= 2
       price = Math.floor(price * COST_SCALE)
     }
   }
 
-  return cost
+  out.cost = out.level_cost + out.capacity_cost + out.unlock_cost
+  return out
 }
 
 export function rehydrate(gs) {
