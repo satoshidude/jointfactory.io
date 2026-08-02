@@ -297,20 +297,81 @@ export const WINNER_SHARE = 1 / 3
 /**
  * How many of `participants` win a draw.
  *
- * The draw used to take min(21, participants), so with 21 or fewer entrants
- * *everyone* won and the pot was split strictly by ticket count — no chance
- * involved. Across 468 rounds with tickets the largest turnout was 8, so the
- * ceiling never once applied: the game has never actually run a lottery.
+ * A third of the field, rounded up, with a floor of two.
  *
- * Scaling the winner count with turnout keeps real losers at any size, so a win
- * stays an event. Odds remain proportional to tickets held.
+ * The floor is what round 904 was missing: two entrants made one winner, who
+ * took the whole 721-sat pot while the other had paid a full ticket. At this
+ * game's turnout — four players on a good day — a third rounds down to "one
+ * takes everything" almost every time. From three entrants up there is still
+ * always somebody who goes home empty, which is what keeps it a draw; at two,
+ * both are paid but the draw decides who gets 70 % and who gets 30 %.
+ *
+ * (Before that it took min(21, participants), so with 21 or fewer entrants
+ * everyone "won" and the pot was split by ticket count — no chance involved at
+ * all. The largest turnout in 468 rounds with tickets was eight.)
  *
  * @param {number} participants
  * @returns {number}
  */
 export function winnerCount(participants) {
   if (participants <= 0) return 0
-  return Math.min(MAX_WINNERS, Math.max(1, Math.ceil(participants * WINNER_SHARE)))
+  if (participants === 1) return 1
+  return Math.min(MAX_WINNERS, participants, Math.max(2, Math.ceil(participants * WINNER_SHARE)))
+}
+
+/**
+ * How the payout splits between the winners of a draw, by rank.
+ *
+ * It used to go by ticket count among the drawn winners, which at this game's
+ * real turnout meant one player taking everything: two entrants produce one
+ * winner, and the other went home with nothing after paying a full ticket. The
+ * draw still decides the order — that is where the chance lives — but second
+ * place is now worth something.
+ *
+ * The table covers the sizes this game actually reaches; the largest turnout in
+ * 468 rounds with tickets was eight. `prizeShares` continues it geometrically so
+ * the rule is defined all the way to MAX_WINNERS rather than having a hole.
+ */
+export const PRIZE_SPLIT = {
+  1: [1],
+  2: [0.70, 0.30],
+  3: [0.60, 0.25, 0.15],
+  4: [0.50, 0.25, 0.15, 0.10],
+  5: [0.44, 0.23, 0.15, 0.10, 0.08],
+  6: [0.40, 0.22, 0.14, 0.10, 0.08, 0.06],
+}
+
+const PRIZE_TAIL_RATIO = 0.75
+
+/**
+ * Shares for `n` winners, summing to 1.
+ *
+ * @param {number} n
+ * @returns {number[]}
+ */
+export function prizeShares(n) {
+  const count = Math.max(0, Math.floor(n || 0))
+  if (count === 0) return []
+  if (PRIZE_SPLIT[count]) return PRIZE_SPLIT[count]
+  const weights = Array.from({ length: count }, (_, i) => Math.pow(PRIZE_TAIL_RATIO, i))
+  const total = weights.reduce((a, b) => a + b, 0)
+  return weights.map(w => w / total)
+}
+
+/**
+ * Whole-sat payouts for a pot, by rank. The rounding remainder goes to first
+ * place, so the parts always add up to the pot exactly.
+ *
+ * @param {number} pot sats to distribute
+ * @param {number} winners
+ * @returns {number[]}
+ */
+export function prizeAmounts(pot, winners) {
+  const shares = prizeShares(winners)
+  if (shares.length === 0) return []
+  const amounts = shares.map(share => Math.floor((pot || 0) * share))
+  amounts[0] += (pot || 0) - amounts.reduce((a, b) => a + b, 0)
+  return amounts
 }
 
 // ── Lottery tickets (the scaling joints sink) ────────────────────────────────
@@ -327,7 +388,12 @@ export function winnerCount(participants) {
 // over from the old economy — the largest is about thirteen days of production
 // banked — so price alone would let a hoarder empty the round on day one.
 
-export const MAX_TICKETS_PER_DAY = 4
+// Per draw, not per calendar day. The cap used to sit on the day while draws sit
+// on the week: with two or three days between them a daily player accumulated
+// eight to twelve tickets against a casual player's one — 92 % odds against 8 %.
+// Four per round holds the spread at 4:1, and "four tickets per draw" is also the
+// simpler sentence.
+export const MAX_TICKETS_PER_ROUND = 4
 export const DAY_SECONDS = 86400
 
 /**
@@ -374,12 +440,12 @@ export function ticketScale(rate) {
 /**
  * Price of a player's next ticket.
  *
- * @param {number} boughtToday tickets bought in the last 24 h
+ * @param {number} held tickets already held in this round
  * @param {number} rate joints per second
  * @returns {number}
  */
-export function ticketPrice(boughtToday, rate) {
-  const n = Math.min(Math.max(0, boughtToday), TICKET_DAY_SHARE.length - 1)
+export function ticketPrice(held, rate) {
+  const n = Math.min(Math.max(0, held), TICKET_DAY_SHARE.length - 1)
   return Math.max(1, Math.round(rate * DAY_SECONDS * TICKET_DAY_SHARE[n] * ticketScale(rate)))
 }
 
@@ -389,13 +455,13 @@ export function ticketPrice(boughtToday, rate) {
  * Capped at three: showing the whole remaining allowance made the row wide and
  * the far entries are not a decision anyone is making yet.
  *
- * @param {number} boughtToday
+ * @param {number} held tickets already held in this round
  * @param {number} rate
  * @param {number} [limit]
  */
-export function ticketPreview(boughtToday, rate, limit = 3) {
+export function ticketPreview(held, rate, limit = 3) {
   const out = []
-  for (let n = boughtToday; n < MAX_TICKETS_PER_DAY && out.length < limit; n++) {
+  for (let n = held; n < MAX_TICKETS_PER_ROUND && out.length < limit; n++) {
     out.push({ n: n + 1, cost: ticketPrice(n, rate) })
   }
   return out

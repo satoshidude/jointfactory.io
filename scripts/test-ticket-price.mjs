@@ -16,10 +16,10 @@ const dir = mkdtempSync(join(tmpdir(), 'jf-ticket-'))
 process.env.DB_PATH = join(dir, 'test.db')
 
 const { db } = await import('../server/db.js')
-const { getTicketPrice, getPriceCurvePreview, buyTicket, ticketsBoughtToday } = await import('../server/lottery.js')
+const { getTicketPrice, getPriceCurvePreview, buyTicket, ticketsInRound } = await import('../server/lottery.js')
 const {
   initialState, PLANTATION_DEFS, newPlantation, throughput, ticketPrice, ticketScale,
-  MAX_TICKETS_PER_DAY, DAY_SECONDS, RATE_BEGINNER, RATE_TOP,
+  MAX_TICKETS_PER_ROUND, DAY_SECONDS, RATE_BEGINNER, RATE_TOP,
 } = await import('../shared/economy.js')
 
 let fail = 0
@@ -58,7 +58,7 @@ const rows = [
 ]
 for (const [name, rate] of rows) {
   let sum = 0
-  for (let n = 0; n < MAX_TICKETS_PER_DAY; n++) sum += ticketPrice(n, rate)
+  for (let n = 0; n < MAX_TICKETS_PER_ROUND; n++) sum += ticketPrice(n, rate)
   const days = sum / (rate * DAY_SECONDS)
   console.log(`  ${name.padEnd(12)} ${fmt(rate).padStart(8)}/s ${fmt(ticketPrice(0, rate)).padStart(10)} ${fmt(sum).padStart(11)}  ${days.toFixed(2).padStart(8)}`)
 }
@@ -79,7 +79,7 @@ check('Skala unter/über den Ankern gedeckelt',
       ticketScale(0.1) === ticketScale(RATE_BEGINNER) && ticketScale(1e15) === 1)
 
 // ── Daily cap ───────────────────────────────────────────────────────────────
-console.log('\n── Tageslimit ──')
+console.log('\n── Losgrenze je Ziehung ──')
 db.prepare(`INSERT INTO lottery_rounds (draws_at, status) VALUES (unixepoch() + 3600, 'open')`).run()
 
 // A hoarder: endgame rate, but thirteen days of production already banked —
@@ -92,13 +92,28 @@ for (let i = 0; i < 8; i++) results.push(buyTicket('hoarder'))
 const bought = results.filter(r => r.ok).length
 console.log(`  Rate ${fmt(hoardRate)}/s, Bestand 1.77Q Joints (~13 Produktionstage)`)
 console.log(`  8 Kaufversuche → ${bought} gekauft, dann: "${results.find(r => !r.ok)?.reason}"`)
-check(`Horter auf ${MAX_TICKETS_PER_DAY} Lose begrenzt`, bought === MAX_TICKETS_PER_DAY)
-check('Zähler stimmt', ticketsBoughtToday('hoarder') === MAX_TICKETS_PER_DAY)
+check(`Horter auf ${MAX_TICKETS_PER_ROUND} Lose je Ziehung begrenzt`, bought === MAX_TICKETS_PER_ROUND)
+check('Zähler stimmt', ticketsInRound('hoarder') === MAX_TICKETS_PER_ROUND)
 check('Vorschau ist leer, wenn ausgeschöpft', getPriceCurvePreview('hoarder').length === 0)
 
-// Cap is a rolling 24h window, not a calendar day.
+// The allowance belongs to the round, not to the calendar: waiting a day does
+// not hand out four more. Only the next draw does.
 db.prepare(`UPDATE lottery_tickets SET purchased_at = unixepoch() - 86500 WHERE npub = 'hoarder'`).run()
-check('nach 24 h wieder kaufbar', ticketsBoughtToday('hoarder') === 0 && buyTicket('hoarder').ok)
+check('ein Tag später immer noch ausgeschöpft',
+      ticketsInRound('hoarder') === MAX_TICKETS_PER_ROUND && buyTicket('hoarder').ok === false)
+
+// Next round: allowance resets, and tickets carried over from an undrawn round
+// count against it.
+// The round the hoarder actually bought into — db.js opens one on import, so it
+// is not necessarily the one this script inserted.
+const oldRound = db.prepare("SELECT round_id FROM lottery_tickets WHERE npub='hoarder' LIMIT 1").get().round_id
+db.prepare("UPDATE lottery_rounds SET status='closed' WHERE status='open'").run()
+const newRound = db.prepare(`INSERT INTO lottery_rounds (draws_at, status) VALUES (unixepoch() + 3600, 'open')`).run().lastInsertRowid
+check('neue Ziehung, neues Kontingent', ticketsInRound('hoarder') === 0 && buyTicket('hoarder').ok)
+db.prepare('UPDATE lottery_tickets SET round_id = ? WHERE round_id = ?').run(newRound, oldRound)
+console.log(`  übertragene Lose zählen mit: ${ticketsInRound('hoarder')} in der neuen Runde`)
+check('übertragene Lose zählen gegen das Kontingent',
+      ticketsInRound('hoarder') > MAX_TICKETS_PER_ROUND && buyTicket('hoarder').ok === false)
 
 // ── Beginner reality check ──────────────────────────────────────────────────
 console.log('\n── Einsteiger ──')

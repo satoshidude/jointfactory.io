@@ -224,3 +224,18 @@
   color: #ff6b6b;
   text-align: center;
 }
+
+/* What the tickets are worth to this player — the card showed pot, tickets and
+   players, but never the one number that decides whether to buy. */
+.lottery-mini-odds {
+  padding-top: 6px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.lottery-mini-odds strong {
+  color: var(--neon-gold);
+}

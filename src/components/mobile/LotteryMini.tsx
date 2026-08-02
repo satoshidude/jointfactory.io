@@ -6,7 +6,7 @@ import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import './LotteryMini.css'
 import { fmtNum as fmtSats, fmtCountdown, fmtDrawTime } from '../../lib/format'
-import { potPayout, MAX_TICKETS_PER_DAY } from '../../../shared/economy.js'
+import { potPayout, MAX_TICKETS_PER_ROUND } from '../../../shared/economy.js'
 
 interface MiniRound {
   id: number
@@ -16,13 +16,27 @@ interface MiniRound {
   unique_players: number
 }
 
+interface Odds {
+  my_tickets: number
+  total_tickets: number
+  chance_first: number
+  winners: number
+  shares: number[]
+  prizes: number[]
+  everyone_paid: boolean
+  needs_second_player: boolean
+}
+
 export default function LotteryMini() {
   const navigate = useNavigate()
   const auth = useAuth()
   const gd = useGameDisplay()
   const [round, setRound] = useState<MiniRound | null>(null)
   const [myTickets, setMyTickets] = useState(0)
-  const [ticketsToday, setTicketsToday] = useState(0)
+  const [ticketsHeld, setTicketsHeld] = useState(0)
+  // What the tickets are worth to this player: chance of being drawn, how many
+  // ranks pay tonight, and whether the round can be drawn at all.
+  const [odds, setOdds] = useState<Odds | null>(null)
   const [nextCost, setNextCost] = useState(0)
   const [buying, setBuying] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -37,7 +51,8 @@ export default function LotteryMini() {
         setRound(res.round as MiniRound)
         setMyTickets(res.my_tickets ?? 0)
         setNextCost(res.next_ticket_cost ?? 0)
-        setTicketsToday(res.tickets_today ?? 0)
+        setTicketsHeld(res.tickets_this_round ?? 0)
+        setOdds(res.odds ?? null)
         drawAtRef.current = res.round.draws_at
         setCountdown(Math.max(0, res.round.draws_at - Math.floor(Date.now() / 1000)))
       }
@@ -119,7 +134,7 @@ export default function LotteryMini() {
       if (res.ok) {
         setMyTickets(res.my_tickets || 0)
         setNextCost(res.next_ticket_cost || 0)
-        setTicketsToday(res.tickets_today || 0)
+        setTicketsHeld(res.tickets_this_round || 0)
         // Adopt the server's balance; the game loop picks it up from the store.
         // The revision travels with it so the next autosave is not treated as
         // stale — see joints_rev in server/game.js.
@@ -134,11 +149,11 @@ export default function LotteryMini() {
   }
 
   // Four tickets per rolling day, so a hoarded balance cannot empty a round.
-  const dayLimitReached = ticketsToday >= MAX_TICKETS_PER_DAY
+  const roundLimitReached = ticketsHeld >= MAX_TICKETS_PER_ROUND
   // What is still missing for the next ticket, 0 when it is affordable.
   const short = Math.max(0, Math.ceil(nextCost - auth.joints))
   const canBuy = auth.isLoggedIn && auth.joints >= nextCost && nextCost > 0
-    && !buying && gd.eligible && !dayLimitReached
+    && !buying && gd.eligible && !roundLimitReached
 
   if (!round) return null
 
@@ -164,6 +179,19 @@ export default function LotteryMini() {
           </span>
         )}
       </div>
+      {auth.isLoggedIn && odds && (
+        <div className="lottery-mini-odds">
+          {odds.needs_second_player
+            ? <>Waiting for a second player — the pot carries over</>
+            : odds.my_tickets > 0
+              ? <>First place <strong>{Math.round(odds.chance_first * 100)} %</strong> · {odds.winners === 1
+                  ? 'winner takes the pot'
+                  : `${odds.winners} winners: ${odds.prizes.map(n => fmtSats(n)).join(' · ')}`}</>
+              : <>{odds.winners === 1
+                  ? 'One winner takes the pot'
+                  : `${odds.winners} winners tonight: ${odds.prizes.map(n => fmtSats(n)).join(' · ')}`}</>}
+        </div>
+      )}
       {lastResult && (
         <div className="lottery-mini-last">
           {lastResult.winner ? (
@@ -176,14 +204,14 @@ export default function LotteryMini() {
       {auth.isLoggedIn && (
         <div className="lottery-mini-buy">
           <button className="lottery-mini-buy-btn" onClick={handleBuy} disabled={!canBuy}>
-            {buying ? 'Buying...' : dayLimitReached ? <>
-              <Ticket size={14} /> {MAX_TICKETS_PER_DAY}/{MAX_TICKETS_PER_DAY} today — back tomorrow
+            {buying ? 'Buying...' : roundLimitReached ? <>
+              <Ticket size={14} /> {MAX_TICKETS_PER_ROUND}/{MAX_TICKETS_PER_ROUND} this draw
             </> : short > 0 ? <>
               <Cannabis size={12} /> {fmtSats(short)} more for a ticket
             </> : <>
               <TicketPlus size={14} /> Ticket — <Cannabis size={12} /> {fmtSats(nextCost)}
               <span className="lottery-mini-pipe">|</span>
-              <span className="lottery-mini-avail">{ticketsToday}/{MAX_TICKETS_PER_DAY} today</span>
+              <span className="lottery-mini-avail">{ticketsHeld}/{MAX_TICKETS_PER_ROUND} this draw</span>
             </>}
           </button>
           {buyError && <span className="lottery-mini-error">{buyError}</span>}

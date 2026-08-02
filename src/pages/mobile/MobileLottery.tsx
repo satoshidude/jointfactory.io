@@ -5,7 +5,7 @@ import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime, fmtNum as fmtSats } 
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { nip19 } from 'nostr-tools'
-import { MAX_TICKETS_PER_DAY } from '../../../shared/economy.js'
+import { MAX_TICKETS_PER_ROUND } from '../../../shared/economy.js'
 import './MobileLottery.css'
 import '../../components/mobile/LotteryMini.css'
 
@@ -51,13 +51,25 @@ function shortenNpub(npub: string): string {
   return npub.slice(0, 10) + '...' + npub.slice(-6)
 }
 
+interface Odds {
+  my_tickets: number
+  total_tickets: number
+  chance_first: number
+  winners: number
+  shares: number[]
+  prizes: number[]
+  everyone_paid: boolean
+  needs_second_player: boolean
+}
+
 export default function MobileLottery() {
   const auth = useAuth()
   const gd = useGameDisplay()
 
   const [round, setRound] = useState<LotteryRound | null>(null)
   const [myTickets, setMyTickets] = useState(0)
-  const [ticketsToday, setTicketsToday] = useState(0)
+  const [ticketsHeld, setTicketsHeld] = useState(0)
+  const [odds, setOdds] = useState<Odds | null>(null)
   const [nextCost, setNextCost] = useState(0)
   const [pricePreview, setPricePreview] = useState<PricePreview[]>([])
   // Server-side truth about the three-manager rule. The game loop only runs on
@@ -83,7 +95,8 @@ export default function MobileLottery() {
         setMyTickets(res.my_tickets ?? 0)
         setNextCost(res.next_ticket_cost ?? 0)
         if (res.eligibility) setServerElig(res.eligibility)
-        setTicketsToday(res.tickets_today ?? 0)
+        setTicketsHeld(res.tickets_this_round ?? 0)
+        setOdds(res.odds ?? null)
         setPricePreview(res.price_preview ?? [])
         drawAtRef.current = res.round.draws_at
         setCountdown(Math.max(0, res.round.draws_at - Math.floor(Date.now() / 1000)))
@@ -153,7 +166,8 @@ export default function MobileLottery() {
         setMyTickets(res.my_tickets || 0)
         setNextCost(res.next_ticket_cost || 0)
         if (res.eligibility) setServerElig(res.eligibility)
-        setTicketsToday(res.tickets_today || 0)
+        setTicketsHeld(res.tickets_this_round || 0)
+        if (res.odds) setOdds(res.odds)
         // Adopt the server's balance; the game loop picks it up from the store.
         // The revision travels with it so the next autosave is not treated as
         // stale — see joints_rev in server/game.js.
@@ -172,9 +186,9 @@ export default function MobileLottery() {
   // The running game loop knows first; the server answer covers a direct visit.
   const eligible = gd.eligible ?? serverElig?.eligible ?? false
   const missing = gd.upgradesNeeded ?? serverElig?.missing ?? 0
-  const dayLimitReached = ticketsToday >= MAX_TICKETS_PER_DAY
+  const roundLimitReached = ticketsHeld >= MAX_TICKETS_PER_ROUND
   const canBuy = auth.isLoggedIn && auth.joints >= nextCost && nextCost > 0
-    && !buying && eligible && !dayLimitReached
+    && !buying && eligible && !roundLimitReached
   const drawTime = fmtDrawTime(drawAtRef.current)
 
   if (loading) return <div className="ml-page"><div className="ml-card"><p className="ml-empty">Loading Lottery...</p></div></div>
@@ -233,10 +247,35 @@ export default function MobileLottery() {
               </div>
             </div>
 
+            {odds && (
+              <div className="ml-odds">
+                {odds.needs_second_player ? (
+                  <>A draw needs two players. Until then the pot and every ticket carry into the next round.</>
+                ) : (
+                  <>
+                    {odds.my_tickets > 0 && (
+                      <span className="ml-odds-mine">
+                        First place <strong>{Math.round(odds.chance_first * 100)} %</strong>
+                        <span className="ml-odds-dim"> · {odds.my_tickets} of {odds.total_tickets} tickets</span>
+                      </span>
+                    )}
+                    <span className="ml-odds-prizes">
+                      {odds.winners === 1
+                        ? 'One winner takes the whole pot'
+                        : `${odds.winners} winners: ${odds.prizes.map((p, i) => `${i + 1}. ${fmtSats(p)}`).join(' · ')}`}
+                    </span>
+                    {odds.everyone_paid && odds.winners > 1 && (
+                      <span className="ml-odds-dim">Everyone entered is paid — the draw decides the order</span>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             {pricePreview.length > 0 && (
               <div className="ml-price-curve">
                 <div className="ml-price-curve-header">
-                  <TrendingUp size={14} /> Today's tickets
+                  <TrendingUp size={14} /> This draw
                 </div>
                 <div className="ml-price-steps">
                   {pricePreview.map((p, i) => (
@@ -254,12 +293,12 @@ export default function MobileLottery() {
             ) : (
               <div className="ml-buy">
                 <button className="lottery-mini-buy-btn" onClick={handleBuy} disabled={!canBuy}>
-                  {buying ? 'Buying...' : dayLimitReached ? <>
-                    <Ticket size={14} /> {MAX_TICKETS_PER_DAY}/{MAX_TICKETS_PER_DAY} today — back tomorrow
+                  {buying ? 'Buying...' : roundLimitReached ? <>
+                    <Ticket size={14} /> {MAX_TICKETS_PER_ROUND}/{MAX_TICKETS_PER_ROUND} this draw
                   </> : <>
                     <TicketPlus size={14} /> Ticket — <Cannabis size={12} /> {fmtSats(nextCost)}
                     <span className="lottery-mini-pipe">|</span>
-                    <span className="lottery-mini-avail">{ticketsToday}/{MAX_TICKETS_PER_DAY} today</span>
+                    <span className="lottery-mini-avail">{ticketsHeld}/{MAX_TICKETS_PER_ROUND} this draw</span>
                   </>}
                 </button>
                 {!eligible && missing > 0 && (
@@ -267,10 +306,10 @@ export default function MobileLottery() {
                     Hire {missing} more manager{missing !== 1 ? 's' : ''} to unlock
                   </span>
                 )}
-                {dayLimitReached && (
-                  <span className="ml-hint">Daily allowance used — the next tickets unlock 24 h after each purchase</span>
+                {roundLimitReached && (
+                  <span className="ml-hint">That is your four for this draw — the next allowance opens with the next round</span>
                 )}
-                {!dayLimitReached && nextCost > auth.joints && eligible && (
+                {!roundLimitReached && nextCost > auth.joints && eligible && (
                   <span className="ml-hint">Need {fmtSats(nextCost - Math.floor(auth.joints))} more Joints</span>
                 )}
                 {buyError && <span className="ml-error">{buyError}</span>}

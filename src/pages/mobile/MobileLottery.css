@@ -568,3 +568,30 @@
 .ml-zap-link:active {
   opacity: 0.7;
 }
+
+/* The one number that decides whether a ticket is worth buying, and what the
+   ranks pay — neither was anywhere on the page. */
+.ml-odds {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  margin-top: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: rgba(255, 215, 0, .05);
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.ml-odds-mine strong {
+  color: var(--neon-gold);
+  font-size: 14px;
+}
+
+.ml-odds-dim { opacity: .7; }
+
+.ml-odds-prizes { color: var(--text-primary); }

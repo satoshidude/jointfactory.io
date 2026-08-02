@@ -45,11 +45,14 @@ tracked in a house ledger (`server/house.js`) and checked hourly.
 - **Boosts** — Fertilizer (2× grow), Express Run (3× courier), Double Shift
   (2× factory) at 21 sats for 30 min; Full Throttle (2× everything) at 50 sats
   for an hour. Buying an active boost extends it instead of stacking.
-- **Lottery** — at most four tickets per player per day, costing 10 / 18 / 28 /
-  44 % of a day's output, so the full allowance is one day. 80 % of the pot is
-  paid out, split among up to a third of the round's players, capped at 21
-  winners. Every sats spend feeds the pot gross; the cut is taken once, at
-  payout. A round nobody enters settles to the house.
+- **Lottery** — at most four tickets per player **per draw**, costing 10 / 18 /
+  28 / 44 % of a day's output. 80 % of the pot is paid out; the number of winners
+  is a third of the entrants, never fewer than two and never more than 21, and
+  the pot splits by rank (70/30 for two, 60/25/15 for three, and so on). Odds of
+  being drawn first are exactly your share of the tickets. A draw needs two
+  players — with one, pot and tickets carry into the next round; with none, the
+  pot settles to the house. Every sats spend feeds the pot gross; the cut is
+  taken once, at payout.
 - **Invites** — every player who signs up through your link appears as a tile in
   your boost card, unlocks once they automate all three stations, and one click
   starts an hour of Full Throttle. Hours stack. No sats involved.

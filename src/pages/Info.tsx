@@ -135,11 +135,13 @@ export default function InfoPage() {
               <Ticket size={24} className="info-icon flamingo" />
               <div>
                 <h3>Lottery</h3>
-                <p>Joints buy tickets, up to four a day. A ticket costs a share of
-                  a day of your own production, so it is the same bite for a
-                  beginner as for the leader. Draws Tue, Thu &amp; Sat at 21:00;
-                  80 % of the pot is paid out, and up to a third of the players in
-                  a round win a share of it.</p>
+                <p>Joints buy tickets, up to four per draw. A ticket costs a share
+                  of a day of your own production, so it is the same bite for a
+                  beginner as for the leader. Draws Tue, Thu &amp; Sat at 21:00.
+                  80 % of the pot is paid out and split by rank — 70/30 with two
+                  winners, 60/25/15 with three — and your share of the tickets is
+                  your chance at first place. A draw needs two players; with only
+                  one, pot and tickets carry into the next round.</p>
               </div>
             </div>
 

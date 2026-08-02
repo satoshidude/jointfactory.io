@@ -18,12 +18,12 @@ process.env.DB_PATH = join(dir, 'test.db')
 process.env.JF_NOSTR_OFFLINE = '1'
 
 const { db } = await import('../server/db.js')
-const { buyTicket, getTicketPrice, ticketsBoughtToday } = await import('../server/lottery.js')
+const { buyTicket, getTicketPrice, ticketsInRound } = await import('../server/lottery.js')
 const { buySpeed, speedStatus } = await import('../server/speed.js')
 const { buyBoost } = await import('../server/boosts.js')
 const { houseBalance } = await import('../server/house.js')
 const {
-  initialState, newPlantation, PLANTATION_DEFS, BOOSTS, MAX_TICKETS_PER_DAY, potPayout,
+  initialState, newPlantation, PLANTATION_DEFS, BOOSTS, MAX_TICKETS_PER_ROUND, potPayout, winnerCount,
 } = await import('../shared/economy.js')
 
 let fail = 0
@@ -73,7 +73,7 @@ console.log(`\n  Start: ${fmt(opening.joints)} Joints · ${opening.sats} Sats ·
 console.log('\n── Joints → Lose ──')
 let ticketSpend = 0
 const ticketPrices = []
-for (let i = 0; i < MAX_TICKETS_PER_DAY; i++) {
+for (let i = 0; i < MAX_TICKETS_PER_ROUND; i++) {
   const quoted = getTicketPrice(NPUB)
   const before = books()
   const res = buyTicket(NPUB)
@@ -91,14 +91,14 @@ for (let i = 0; i < MAX_TICKETS_PER_DAY; i++) {
 }
 console.log(`  Preise: ${ticketPrices.map(fmt).join(' · ')}`)
 const afterTickets = books()
-check(`${MAX_TICKETS_PER_DAY} Lose gebucht`, afterTickets.tickets === MAX_TICKETS_PER_DAY)
+check(`${MAX_TICKETS_PER_ROUND} Lose gebucht`, afterTickets.tickets === MAX_TICKETS_PER_ROUND)
 check(`Joints exakt um die Summe gesunken (${fmt(ticketSpend)})`,
       opening.joints - afterTickets.joints === ticketSpend)
 check('gespeicherte Ticketkosten stimmen mit dem Abzug überein',
       afterTickets.ticketSpend === ticketSpend)
 check('Sats unberührt', afterTickets.sats === opening.sats)
 check('Pot unberührt — Lose kosten Joints, nicht Sats', afterTickets.pot === opening.pot)
-check('Tageszähler steht auf dem Limit', ticketsBoughtToday(NPUB) === MAX_TICKETS_PER_DAY)
+check('Rundenzähler steht auf dem Limit', ticketsInRound(NPUB) === MAX_TICKETS_PER_ROUND)
 
 // Over the limit: nothing may move.
 {
@@ -243,7 +243,10 @@ console.log('\n── Ziehung ──')
   check('Auszahlung entspricht dem 80-%-Anteil', paid === potPayout(gross))
   check('Hausanteil ist der Rest', cut === gross - potPayout(gross))
   check('Auszahlung + Hausanteil = Bruttopot', paid + cut === gross)
-  check('Gewinnerquote greift', res.winners.length === 1)
+  check('Gewinnerquote greift', res.winners.length === winnerCount(
+        new Set(db.prepare('SELECT npub FROM lottery_tickets WHERE round_id=?').all(round.id).map(r => r.npub)).size))
+  check('nichts bleibt zwischen den Rängen liegen',
+        res.winners.reduce((sum, w) => sum + w.payout_sats, 0) === potPayout(gross))
 
   const next = db.prepare(`SELECT total_sats_collected p FROM lottery_rounds WHERE status='open'`).get()
   check('Folgerunde startet bei 0 (nichts zu übertragen)', next.p === 0)

@@ -11,7 +11,7 @@ if (!globalThis.crypto) globalThis.crypto = webcrypto;
 import { finalizeEvent, getPublicKey, generateSecretKey } from 'nostr-tools/pure';
 import { nip04, nip19 } from 'nostr-tools';
 import WebSocket from 'ws';
-import { ticketPrice, throughput, MAX_TICKETS_PER_DAY } from '../shared/economy.js';
+import { ticketPrice, throughput, MAX_TICKETS_PER_ROUND } from '../shared/economy.js';
 import { houseDebit } from './house.js';
 
 // ---------------------------------------------------------------------------
@@ -487,17 +487,17 @@ function scheduleFakePlayers(round) {
         const budget = Math.round(rate * 86400);
         if (budget > 0) db.prepare('UPDATE players SET joints = ? WHERE npub = ?').run(budget, player.npub);
 
-        const boughtToday = db.prepare(
-          `SELECT COUNT(*) AS n FROM lottery_tickets WHERE npub = ? AND purchased_at > unixepoch() - 86400`
-        ).get(player.npub)?.n || 0;
+        const heldInRound = db.prepare(
+          'SELECT COUNT(*) AS n FROM lottery_tickets WHERE npub = ? AND round_id = ?'
+        ).get(player.npub, round.id)?.n || 0;
         const targetTickets = Math.max(0, Math.min(
-          MAX_TICKETS_PER_DAY - boughtToday,
-          1 + Math.floor(Math.random() * MAX_TICKETS_PER_DAY)
+          MAX_TICKETS_PER_ROUND - heldInRound,
+          1 + Math.floor(Math.random() * MAX_TICKETS_PER_ROUND)
         ));
         let bought = 0;
 
         for (let t = 0; t < targetTickets; t++) {
-          const cost = ticketPrice(boughtToday + t, rate);
+          const cost = ticketPrice(heldInRound + t, rate);
           const currentJoints = db.prepare('SELECT joints FROM players WHERE npub=?').get(player.npub)?.joints || 0;
           if (currentJoints < cost) break;
 

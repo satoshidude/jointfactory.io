@@ -2,7 +2,8 @@ import { randomInt } from 'crypto';
 import { db, ensureOpenRound, logEvent } from './db.js';
 import { DRAW_LABEL } from '../shared/schedule.js';
 import { potPayout, ticketPrice, ticketPreview, winnerCount, countLotteryManagers,
-         MAX_WINNERS, MAX_TICKETS_PER_DAY, REQUIRED_MANAGERS } from '../shared/economy.js';
+         prizeAmounts, prizeShares, MAX_WINNERS, MAX_TICKETS_PER_ROUND,
+         REQUIRED_MANAGERS } from '../shared/economy.js';
 import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
@@ -13,21 +14,30 @@ import { playerRate } from './speed.js';
 export { MAX_WINNERS };
 export const SAT_PER_TICKET = 100;
 
-export { MAX_TICKETS_PER_DAY };
+export { MAX_TICKETS_PER_ROUND };
 
 // Ticket prices are measured against the same rate the speed ladder uses —
 // server-computed from the stored state, boosts excluded. See server/speed.js.
 
-export function ticketsBoughtToday(npub) {
+/**
+ * Tickets this account holds in a round — the allowance, and the index the price
+ * curve steps along.
+ *
+ * It used to count the last 24 hours, which put the cap on the calendar while
+ * the draw sits on the week: two or three days between draws let a daily player
+ * carry eight to twelve tickets into a round against a casual player's one.
+ * Counting per round holds the spread at four to one.
+ */
+export function ticketsInRound(npub, roundId = null) {
   if (!npub) return 0;
-  return db.prepare(
-    `SELECT COUNT(*) AS n FROM lottery_tickets
-     WHERE npub = ? AND purchased_at > unixepoch() - 86400`
-  ).get(npub)?.n || 0;
+  const id = roundId ?? getCurrentRound()?.id;
+  if (!id) return 0;
+  return db.prepare('SELECT COUNT(*) AS n FROM lottery_tickets WHERE npub = ? AND round_id = ?')
+    .get(npub, id)?.n || 0;
 }
 
 export function getTicketPrice(npub) {
-  return ticketPrice(ticketsBoughtToday(npub), playerRate(npub));
+  return ticketPrice(ticketsInRound(npub), playerRate(npub));
 }
 
 /**
@@ -59,7 +69,7 @@ export function getRoundTickets(roundId) {
   return db.prepare(`SELECT * FROM lottery_tickets WHERE round_id=?`).all(roundId);
 }
 export function getPriceCurvePreview(npub) {
-  return ticketPreview(ticketsBoughtToday(npub), playerRate(npub));
+  return ticketPreview(ticketsInRound(npub), playerRate(npub));
 }
 
 // Atomic ticket purchase transaction
@@ -70,18 +80,18 @@ const _buyTicketTx = db.transaction((npub, roundId) => {
   if (!eligible) {
     return { ok: false, reason: `Automate the chain first — ${missing} more manager${missing === 1 ? '' : 's'} needed` };
   }
-  const boughtToday = ticketsBoughtToday(npub);
-  if (boughtToday >= MAX_TICKETS_PER_DAY) {
-    return { ok: false, reason: `Daily limit reached — ${MAX_TICKETS_PER_DAY} tickets per day` };
+  const held = ticketsInRound(npub, roundId);
+  if (held >= MAX_TICKETS_PER_ROUND) {
+    return { ok: false, reason: `That is your ${MAX_TICKETS_PER_ROUND} for this draw — the next one opens after tonight's` };
   }
-  const cost = getTicketPrice(npub);
+  const cost = ticketPrice(held, playerRate(npub));
   // Atomic deduct joints — WHERE joints >= cost prevents overspend
   const deducted = db.prepare(
     'UPDATE players SET joints = joints - ?, joints_rev = joints_rev + 1 WHERE npub = ? AND joints >= ?'
   ).run(cost, npub, cost);
   if (deducted.changes === 0) return { ok: false, reason: `Not enough Joints (${cost} needed)` };
   db.prepare('INSERT INTO lottery_tickets (round_id, npub, joints_cost) VALUES (?, ?, ?)').run(roundId, npub, cost);
-  return { ok: true, myCount: getMyTicketCount(npub, roundId), boughtToday: boughtToday + 1, cost };
+  return { ok: true, myCount: getMyTicketCount(npub, roundId), heldInRound: held + 1, cost };
 });
 
 export function buyTicket(npub) {
@@ -111,11 +121,11 @@ export function buyTicket(npub) {
   // next autosave used to undo it outright.
   const bal = db.prepare('SELECT joints, joints_rev FROM players WHERE npub=?').get(npub);
   const balance = bal?.joints ?? 0;
-  logEvent(npub, 'ticket', result.cost, { round: round.id, nth_today: result.boughtToday });
+  logEvent(npub, 'ticket', result.cost, { round: round.id, nth_in_round: result.heldInRound });
 
   return { ok:true, round_id:round.id, my_tickets:result.myCount, total_tickets:allTickets.length,
     pool_sats:updatedRound.total_sats_collected, draws_at:round.draws_at,
-    tickets_today: result.boughtToday, max_tickets_per_day: MAX_TICKETS_PER_DAY,
+    tickets_this_round: result.heldInRound, max_tickets_per_round: MAX_TICKETS_PER_ROUND,
     joints: balance, joints_rev: bal?.joints_rev ?? 0, cost: result.cost,
     next_ticket_cost:getTicketPrice(npub), price_curve:getPriceCurvePreview(npub) };
 }
@@ -153,6 +163,33 @@ export async function runDraw(roundId) {
     ticketsByPlayer[t.npub] = (ticketsByPlayer[t.npub] || 0) + 1;
   }
   const totalTickets = tickets.length;
+  const entrants = Object.keys(ticketsByPlayer).length;
+
+  // A draw needs somebody to lose to.
+  //
+  // With one entrant there is no chance involved — they would simply be handed
+  // the pot for having been the only one paying attention. The round carries
+  // instead: pot and tickets move to the next one, so nothing is taken from the
+  // player who did turn up, and the next draw is worth more.
+  if (entrants < 2) {
+    const carried = round.total_sats_collected || 0;
+    db.prepare(`UPDATE lottery_rounds SET status='closed' WHERE id=?`).run(round.id);
+    ensureOpenRound();
+    const next = getCurrentRound();
+    if (next) {
+      // Tickets move with the pot, so they keep their value — and keep counting
+      // against the four-per-draw allowance, which is what stops a carry from
+      // being a way to stockpile.
+      db.prepare('UPDATE lottery_tickets SET round_id = ? WHERE round_id = ?').run(next.id, round.id);
+      if (carried > 0) {
+        db.prepare('UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE id = ?')
+          .run(carried, next.id);
+      }
+    }
+    logEvent(null, 'draw', carried, { round: round.id, entries: entrants, tickets: totalTickets, carried: true, to_round: next?.id ?? null });
+    console.log(`[Lottery] Round ${round.id} had ${entrants} entrant — ${carried} sats and ${totalTickets} ticket(s) carried to round ${next?.id}`);
+    return { ok: true, winners: [], carried, carried_to: next?.id ?? null, entrants };
+  }
 
   // Select winners (unique players drawn from ticket pool — more tickets = higher chance).
   // Only a fraction of entrants wins; see winnerCount() for why.
@@ -166,21 +203,29 @@ export async function runDraw(roundId) {
     for (let i = remaining.length - 1; i >= 0; i--) { if (remaining[i] === w) remaining.splice(i, 1); }
   }
 
-  // Calculate payout proportional to tickets held by each winner
+  // Payout by rank, in the order the draw produced.
+  //
+  // It used to divide by ticket count among the winners, which at this turnout
+  // put the whole pot in one pair of hands: two entrants make one winner, and
+  // the other paid a full ticket for nothing. Chance still decides the order —
+  // more tickets, more likely to be drawn first — but the runner-up is paid.
   const gross = round.total_sats_collected || 0;
   const payoutPool = potPayout(gross);
   // The cut is what funds pot seeding and withdrawals; see server/house.js.
   houseCredit(gross - payoutPool, `round ${round.id} cut`);
-  const winnerTickets = winners.reduce((sum, npub) => sum + ticketsByPlayer[npub], 0);
+
+  const amounts = prizeAmounts(payoutPool, winners.length);
   const payouts = {}; // { npub: sats }
-  let distributed = 0;
-  for (const npub of winners) {
-    const share = Math.floor(payoutPool * ticketsByPlayer[npub] / winnerTickets);
-    payouts[npub] = share;
-    distributed += share;
+  winners.forEach((npub, i) => { payouts[npub] = amounts[i] || 0; });
+
+  // A rank whose share rounds to nothing is not a win. Drop it, and hand what it
+  // would have had to first place, so the pot still adds up.
+  const paidWinners = winners.filter(npub => payouts[npub] > 0);
+  if (paidWinners.length < winners.length) {
+    for (const npub of winners) if (payouts[npub] === 0) delete payouts[npub];
+    winners.length = 0;
+    winners.push(...paidWinners);
   }
-  // Give remainder to first winner to avoid dust
-  if (winners.length > 0) payouts[winners[0]] += (payoutPool - distributed);
 
   const payoutsJson = JSON.stringify(payouts);
   db.prepare(`UPDATE lottery_rounds SET status='closed',winner_npub=?,winner_payout_sats=? WHERE id=?`)

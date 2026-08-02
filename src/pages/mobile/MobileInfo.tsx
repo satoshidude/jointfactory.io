@@ -105,7 +105,7 @@ export default function MobileInfo() {
             <Ticket size={22} className="mi-feat-icon gold" />
             <div>
               <h3 className="mi-feat-title">Lottery</h3>
-              <p className="mi-feat-desc">Joints buy tickets, up to four a day. A ticket costs a share of a day of your own production, so it is the same bite for everyone. Draws Tue, Thu &amp; Sat at 21:00; 80% of the pot goes to the winners, and up to a third of the players in a round win.</p>
+              <p className="mi-feat-desc">Joints buy tickets, up to four per draw. A ticket costs a share of a day of your own production, so it is the same bite for everyone. Draws Tue, Thu &amp; Sat at 21:00. 80% of the pot is paid out and split by rank — 70/30 with two winners, 60/25/15 with three. Your share of the tickets is your chance at first place. A draw needs two players; with one, the pot carries over.</p>
             </div>
           </div>
 

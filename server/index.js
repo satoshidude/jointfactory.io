@@ -14,11 +14,11 @@ import { loadState, saveState, updateProfile, deletePlayer } from './game.js';
 import { createInvoice, confirmAndCredit, payToLightningAddress, SAT_PACKS, WEBHOOK_SECRET } from './lightning.js';
 import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         startCron, getTicketPrice, getMyTicketCount, getPriceCurvePreview,
-        MAX_WINNERS, SAT_PER_TICKET, ticketsBoughtToday, ticketEligibility } from './lottery.js';
+        MAX_WINNERS, SAT_PER_TICKET, ticketsInRound, ticketEligibility } from './lottery.js';
 import { db, logRateChange, logEvent } from './db.js';
 import { rollupDay, recentStats } from './metrics.js';
 import { countLotteryManagers, REQUIRED_MANAGERS, potPayout, winnerCount,
-         MAX_TICKETS_PER_DAY, boostMultipliers, BOOSTS } from '../shared/economy.js';
+         MAX_TICKETS_PER_ROUND, prizeShares, boostMultipliers, BOOSTS } from '../shared/economy.js';
 import { buyBoost, getActiveBoosts } from './boosts.js';
 import { buySpeed, speedStatus } from './speed.js';
 import { solvency, houseBalance } from './house.js';
@@ -405,11 +405,11 @@ fastify.get('/api/lottery/current', async (req) => {
   const tickets = getRoundTickets(round.id);
   const uniquePlayers = new Set(tickets.map(t => t.npub)).size;
 
-  let myTickets = 0, nextCost = 0, preview = [], ticketsToday = 0, eligibility = null;
+  let myTickets = 0, nextCost = 0, preview = [], ticketsHeld = 0, eligibility = null;
   try {
     await req.jwtVerify();
     myTickets    = getMyTicketCount(req.user.npub, round.id);
-    ticketsToday = ticketsBoughtToday(req.user.npub);
+    ticketsHeld = ticketsInRound(req.user.npub, round.id);
     nextCost     = getTicketPrice(req.user.npub);
     preview      = getPriceCurvePreview(req.user.npub);
     // Server-side truth. The lottery page used to read this from the game loop,
@@ -421,6 +421,13 @@ fastify.get('/api/lottery/current', async (req) => {
     preview = [];
   }
 
+  // What a player's tickets are actually worth to them, which the card never
+  // said: the chance of being drawn, how many win tonight, and what each rank
+  // takes. A draw needs two entrants — below that the round carries.
+  const winners = uniquePlayers >= 2 ? winnerCount(uniquePlayers) : 0;
+  const pot = potPayout(round.total_sats_collected);
+  const shares = prizeShares(winners);
+
   return {
     round: {
       id: round.id,
@@ -428,14 +435,30 @@ fastify.get('/api/lottery/current', async (req) => {
       total_sats_collected: round.total_sats_collected,
       total_tickets: tickets.length,
       unique_players: uniquePlayers,
-      pot_sats: potPayout(round.total_sats_collected),
+      pot_sats: pot,
       // Winners this round would produce, not the absolute ceiling.
-      max_winners: winnerCount(uniquePlayers),
+      max_winners: winners,
       sat_per_ticket: SAT_PER_TICKET,
     },
+    odds: {
+      my_tickets: myTickets,
+      total_tickets: tickets.length,
+      // Chance of being drawn *first*, which is exactly the ticket share — the
+      // one figure that is both true and useful. "Chance of winning anything"
+      // would be 100 % whenever there are as many ranks as entrants, which is
+      // the normal case at this turnout and tells the player nothing.
+      chance_first: tickets.length > 0 ? myTickets / tickets.length : 0,
+      winners,
+      shares,
+      prizes: shares.map(share => Math.floor(pot * share)),
+      // Every entrant takes a rank: nobody goes home empty, the draw only
+      // decides the order.
+      everyone_paid: uniquePlayers > 0 && winners >= uniquePlayers,
+      needs_second_player: uniquePlayers < 2,
+    },
     my_tickets: myTickets,
-    tickets_today: ticketsToday,
-    max_tickets_per_day: MAX_TICKETS_PER_DAY,
+    tickets_this_round: ticketsHeld,
+    max_tickets_per_round: MAX_TICKETS_PER_ROUND,
     next_ticket_cost: nextCost,
     price_preview: preview,
     eligibility,
