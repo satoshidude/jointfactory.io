@@ -60,8 +60,10 @@ export default function InfoPage() {
               <Cannabis size={24} className="info-icon weed" />
               <div>
                 <h3>Plantations</h3>
-                <p>Grow weed across six plots. Levels cost joints, and every tenth
-                  one hits a milestone that multiplies that plot's output.</p>
+                <p>Grow weed across six plots. Levels cost joints, and milestones
+                  double a plot's output — every 10, then 15, then 20 levels,
+                  repeating, up to ten doublings. Past that a level still adds
+                  output, just not another factor.</p>
               </div>
             </div>
 

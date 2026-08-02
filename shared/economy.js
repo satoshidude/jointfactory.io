@@ -37,11 +37,26 @@ export const PLANTATION_DEFS = [
 ]
 
 // Milestone cycle: every 10 levels → ×2, then 15 → ×3, then 20 → ×4, repeat.
+/**
+ * Milestones: a doubling every 10, then 15, then 20 levels, repeating — and no
+ * more than ten doublings in total.
+ *
+ * It used to be x2, then x3, then x4, uncapped. That compounds by x24 every 45
+ * levels, so a plot at level 145 carried a x27,600 multiplier and the top
+ * accounts were producing tens of billions a second, in steps: hitting a
+ * milestone quadrupled a chain in one click. Uniform doublings grow by x8 per 45
+ * levels instead, and the cap turns the curve linear where it used to run away.
+ *
+ * The cap sits at ten doublings, which is level 145 — where the furthest player
+ * stands today. Past it a level still adds output, just not another factor.
+ */
 export const MILESTONE_CYCLE = [
   { gap: 10, mult: 2 },
-  { gap: 15, mult: 3 },
-  { gap: 20, mult: 4 },
+  { gap: 15, mult: 2 },
+  { gap: 20, mult: 2 },
 ]
+
+export const MILESTONE_CAP = 1024
 
 export function plantMilestoneInfo(level) {
   let multiplier = 1
@@ -52,9 +67,13 @@ export function plantMilestoneInfo(level) {
     remaining -= ms.gap
     multiplier *= ms.mult
     cycleIdx++
+    // Capped: the plot keeps growing with its level, but not by another factor.
+    if (multiplier >= MILESTONE_CAP) {
+      return { multiplier: MILESTONE_CAP, levelsToNext: 0, nextMult: 1, capped: true }
+    }
   }
   const next = MILESTONE_CYCLE[cycleIdx % MILESTONE_CYCLE.length]
-  return { multiplier, levelsToNext: next.gap - remaining, nextMult: next.mult }
+  return { multiplier, levelsToNext: next.gap - remaining, nextMult: next.mult, capped: false }
 }
 
 /** Cannabis per production cycle. `globalMult` carries bought speed + boosts. */

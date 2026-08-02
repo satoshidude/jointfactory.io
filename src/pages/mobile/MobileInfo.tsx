@@ -49,7 +49,7 @@ export default function MobileInfo() {
             <Cannabis size={22} className="mi-feat-icon green" />
             <div>
               <h3 className="mi-feat-title">Plantations</h3>
-              <p className="mi-feat-desc">Grow weed across six plots. Levels cost joints and every tenth one hits a milestone that multiplies the plot's output.</p>
+              <p className="mi-feat-desc">Grow weed across six plots. Levels cost joints, and milestones double a plot's output — every 10, then 15, then 20 levels, up to ten doublings. After that a level still adds output, just not another factor.</p>
             </div>
           </div>
 

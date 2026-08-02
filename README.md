@@ -36,6 +36,11 @@ tracked in a house ledger (`server/house.js`) and checked hourly.
 
 ### The numbers
 
+- **Plot levels** — a level costs joints and adds output; milestones double a
+  plot every 10, then 15, then 20 levels, repeating, up to ten doublings. Past
+  ×1024 a level still adds output, just not another factor. The multipliers used
+  to be ×2/×3/×4 uncapped, which compounds ×24 every 45 levels — a plot at level
+  145 carried ×27,600 and one click could quadruple a chain.
 - **Managers** — the first three are free for everyone, guests included, so the
   whole chain can be automated without depositing anything. Beyond that: 100,
   150, 200, 250, 300 sats.

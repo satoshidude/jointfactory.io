@@ -188,7 +188,11 @@ function PlantRow({ p, i, joints, managerCount, isLoggedIn, boostMult, onUpgrade
       <div className="plant-row-info">
         <div className="plant-row-name">{p.name}</div>
         <div className="plant-row-sub">
-          {fmtNum(rate)}/s · {cycle.toFixed(1)}s · <span className="plant-row-milestone">{milestone.nextMult}x in {milestone.levelsToNext}</span>
+          {fmtNum(rate)}/s · {cycle.toFixed(1)}s · <span className="plant-row-milestone">
+            {milestone.capped
+              ? `x${milestone.multiplier} max`
+              : `${milestone.nextMult}x in ${milestone.levelsToNext}`}
+          </span>
         </div>
       </div>
       <div className="plant-row-actions">
