@@ -3,6 +3,7 @@ import {
   rehydrate, FREE_MANAGERS, throughput, boostMultipliers,
   courierTripTime, fabrikCycleTime, PLANTATION_DEFS,
   initialState, newPlantation, speedMultiplier,
+  plantOutput, plantRate, plantEffectiveCycle, plantMilestoneInfo, plantLevelCost,
 } from '../../shared/economy.js'
 
 // ── Plantation definitions (matching production) ─────────────────────────────
@@ -100,53 +101,22 @@ const COST_SCALE = 2.5          // courier/fabrik cap upgrade cost multiplier
 
 // ── Cost helpers (exported for UI) ───────────────────────────────────────────
 
-export function plantLevelCost(p: PlantationState): number {
-  return Math.floor(p.upgBase * Math.pow(p.upgMult, p.level))
-}
-
+// plantLevelCost comes from the shared module too — the local copy read the same
+// fields, which is exactly how two formulas drift apart unnoticed.
 export function plantManagerCost(p: PlantationState): number {
   return p.mgrCost
 }
 
 // ── Computed stats ───────────────────────────────────────────────────────────
 
-export function plantEffectiveCycle(p: PlantationState): number {
-  return p.speed > 0 ? p.cycleTime / p.speed : p.cycleTime
-}
-
-// Milestone cycle: every 10 → x2, then 15 → x3, then 20 → x4, repeat
-const MILESTONE_CYCLE = [
-  { gap: 10, mult: 2 },
-  { gap: 15, mult: 3 },
-  { gap: 20, mult: 4 },
-]
-
-export function plantMilestoneInfo(level: number): { multiplier: number; levelsToNext: number; nextMult: number } {
-  let multiplier = 1
-  let remaining = level
-  let cycleIdx = 0
-  while (remaining >= MILESTONE_CYCLE[cycleIdx % MILESTONE_CYCLE.length].gap) {
-    const ms = MILESTONE_CYCLE[cycleIdx % MILESTONE_CYCLE.length]
-    remaining -= ms.gap
-    multiplier *= ms.mult
-    cycleIdx++
-  }
-  const next = MILESTONE_CYCLE[cycleIdx % MILESTONE_CYCLE.length]
-  return { multiplier, levelsToNext: next.gap - remaining, nextMult: next.mult }
-}
-
-export function plantOutput(p: PlantationState): number {
-  const { multiplier } = plantMilestoneInfo(p.level)
-  return p.level * p.baseProd * multiplier
-}
-
-export function plantRate(p: PlantationState): number {
-  return plantOutput(p) / plantEffectiveCycle(p)
-}
-
 // Re-exported from the shared module so components keep their import path
 // while there is only one definition of each formula.
-export { courierTripTime, fabrikCycleTime }
+//
+// plantOutput and plantRate used to be copied out here, minus the multiplier
+// argument — the same duplication that once left the live site showing miners
+// instead of plantations. A caller that wanted the boosted rate silently got the
+// bare one.
+export { courierTripTime, fabrikCycleTime, plantOutput, plantRate, plantEffectiveCycle, plantMilestoneInfo, plantLevelCost }
 
 /**
  * Joints actually produced per second.
@@ -768,10 +738,26 @@ export function useGameLoop(
     setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current))
   }, [])
 
+  // Redraw at once, save shortly after.
+  //
+  // Saving on every click would be one request per tap — a player levelling a
+  // plantation ten times in five seconds would walk into the 120/min rate limit
+  // and get a 429 for playing quickly. One second of coalescing keeps the state
+  // on the server within a second of the screen while a burst of clicks costs a
+  // single request. The unload beacon covers the tab closing inside the window.
+  const saveTimerRef = useRef<number | null>(null)
   const flushAndSave = useCallback(() => {
     flush()
-    saveToServer(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, jointsRevRef.current)
+    if (saveTimerRef.current !== null) return
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null
+      saveToServer(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, jointsRevRef.current)
+    }, 1000)
   }, [flush])
+
+  useEffect(() => () => {
+    if (saveTimerRef.current !== null) clearTimeout(saveTimerRef.current)
+  }, [])
 
   const grow = useCallback((index: number) => {
     const p = gsRef.current.plantagen[index]
@@ -811,6 +797,14 @@ export function useGameLoop(
     return true
   }, [onSatsChange])
 
+  // Every joints spend below saves at once rather than waiting for the next
+  // autosave.
+  //
+  // The window was thirty seconds, and a server-side purchase inside it undid
+  // the spend for free: tickets and speed deduct from the *server's* balance and
+  // answer with it, the client adopts that figure, and the local deduction is
+  // gone — while the upgrade it paid for stays. Buy a courier upgrade, then a
+  // lottery ticket, and the upgrade cost nothing.
   const upgradePlantLevel = useCallback((index: number) => {
     const p = gsRef.current.plantagen[index]
     if (!p) return
@@ -818,9 +812,9 @@ export function useGameLoop(
     if (jointsRef.current >= cost) {
       jointsRef.current -= cost
       p.level++
-      flush()
+      flushAndSave()
     }
-  }, [flush])
+  }, [flushAndSave])
 
   const upgradeCourierCap = useCallback(() => {
     const c = gsRef.current.courier
@@ -828,9 +822,9 @@ export function useGameLoop(
       jointsRef.current -= c.capCost
       c.capacity *= 2
       c.capCost = Math.floor(c.capCost * COST_SCALE)
-      flush()
+      flushAndSave()
     }
-  }, [flush])
+  }, [flushAndSave])
 
   const upgradeFabrikCap = useCallback(() => {
     const f = gsRef.current.fabrik
@@ -838,9 +832,9 @@ export function useGameLoop(
       jointsRef.current -= f.capCost
       f.capacity *= 2
       f.capCost = Math.floor(f.capCost * COST_SCALE)
-      flush()
+      flushAndSave()
     }
-  }, [flush])
+  }, [flushAndSave])
 
   // Count total managers across all stations
   const countManagers = useCallback((): number => {
@@ -997,9 +991,9 @@ export function useGameLoop(
       jointsRef.current -= def.unlockCost
       g.plantagen.push(newPlantation(def))
       g._unlockIdx = nextIdx
-      flush()
+      flushAndSave()
     }
-  }, [flush])
+  }, [flushAndSave])
 
   return {
     state: display,

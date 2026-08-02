@@ -102,6 +102,7 @@ export default function MobileGame() {
         <FactoryCard
           fabrik={state.fabrik}
           courier={state.courier}
+          plantagen={state.plantagen}
           cannabisAtFactory={state.cannabisAtFactory}
           joints={state.joints}
           managerCount={state.managerCount}

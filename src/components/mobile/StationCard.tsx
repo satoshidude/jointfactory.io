@@ -403,9 +403,10 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
 
 // ── Factory Station Card ────────────────────────────────────────────────────
 
-export function FactoryCard({ fabrik, courier, cannabisAtFactory, joints, managerCount, isLoggedIn, boosts = [], speedLevel = 0, onUpgradeCap, onBuyManager, onRoll }: {
+export function FactoryCard({ fabrik, courier, plantagen, cannabisAtFactory, joints, managerCount, isLoggedIn, boosts = [], speedLevel = 0, onUpgradeCap, onBuyManager, onRoll }: {
   fabrik: FabrikState
   courier: CourierState
+  plantagen: PlantationState[]
   cannabisAtFactory: number
   joints: number
   managerCount: number
@@ -420,11 +421,21 @@ export function FactoryCard({ fabrik, courier, cannabisAtFactory, joints, manage
   const cycleTime = fabrikCycleTime(fabrik, mult.fabrik)
   const batch = fabrik.capacity * speedMultiplier(speedLevel)
 
-  // Can the courier keep the factory fed? Comparing throughput rather than the
-  // momentary stock, which swings with every batch and would flicker.
-  const intake = courier.mgrLevel > 0
-    ? (courier.capacity * speedMultiplier(speedLevel)) / (2 * courierTripTime(courier, mult.courier))
+  // What actually reaches the factory, and which stage decides that.
+  //
+  // This used to compare the courier against the factory alone and tell the
+  // player to "send more" — so a chain whose plantations were the real limit
+  // pointed at the courier instead. Akki upgraded courier capacity on that
+  // advice while the fields delivered a fraction of what the courier already
+  // moved, and nothing changed. The supply is the slowest stage upstream, and
+  // the hint names it.
+  const speed = speedMultiplier(speedLevel)
+  const growing = plantagen.reduce((sum, p) => sum + (p.managerLevel > 0 ? plantRate(p, speed * mult.plant) : 0), 0)
+  const hauling = courier.mgrLevel > 0
+    ? (courier.capacity * speed) / (2 * courierTripTime(courier, mult.courier))
     : 0
+  const intake = Math.min(growing, hauling)
+  const limiter = growing <= hauling ? 'plantations' : 'courier'
   const demand = fabrik.mgrLevel > 0 ? batch / cycleTime : 0
   const starved = demand > 0 && intake < demand
   const queued = batch > 0 ? Math.floor(cannabisAtFactory / batch) : 0
@@ -468,7 +479,9 @@ export function FactoryCard({ fabrik, courier, cannabisAtFactory, joints, manage
             {starved ? (
               <div className="station-stat-row">
                 <span className="station-stat-label station-stat-warn">
-                  Courier brings {fmtNum(intake)}/s, factory rolls {fmtNum(demand)}/s — send more
+                  {limiter === 'plantations'
+                    ? <>Fields grow {fmtNum(intake)}/s, factory rolls {fmtNum(demand)}/s — level up the plantations</>
+                    : <>Courier brings {fmtNum(intake)}/s, factory rolls {fmtNum(demand)}/s — upgrade its capacity</>}
                 </span>
               </div>
             ) : queued >= 1 && (
