@@ -24,7 +24,7 @@ process.env.JF_NOSTR_OFFLINE = '1'
 
 const { db } = await import('../server/db.js')
 const { saveState } = await import('../server/game.js')
-const { initialState, throughput, BOOSTS, plantLevelCost, progressCost } = await import('../shared/economy.js')
+const { initialState, throughput, BOOSTS, plantLevelCost, progressCost, MAX_LEVEL_STEP } = await import('../shared/economy.js')
 
 let fail = 0
 const check = (label, cond) => { console.log(`  ${cond ? '✓' : '✗'} ${label}`); if (!cond) fail++ }
@@ -168,6 +168,40 @@ console.log('\n── Halde in der Kette ──')
   const res = save('backlog', gs, 1_000_000 + earned)
   check('Abbau der Halde wird nicht gekappt', res.corrected === false)
   check('Guthaben steht wie gemeldet', balance('backlog') === 1_000_000 + earned)
+}
+
+// ── A brand-new account ─────────────────────────────────────────────────────
+// The first save has nothing stored to measure against. An empty baseline meant
+// a rate of zero and a ceiling of "balance + 1000", so everything a newcomer
+// tapped for in their first minutes was taken off them.
+console.log('\n── Erste Speicherung eines neuen Kontos ──')
+{
+  db.prepare('INSERT INTO players (npub, display_name, sats, joints, last_seen_at) VALUES (?,?,0,0,?)')
+    .run('fresh', 'Fresh', now() - 120)
+  const gs = initialState()
+  const possible = throughput(gs, { ignoreManagers: true }).jointsPerSec
+  const earned = Math.floor(possible * 120)
+  console.log(`  frische Kette ${possible}/s · 2 min getippt → ${fmt(earned)} Joints`)
+  const res = save('fresh', gs, earned)
+  check('nichts wird einkassiert', res.corrected === false && balance('fresh') === earned)
+}
+
+// ── A claim no clicking explains ────────────────────────────────────────────
+// Walking the cost formula over an arbitrary level jump would run it as many
+// times as the client cares to claim — a free way to burn server CPU.
+console.log('\n── Unmöglicher Sprung ──')
+{
+  const gs = chain(3)
+  seed('jumper', gs, 1_000_000, 30)
+  const absurd = JSON.parse(JSON.stringify(gs))
+  absurd.plantagen[0].level += MAX_LEVEL_STEP * 100
+  const t0 = Date.now()
+  const res = save('jumper', absurd, 1e15)
+  const ms = Date.now() - t0
+  console.log(`  +${MAX_LEVEL_STEP * 100} Stufen gemeldet · in ${ms} ms beantwortet`)
+  check('Guthaben bleibt der Serverstand', balance('jumper') === 1_000_000)
+  check('als Korrektur gemeldet', res.corrected === true)
+  check('kein Rechenlauf über die Grenze hinaus (< 250 ms)', ms < 250)
 }
 
 rmSync(dir, { recursive: true, force: true })

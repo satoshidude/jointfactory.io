@@ -536,6 +536,27 @@ export function initialState() {
  * @param {any} next incoming state
  * @returns {number} joints
  */
+export const MAX_LEVEL_STEP = 500
+
+/**
+ * Largest level jump between two states. A save is at most a second or two of
+ * clicking apart, so anything past MAX_LEVEL_STEP is not a purchase history —
+ * and pricing it would mean running the cost formula that many times on the save
+ * path, which is a free way to burn the server's CPU.
+ *
+ * @param {any} prev @param {any} next @returns {number}
+ */
+export function maxLevelJump(prev, next) {
+  if (!prev?.plantagen || !next?.plantagen) return 0
+  let jump = 0
+  for (let i = 0; i < next.plantagen.length; i++) {
+    const before = prev.plantagen[i]?.level ?? 0
+    const after = next.plantagen[i]?.level ?? 0
+    jump = Math.max(jump, after - before)
+  }
+  return jump
+}
+
 export function progressCost(prev, next) {
   if (!prev?.plantagen || !next?.plantagen) return 0
   let cost = 0
@@ -549,9 +570,12 @@ export function progressCost(prev, next) {
       cost += PLANTATION_DEFS[i]?.unlockCost || 0
       continue
     }
-    // Each level is priced from the level below it.
+    // Each level is priced from the level below it, up to a bounded number of
+    // steps — see maxLevelJump for why the loop must not follow an arbitrary
+    // claim.
     const walker = { ...before }
-    for (let lvl = before.level; lvl < (after.level || 0); lvl++) {
+    const top = Math.min(after.level || 0, before.level + MAX_LEVEL_STEP)
+    for (let lvl = before.level; lvl < top; lvl++) {
       walker.level = lvl
       cost += plantLevelCost(walker)
     }
@@ -565,7 +589,9 @@ export function progressCost(prev, next) {
     if (!before || !after) continue
     let capacity = before.capacity || 0
     let price = before.capCost || 0
-    while (capacity > 0 && capacity < (after.capacity || 0)) {
+    // Doubling reaches any reachable number in a few dozen steps; the bound is
+    // there so a nonsense capacity cannot spin the loop.
+    for (let step = 0; step < 64 && capacity > 0 && capacity < (after.capacity || 0); step++) {
       cost += price
       capacity *= 2
       price = Math.floor(price * COST_SCALE)

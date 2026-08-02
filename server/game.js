@@ -1,6 +1,7 @@
 import { db, logEvent } from './db.js';
 import { getActiveBoosts } from './boosts.js';
-import { rehydrate, throughput, countManagers, progressCost } from '../shared/economy.js';
+import { rehydrate, throughput, countManagers, progressCost, maxLevelJump,
+         MAX_LEVEL_STEP, initialState } from '../shared/economy.js';
 
 export function loadState(npub) {
   const player = db.prepare('SELECT * FROM players WHERE npub = ?').get(npub);
@@ -113,6 +114,11 @@ const _saveStateTx = db.transaction((npub, payload) => {
     // check them rises with the claim.
     let stored = {};
     try { stored = JSON.parse(existing.game_state || '{}'); rehydrate(stored); } catch { /* empty */ }
+    // A first save has nothing stored yet, and an empty baseline means a rate of
+    // zero — which would confiscate everything a new player tapped for in their
+    // first minutes. A fresh chain is the right floor: it is exactly what they
+    // could have made.
+    if (!stored.plantagen?.length) stored = initialState();
 
     const opts = {
       speedLevel: existing.speed_level || 0,
@@ -147,17 +153,30 @@ const _saveStateTx = db.transaction((npub, payload) => {
     let spent = 0;
     try { spent = progressCost(stored, gameState); } catch { /* unreadable */ }
 
-    // Half again on top of what the model says, not triple.
-    //
-    // The old factor of three was headroom for everything the model did not
-    // know: boosts, hand play, a backlog being drained. All three are accounted
-    // for above now, so the slack can shrink — and it has to, because slack is
-    // also where an unpaid upgrade hides. At three times, anything costing less
-    // than two windows of production was invisible.
-    const ceiling = existing.joints + (rate * elapsed + fromStock) * 1.5 + 1000 - spent;
-    if (plausible > ceiling) {
-      console.warn(`[Game] Clamped joints for ${npub.slice(0, 12)}…: reported ${plausible}, ceiling ${Math.floor(ceiling)}${spent > 0 ? ` (upgrades ${spent})` : ''}`);
-      plausible = Math.max(0, Math.floor(ceiling));
+    const allowance = (rate * elapsed + fromStock) * 1.5 + 1000;
+
+    // A claim the account could not have afforded, or a level jump no amount of
+    // clicking explains: the incoming state is not a purchase history, so the
+    // balance simply stays where the server had it. Zeroing the account would
+    // punish, and the guard is here to refuse a gain, not to take what is there.
+    const jump = maxLevelJump(stored, gameState);
+    const impossible = jump > MAX_LEVEL_STEP || spent > existing.joints + allowance;
+    if (impossible) {
+      console.warn(`[Game] ${npub.slice(0, 12)}… claims ${jump > MAX_LEVEL_STEP ? `+${jump} levels` : `${spent} joints of upgrades`} in one save — balance kept`);
+      plausible = Math.min(plausible, existing.joints);
+    } else {
+      // Half again on top of what the model says, not triple.
+      //
+      // The old factor of three was headroom for everything the model did not
+      // know: boosts, hand play, a backlog being drained. All three are
+      // accounted for above now, so the slack can shrink — and it has to,
+      // because slack is also where an unpaid upgrade hides. At three times,
+      // anything costing less than two windows of production was invisible.
+      const ceiling = existing.joints + allowance - spent;
+      if (plausible > ceiling) {
+        console.warn(`[Game] Clamped joints for ${npub.slice(0, 12)}…: reported ${plausible}, ceiling ${Math.floor(ceiling)}${spent > 0 ? ` (upgrades ${spent})` : ''}`);
+        plausible = Math.max(0, Math.floor(ceiling));
+      }
     }
   }
 
