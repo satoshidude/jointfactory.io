@@ -45,7 +45,13 @@ console.log(`\n  ${clamps.length} Kappung(en) über ${fmt(THRESHOLD)}, davon ${a
 
 let total = 0
 const restore = db.transaction((npub, amount, clampId) => {
-  db.prepare('UPDATE players SET joints = joints + ? WHERE npub = ?').run(amount, npub)
+  // The revision has to move with the balance. A client that is still open holds
+  // the clamped figure, and without a bump its next save posts that lower number
+  // with a matching revision — which the server accepts, wiping the restoration
+  // seconds after it was made. Bumping it makes the next save stale, so the
+  // server keeps the restored figure and the client adopts it.
+  db.prepare('UPDATE players SET joints = joints + ?, joints_rev = joints_rev + 1 WHERE npub = ?')
+    .run(amount, npub)
   logEvent(npub, 'restore', amount, { clamp_id: clampId, reason: 'clamped offline catch-up' })
 })
 
