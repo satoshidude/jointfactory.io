@@ -36,6 +36,10 @@ export function houseCredit(amount, reason = '') {
 /**
  * Spend from the ledger. Returns false when the balance does not cover it —
  * the caller must then skip whatever it was about to pay for.
+ *
+ * Nothing spends it at the moment: the only caller was the bot topping up empty
+ * pots, which paid the operator's income back out to make dead rounds look
+ * livelier. Kept because a ledger you can only pay into is not a ledger.
  */
 export function houseDebit(amount, reason = '') {
   const amt = Math.floor(amount || 0);

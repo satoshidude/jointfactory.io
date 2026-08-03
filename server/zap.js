@@ -12,7 +12,6 @@ import { finalizeEvent, getPublicKey, generateSecretKey } from 'nostr-tools/pure
 import { nip04, nip19 } from 'nostr-tools';
 import WebSocket from 'ws';
 import { ticketPrice, throughput, MAX_TICKETS_PER_ROUND } from '../shared/economy.js';
-import { houseDebit } from './house.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -438,7 +437,6 @@ function botNpubs(db) {
   return db.prepare('SELECT npub FROM players WHERE is_bot = 1').all().map(r => r.npub);
 }
 
-const FAKE_POT_AMOUNTS = [8, 12, 21];
 const _scheduledFakeRounds = new Set();
 
 function pickRandom(arr, n) {
@@ -514,25 +512,13 @@ function scheduleFakePlayers(round) {
     }, delay);
   });
 
-  // Fill pot if empty — 65min before draw (before 1h reminder)
-  const fillAt = drawsAt - 65 * 60 * 1000;
-  const fillDelay = Math.max(0, fillAt - Date.now());
-  setTimeout(() => {
-    try {
-      const r = db.prepare(`SELECT id, total_sats_collected, status FROM lottery_rounds WHERE id=?`).get(round.id);
-      if (!r || r.status !== 'open') return;
-      if (r.total_sats_collected > 0) return;
-      const amount = FAKE_POT_AMOUNTS[Math.floor(Math.random() * FAKE_POT_AMOUNTS.length)];
-      // Funded from the 20 % cut, so a seeded pot is backed by sats players
-      // really spent. No cut left, no seeding — better an empty pot than a
-      // credited balance nobody can pay out.
-      if (!houseDebit(amount, `pot seed round ${round.id}`)) return;
-      db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ? WHERE id=?`).run(amount, round.id);
-      console.log(`[Bot] Seeded pot with ${amount} sats for round ${round.id}`);
-    } catch (err) {
-      console.error('[Bot] pot seed error:', err.message);
-    }
-  }, fillDelay);
+  // Pots are no longer seeded from the house ledger.
+  //
+  // An empty round used to be topped up with 8 to 21 sats out of the 20 % cut,
+  // so it looked less desolate. That spends the operator's only income to dress
+  // up a round nobody entered — and with four real players in the current round
+  // there is nothing left to dress up. The pot is now exactly what players put
+  // in, which is also what the lottery page has always claimed.
 }
 
 // Check every minute for upcoming draws and completed draws
