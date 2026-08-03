@@ -191,6 +191,20 @@ console.log('\n── Rückkehr nach langer Abwesenheit ──')
         db.prepare("SELECT last_seen_at > state_saved_at - 10 AS x FROM players WHERE npub='returner'").get().x === 1)
 }
 
+// ── Two saves in the same second ────────────────────────────────────────────
+// While a player clicks, saves land about a second apart; stamped in whole
+// seconds, two can share one. The window rounded to zero and took that second's
+// production with it.
+console.log('\n── Zwei Speicherungen in derselben Sekunde ──')
+{
+  const gs = chain(3)
+  seed('rapid', gs, 1_000_000_000, 0)          // gerade eben gespeichert
+  const rate = throughput(gs, { ignoreManagers: true }).jointsPerSec
+  const res = save('rapid', gs, 1_000_000_000 + Math.floor(rate))   // eine Sekunde Produktion
+  console.log(`  ${fmt(rate)}/s · meldet eine Sekunde später ${fmt(rate)} mehr`)
+  check('die Sekunde wird nicht einkassiert', res.corrected === false)
+}
+
 // ── A brand-new account ─────────────────────────────────────────────────────
 // The first save has nothing stored to measure against. An empty baseline meant
 // a rate of zero and a ceiling of "balance + 1000", so everything a newcomer

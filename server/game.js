@@ -111,7 +111,15 @@ const _saveStateTx = db.transaction((npub, payload) => {
     // Since the last *save*, not since the last sign-in: logging in sets
     // last_seen_at to now, so measuring against it charged a returning player
     // for the entire time they were away.
-    const elapsed = Math.max(0, Math.floor(Date.now() / 1000) - (existing.state_saved_at || existing.last_seen_at || 0));
+    // Since the last *save*, with a floor of a few seconds.
+    //
+    // Saves land about a second apart while a player is clicking, and stamped in
+    // whole seconds two of them can fall in the same one — the window rounds to
+    // zero and the production of that second is confiscated. Spooky lost 53.7 B
+    // and 10.7 B that way mid-purchase, which is exactly the sort of thing the
+    // event log was built to surface.
+    const sinceSave = Math.floor(Date.now() / 1000) - (existing.state_saved_at || existing.last_seen_at || 0);
+    const elapsed = Math.max(3, sinceSave);
 
     // The ceiling is built from the *stored* state, never the incoming one.
     // Reading the rate out of the state being validated let a client raise its
