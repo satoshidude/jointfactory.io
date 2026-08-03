@@ -423,3 +423,18 @@
   opacity: .55;
   font-size: .85em;
 }
+
+/* Underfed: the station could roll more than arrives. A slow breath on the ring,
+   not an alarm — the number beside it already says by how much. */
+.station-ring-wrap.ring-underfed {
+  animation: ring-underfed 2.4s ease-in-out infinite;
+}
+
+@keyframes ring-underfed {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .station-ring-wrap.ring-underfed { animation: none; opacity: .7; }
+}

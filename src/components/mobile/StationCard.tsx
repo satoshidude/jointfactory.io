@@ -12,9 +12,11 @@ import { fmtNum } from '../../lib/format'
 
 // ── Animated Cycle Ring ─────────────────────────────────────────────────────
 
-function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5, label, onClick, disabled, ready, value, blow }: {
+function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5, label, onClick, disabled, ready, value, blow, hint }: {
   progress: number; speed: number; color: string; trackColor: string; size?: number; stroke?: number
   label?: string; onClick?: () => void; disabled?: boolean; ready?: boolean; value?: string; blow?: string | null
+  /** Blink softly — the station is running below what it could do. */
+  hint?: boolean
 }) {
   const r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
@@ -71,7 +73,7 @@ function CycleRing({ progress, speed, color, trackColor, size = 100, stroke = 5,
 
   return (
     <div
-      className={`station-ring-wrap${isClickable ? ' ring-clickable' : ''}${isClickable && ready ? ' ring-ready' : ''}${disabled ? ' ring-disabled' : ''}`}
+      className={`station-ring-wrap${isClickable ? ' ring-clickable' : ''}${isClickable && ready ? ' ring-ready' : ''}${disabled ? ' ring-disabled' : ''}${hint ? ' ring-underfed' : ''}`}
       style={{ width: size, height: size }}
       onClick={isClickable ? onClick : undefined}
     >
@@ -445,6 +447,11 @@ export function FactoryCard({ fabrik, courier, plantagen, cannabisAtFactory, joi
   const queued = batch > 0 ? Math.floor(cannabisAtFactory / batch) : 0
   const progress = fabrik.processing ? 1 - (fabrik.timer / fabrik.processTime) : 0
   const isAuto = fabrik.mgrLevel > 0
+  // Running below capacity — the throughput comparison, not the momentary
+  // charge. Reading the charge made the flag flip several times a second, off
+  // while a full batch ran and on again the instant it finished, and a CSS
+  // animation that is removed and re-added never advances past its first frame.
+  const underfed = isAuto && starved
   const canRoll = !fabrik.processing && cannabisAtFactory > 0
 
   return (
@@ -461,10 +468,11 @@ export function FactoryCard({ fabrik, courier, plantagen, cannabisAtFactory, joi
           color="rgba(204, 68, 255, .9)"
           trackColor="rgba(204, 68, 255, .15)"
 
-          // Always the batch size, never the current charge. The ring used to
-          // swap between the two, so the same big number meant "how much this
-          // factory can roll" one second and "how much arrived" the next.
-          value={fmtNum(batch)}
+          value={fabrik.processing ? fmtNum(fabrik._currentCharge) : fmtNum(batch)}
+          // Underfed: the factory is rolling less than it could, which is the
+          // courier's doing, not its own. The Processing row spells the ratio
+          // out — the blink is what makes someone look at it.
+          hint={underfed}
           label={isAuto ? undefined : (fabrik.processing ? 'Rolling...' : 'Roll')}
           onClick={isAuto ? undefined : onRoll}
           disabled={isAuto ? undefined : !canRoll}
