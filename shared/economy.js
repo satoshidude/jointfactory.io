@@ -33,7 +33,10 @@ export const PLANTATION_DEFS = [
   { id: 2, name: 'Indoor Room',    icon: '\u{1F3E0}', baseProd: 400,     cycleTime: 4,   upgBase: 15_000,    upgMult: UPG_MULT, mgrCost: 150, unlockCost: 2_000_000 },
   { id: 3, name: 'Hydroponic Lab', icon: '\u{1F4A7}', baseProd: 3_000,   cycleTime: 3,   upgBase: 100_000,   upgMult: UPG_MULT, mgrCost: 200, unlockCost: 100_000_000 },
   { id: 4, name: 'Greenhouse',     icon: '\u{1F333}', baseProd: 25_000,  cycleTime: 2.5, upgBase: 500_000,   upgMult: UPG_MULT, mgrCost: 250, unlockCost: 10_000_000_000 },
-  { id: 5, name: 'MegaFarm',       icon: '\u{1F3ED}', baseProd: 250_000, cycleTime: 2,   upgBase: 2_500_000, upgMult: UPG_MULT, mgrCost: 300, unlockCost: 1_000_000_000_000 },
+  // MegaFarm at a trillion was reachable in eleven days on the old capacity
+  // curve; under the braked one it sat beyond a year. Lowered so the last plot
+  // stays a goal rather than a rumour.
+  { id: 5, name: 'MegaFarm',       icon: '\u{1F3ED}', baseProd: 250_000, cycleTime: 2,   upgBase: 2_500_000, upgMult: UPG_MULT, mgrCost: 300, unlockCost: 100_000_000_000 },
 ]
 
 // Milestone cycle: every 10 levels → ×2, then 15 → ×3, then 20 → ×4, repeat.
@@ -56,7 +59,7 @@ export const MILESTONE_CYCLE = [
   { gap: 20, mult: 2 },
 ]
 
-export const MILESTONE_CAP = 1024
+export const MILESTONE_CAP = Number(globalThis.process?.env?.JF_MILESTONE_CAP) || 1024
 
 export function plantMilestoneInfo(level) {
   let multiplier = 1
@@ -100,7 +103,67 @@ export function plantLevelCost(p) {
 
 // ── Courier / factory ────────────────────────────────────────────────────────
 
-export const COST_SCALE = 2.5 // courier/fabrik capacity upgrade cost multiplier
+/**
+ * Courier and factory: one purchase multiplies capacity by CAPACITY_STEP and the
+ * next one costs COST_SCALE times as much. The ratio between the two is what
+ * decides how fast a chain can widen — at 2 and 2.5 the price per unit of
+ * throughput rises by only a quarter per step, which is a gentle brake.
+ *
+ * Both are readable from the environment so `scripts/tune-pacing.mjs` can sweep
+ * them without a second copy of the formulas living in the tuner.
+ */
+export const CAPACITY_STEP = Number(globalThis.process?.env?.JF_CAP_STEP) || 2
+
+/** Where a fresh courier and factory start — the yardstick for how far a station
+ *  has already been widened. */
+export const BASE_CAPACITY = { courier: 20, fabrik: 100 }
+
+/**
+ * The brake tightens with the number of upgrades already bought.
+ *
+ * A flat 2.5 let a chain widen almost without resistance: the greedy player
+ * crossed a quadrillion joints in under twelve days, and past that the numbers
+ * stop meaning anything to a person. A flat 3 fixes the far end but triples the
+ * wait for the second plantation, which is the first hour of the game.
+ *
+ * Rising in two steps keeps the opening exactly as fast as it was and slows the
+ * late game instead: the second plantation still arrives after 1.4 hours, and a
+ * quadrillion — where the numbers stop meaning anything — moves from twelve days
+ * to a hundred and sixty-nine. Measured with scripts/tune-pacing.mjs; the tiers
+ * are readable from JF_CAP_TIERS ("0:2.5,12:3.4,22:3.9") so the next calibration
+ * needs no code change.
+ */
+export const CAPACITY_COST_TIERS = parseTiers(globalThis.process?.env?.JF_CAP_TIERS) || [
+  { from: 0, scale: 2.5 },
+  { from: 12, scale: 3.4 },
+  { from: 22, scale: 3.9 },
+]
+
+/** "0:2.5,10:3.4,18:4" → the tier table, for sweeping without editing code. */
+function parseTiers(spec) {
+  if (!spec) return null
+  const tiers = spec.split(',').map(part => {
+    const [from, scale] = part.split(':').map(Number)
+    return { from, scale }
+  }).filter(t => Number.isFinite(t.from) && Number.isFinite(t.scale))
+  return tiers.length ? tiers.sort((a, b) => a.from - b.from) : null
+}
+
+/** Steps a station has been widened by, from its capacity. */
+export function capacitySteps(capacity, base) {
+  if (!(capacity > 0) || !(base > 0) || capacity <= base) return 0
+  return Math.round(Math.log(capacity / base) / Math.log(CAPACITY_STEP))
+}
+
+/** Cost multiplier for the *next* upgrade of a station that has bought `steps`. */
+export function capacityCostScale(steps) {
+  let scale = CAPACITY_COST_TIERS[0].scale
+  for (const tier of CAPACITY_COST_TIERS) if (steps >= tier.from) scale = tier.scale
+  return scale
+}
+
+/** Kept for callers that only need the opening rate. */
+export const COST_SCALE = CAPACITY_COST_TIERS[0].scale
 
 /** @param {any} c @param {number} [boostMult] @returns {number} */
 export function courierTripTime(c, boostMult = 1) {
@@ -630,13 +693,16 @@ export function progressBreakdown(prev, next) {
     if (!before || !after) continue
     let capacity = before.capacity || 0
     let price = before.capCost || 0
-    // Doubling reaches any reachable number in a few dozen steps; the bound is
-    // there so a nonsense capacity cannot spin the loop.
-    for (let step = 0; step < 64 && capacity > 0 && capacity < (after.capacity || 0); step++) {
+    let steps = capacitySteps(capacity, BASE_CAPACITY[key])
+    // Each step multiplies; the bound is there so a nonsense capacity cannot
+    // spin the loop. The scale has to match what the client charged, or an
+    // honest purchase looks unpaid to the save guard.
+    for (let i = 0; i < 64 && capacity > 0 && capacity < (after.capacity || 0); i++) {
       out.capacity += 1
       out.capacity_cost += price
-      capacity *= 2
-      price = Math.floor(price * COST_SCALE)
+      capacity *= CAPACITY_STEP
+      price = Math.floor(price * capacityCostScale(steps))
+      steps += 1
     }
   }
 

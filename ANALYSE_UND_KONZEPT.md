@@ -79,11 +79,18 @@ wenn sie stockt — sie zeigt die langsamste Stufe davor.
 
 **Courier** holt Cannabis ab und liefert an die Fabrik:
 - State-Machine: idle → toFactory → toPlant → idle
-- Upgrade: Kapazitaet (x2) fuer Joints
+- Upgrade: Kapazitaet (x2) fuer Joints — der Preis steigt gestaffelt: x2,5 fuer die
+  ersten zwoelf Ausbauten, dann x3,4, ab dem 22. x3,9
 
 **Fabrik** rollt Joints:
 - Batch-Verarbeitung mit Timer
-- Upgrade: Kapazitaet (x2) fuer Joints
+- Upgrade: Kapazitaet (x2) fuer Joints, dieselbe Staffel
+
+Diese Staffel bestimmt das Tempo des ganzen Spiels. Flach bei x2,5 erreichte ein
+zielstrebiger Spieler eine Quadrillion Joints in zwoelf Tagen — danach sagen die
+Zahlen niemandem mehr etwas. Gestaffelt sind es 169 Tage, ohne dass die erste
+Stunde langsamer wird (zweite Plantage weiterhin nach 1,4 h). Nachgerechnet mit
+`scripts/tune-pacing.mjs`.
 
 ### Waehrungssystem (Dual Currency)
 

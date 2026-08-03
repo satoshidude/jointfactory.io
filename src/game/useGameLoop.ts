@@ -4,6 +4,7 @@ import {
   courierTripTime, fabrikCycleTime, PLANTATION_DEFS,
   initialState, newPlantation, speedMultiplier,
   plantOutput, plantRate, plantEffectiveCycle, plantMilestoneInfo, plantLevelCost,
+  CAPACITY_STEP, BASE_CAPACITY, capacitySteps, capacityCostScale,
 } from '../../shared/economy.js'
 
 // ── Plantation definitions (matching production) ─────────────────────────────
@@ -92,7 +93,6 @@ export interface DisplayState {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const COST_SCALE = 2.5          // courier/fabrik cap upgrade cost multiplier
 
 // Speed levels are no longer for sale — boosts are the sats sink now. Existing
 // levels keep working: `speed` still divides every cycle time, so nothing a
@@ -820,8 +820,12 @@ export function useGameLoop(
     const c = gsRef.current.courier
     if (jointsRef.current >= c.capCost) {
       jointsRef.current -= c.capCost
-      c.capacity *= 2
-      c.capCost = Math.floor(c.capCost * COST_SCALE)
+      // The scale rises with how far the station has already been widened —
+      // and has to match server/game.js exactly, or an honest purchase reads as
+      // unpaid to the save guard.
+      const steps = capacitySteps(c.capacity, BASE_CAPACITY.courier)
+      c.capacity *= CAPACITY_STEP
+      c.capCost = Math.floor(c.capCost * capacityCostScale(steps))
       flushAndSave()
     }
   }, [flushAndSave])
@@ -830,8 +834,9 @@ export function useGameLoop(
     const f = gsRef.current.fabrik
     if (jointsRef.current >= f.capCost) {
       jointsRef.current -= f.capCost
-      f.capacity *= 2
-      f.capCost = Math.floor(f.capCost * COST_SCALE)
+      const steps = capacitySteps(f.capacity, BASE_CAPACITY.fabrik)
+      f.capacity *= CAPACITY_STEP
+      f.capCost = Math.floor(f.capCost * capacityCostScale(steps))
       flushAndSave()
     }
   }, [flushAndSave])

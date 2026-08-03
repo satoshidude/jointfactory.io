@@ -17,7 +17,7 @@ const upgArg = process.argv.find(a => a.startsWith('--upgmult='))
 if (upgArg) process.env.JF_UPG_MULT = upgArg.split('=')[1]
 
 const {
-  PLANTATION_DEFS, COST_SCALE, UPG_MULT,
+  PLANTATION_DEFS, CAPACITY_STEP, BASE_CAPACITY, capacitySteps, capacityCostScale, UPG_MULT,
   plantLevelCost, newPlantation, initialState, throughput,
   ticketPrice, ticketScale, MAX_TICKETS_PER_ROUND, DAY_SECONDS,
   speedCostSeconds, speedMultiplier, SPEED_MONTHLY_CAP,
@@ -106,8 +106,8 @@ function playRun(speedLevel, horizon, { verbose = false } = {}) {
     earned += pick.cost
 
     if (pick.kind === 'plant') gs.plantagen[pick.i].level++
-    else if (pick.kind === 'courier') { gs.courier.capacity *= 2; gs.courier.capCost = Math.floor(gs.courier.capCost * COST_SCALE) }
-    else if (pick.kind === 'fabrik') { gs.fabrik.capacity *= 2; gs.fabrik.capCost = Math.floor(gs.fabrik.capCost * COST_SCALE) }
+    else if (pick.kind === 'courier') { const st = capacitySteps(gs.courier.capacity, BASE_CAPACITY.courier); gs.courier.capacity *= CAPACITY_STEP; gs.courier.capCost = Math.floor(gs.courier.capCost * capacityCostScale(st)) }
+    else if (pick.kind === 'fabrik') { const st = capacitySteps(gs.fabrik.capacity, BASE_CAPACITY.fabrik); gs.fabrik.capacity *= CAPACITY_STEP; gs.fabrik.capCost = Math.floor(gs.fabrik.capCost * capacityCostScale(st)) }
     else if (pick.kind === 'unlock') {
       const p = newPlantation(PLANTATION_DEFS[gs.plantagen.length])
       p.managerLevel = 1

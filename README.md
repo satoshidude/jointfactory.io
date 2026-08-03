@@ -41,6 +41,12 @@ tracked in a house ledger (`server/house.js`) and checked hourly.
   ×1024 a level still adds output, just not another factor. The multipliers used
   to be ×2/×3/×4 uncapped, which compounds ×24 every 45 levels — a plot at level
   145 carried ×27,600 and one click could quadruple a chain.
+- **Courier and factory** — one upgrade doubles capacity; the next one costs 2.5×
+  as much for the first twelve, then 3.4×, then 3.9× past twenty-two. The rising
+  brake is what sets the pace of the whole game: flat 2.5 put a greedy player at a
+  quadrillion joints in twelve days, the tiers stretch that to a hundred and sixty
+  nine while leaving the first hour untouched. Tune with
+  `node scripts/tune-pacing.mjs`, override with `JF_CAP_TIERS=0:2.5,12:3.4,22:3.9`.
 - **Managers** — the first three are free for everyone, guests included, so the
   whole chain can be automated without depositing anything. Beyond that: 100,
   150, 200, 250, 300 sats.
