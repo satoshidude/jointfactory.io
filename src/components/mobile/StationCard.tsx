@@ -461,7 +461,10 @@ export function FactoryCard({ fabrik, courier, plantagen, cannabisAtFactory, joi
           color="rgba(204, 68, 255, .9)"
           trackColor="rgba(204, 68, 255, .15)"
 
-          value={fabrik.processing ? fmtNum(fabrik._currentCharge) : fmtNum(batch)}
+          // Always the batch size, never the current charge. The ring used to
+          // swap between the two, so the same big number meant "how much this
+          // factory can roll" one second and "how much arrived" the next.
+          value={fmtNum(batch)}
           label={isAuto ? undefined : (fabrik.processing ? 'Rolling...' : 'Roll')}
           onClick={isAuto ? undefined : onRoll}
           disabled={isAuto ? undefined : !canRoll}
@@ -495,9 +498,16 @@ export function FactoryCard({ fabrik, courier, plantagen, cannabisAtFactory, joi
                 </span>
               </div>
             )}
+            {/* Charge against batch size. On its own the charge reads as a
+                factory stat, and it moves when the *courier* is upgraded: a
+                starved factory that suddenly gets fuller deliveries processes
+                more without having grown at all. Against its own capacity the
+                difference is visible. */}
             <div className="station-stat-row">
               <span className="station-stat-label">Processing</span>
-              <span className="station-stat-value" style={{ color: 'var(--neon-purple)' }}>{fmtNum(fabrik._currentCharge)}</span>
+              <span className="station-stat-value" style={{ color: 'var(--neon-purple)' }}>
+                {fmtNum(fabrik._currentCharge)} <span className="station-stat-of">/ {fmtNum(batch)}</span>
+              </span>
             </div>
             {/* Lifetime output lived here and read as a fourth throughput
                 figure next to three that describe the current moment. It is an
