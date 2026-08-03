@@ -80,25 +80,6 @@ export default function MobileGame() {
       <div className="mgp-col mgp-col-left">
         <LotteryMini />
 
-        <BoostBar
-          boosts={state.boosts}
-          grants={boostGrants}
-          sats={state.sats}
-          isLoggedIn={auth.isLoggedIn}
-          onBuy={actions.buyBoost}
-          onClaim={actions.claimBoost}
-        />
-
-        <SpeedCard
-          level={state.speedLevel}
-          multiplier={speedMultiplier(state.speedLevel)}
-          nextMultiplier={speedMultiplier(state.speedLevel + 1)}
-          nextCost={nextSpeedCost}
-          joints={state.joints}
-          isLoggedIn={auth.isLoggedIn}
-          onBuy={actions.buySpeed}
-        />
-
         <FactoryCard
           fabrik={state.fabrik}
           courier={state.courier}
@@ -125,6 +106,25 @@ export default function MobileGame() {
           onUpgradeCap={actions.upgradeCourierCap}
           onBuyManager={actions.buyCourierManager}
           onSend={actions.sendCourier}
+        />
+
+        <BoostBar
+          boosts={state.boosts}
+          grants={boostGrants}
+          sats={state.sats}
+          isLoggedIn={auth.isLoggedIn}
+          onBuy={actions.buyBoost}
+          onClaim={actions.claimBoost}
+        />
+
+        <SpeedCard
+          level={state.speedLevel}
+          multiplier={speedMultiplier(state.speedLevel)}
+          nextMultiplier={speedMultiplier(state.speedLevel + 1)}
+          nextCost={nextSpeedCost}
+          joints={state.joints}
+          isLoggedIn={auth.isLoggedIn}
+          onBuy={actions.buySpeed}
         />
 
         <Leaderboard />
