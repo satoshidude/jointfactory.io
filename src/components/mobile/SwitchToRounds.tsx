@@ -39,23 +39,44 @@ export default function SwitchToRounds({ offer, busy, error, onConfirm }: {
 
         <div className="switch-cols">
           <div className="switch-col switch-get">
-            <h2>You are credited</h2>
+            {/* Two different offers wear this panel. An account that earned a
+                quadrillion is credited with rounds and the cheap managers that
+                come with them; one that never got there is credited with
+                nothing, and saying "managers at 90 instead of 90 — for good"
+                to those thirty players would have been a promise of nothing
+                dressed as a reward. */}
+            <h2>{offer.rounds_credited > 0 ? 'You are credited' : 'You keep'}</h2>
             <ul>
-              {/* Credited in proportion to what the account earned, never more
-                  than max_rounds — so an old figure cannot out-rank rounds
-                  actually played from here on. */}
-              <li>
-                <Trophy size={14} />
-                {offer.rounds_credited === 0
-                  ? 'no finished rounds — you never banked a full one'
-                  : `${offer.rounds_credited} round${offer.rounds_credited === 1 ? '' : 's'} finished`}
-              </li>
-              <li><Star size={14} className="switch-star" /> {offer.points_credited} prestige</li>
-              <li>
-                Managers at <strong>{offer.manager_price_after} sats</strong> instead
-                of {offer.manager_price_before} — for good
-              </li>
-              <li>Outdoor, Indoor and Hydroponic managers <strong>free</strong>, every round</li>
+              {offer.rounds_credited > 0 ? (
+                <>
+                  <li>
+                    <Trophy size={14} />
+                    {offer.rounds_credited} round{offer.rounds_credited === 1 ? '' : 's'} finished
+                  </li>
+                  <li><Star size={14} className="switch-star" /> {offer.points_credited} prestige</li>
+                  <li>
+                    Managers at <strong>{offer.manager_price_after} sats</strong> instead
+                    of {offer.manager_price_before} — for good
+                  </li>
+                  <li>Outdoor, Indoor and Hydroponic managers <strong>free</strong>, every round</li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    <Trophy size={14} />
+                    no credited rounds — they are given for every full
+                    {' '}{fmtNum(offer.target)} earned, and you have {fmtNum(offer.lifetime_joints)}
+                  </li>
+                  <li>
+                    <Star size={14} className="switch-star" />
+                    your first star comes from the first round you finish from here
+                  </li>
+                  <li>
+                    Managers stay at <strong>{offer.manager_price_before} sats</strong> and
+                    get cheaper with every round you finish — 60, then 30, then 21
+                  </li>
+                </>
+              )}
               <li><Zap size={14} className="switch-sats" /> your {offer.sats} sats, untouched</li>
             </ul>
           </div>
