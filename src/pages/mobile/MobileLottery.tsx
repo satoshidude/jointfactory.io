@@ -5,7 +5,7 @@ import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime, fmtNum as fmtSats } 
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { nip19 } from 'nostr-tools'
-import { MAX_TICKETS_PER_ROUND } from '../../../shared/economy.js'
+import { MAX_TICKETS_PER_ROUND, ticketGateReason } from '../../../shared/economy.js'
 import './MobileLottery.css'
 import '../../components/mobile/LotteryMini.css'
 
@@ -75,7 +75,7 @@ export default function MobileLottery() {
   // Server-side truth about the three-manager rule. The game loop only runs on
   // the Grow page, so on a direct visit here its store is empty and every
   // player looked ineligible.
-  const [serverElig, setServerElig] = useState<{ eligible: boolean; missing: number } | null>(null)
+  const [serverElig, setServerElig] = useState<{ eligible: boolean; missing: number; missingPaid: number; price: number } | null>(null)
   const [countdown, setCountdown] = useState(0)
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState(false)
@@ -185,7 +185,10 @@ export default function MobileLottery() {
   // Four tickets per rolling day, so a hoarded balance cannot empty a round.
   // The running game loop knows first; the server answer covers a direct visit.
   const eligible = gd.eligible ?? serverElig?.eligible ?? false
-  const missing = gd.upgradesNeeded ?? serverElig?.missing ?? 0
+  // The reason comes from whichever source answered — the running loop knows
+  // first, the server covers a direct visit to this page.
+  const ticketHint = gd.ticketHint
+    ?? (serverElig && !serverElig.eligible ? ticketGateReason(serverElig) : '')
   const roundLimitReached = ticketsHeld >= MAX_TICKETS_PER_ROUND
   const canBuy = auth.isLoggedIn && auth.joints >= nextCost && nextCost > 0
     && !buying && eligible && !roundLimitReached
@@ -301,10 +304,8 @@ export default function MobileLottery() {
                     <span className="lottery-mini-avail">{ticketsHeld}/{MAX_TICKETS_PER_ROUND} this draw</span>
                   </>}
                 </button>
-                {!eligible && missing > 0 && (
-                  <span className="ml-hint">
-                    Hire {missing} more manager{missing !== 1 ? 's' : ''} to unlock
-                  </span>
+                {!eligible && ticketHint && (
+                  <span className="ml-hint">{ticketHint}</span>
                 )}
                 {roundLimitReached && (
                   <span className="ml-hint">That is your four for this draw — the next allowance opens with the next round</span>

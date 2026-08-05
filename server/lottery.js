@@ -1,9 +1,9 @@
 import { randomInt } from 'crypto';
 import { db, ensureOpenRound, logEvent } from './db.js';
 import { DRAW_LABEL } from '../shared/schedule.js';
-import { potPayout, ticketPrice, ticketPreview, winnerCount, countLotteryManagers,
+import { potPayout, ticketPrice, ticketPreview, winnerCount,
          prizeAmounts, prizeShares, MAX_WINNERS, MAX_TICKETS_PER_ROUND,
-         REQUIRED_MANAGERS } from '../shared/economy.js';
+         ticketGate, ticketGateReason } from '../shared/economy.js';
 import cron from 'node-cron';
 import * as wsHub from './ws.js';
 import { publishLotteryWinNote } from './zap.js';
@@ -48,16 +48,15 @@ export function getTicketPrice(npub) {
  * with no chain produces nothing, so the price fell to the one-joint floor.
  * Four joints bought four entries in a round paying real sats. The rule lives
  * here now, and the page reads it from here instead of guessing.
+ *
+ * The second condition — one manager bought with sats — is what closed the
+ * other half of the same door. See ticketGate in shared/economy.js.
  */
 export function ticketEligibility(npub) {
-  const row = db.prepare('SELECT game_state FROM players WHERE npub = ?').get(npub);
-  const managers = countLotteryManagers(row?.game_state);
-  return {
-    eligible: managers >= REQUIRED_MANAGERS,
-    managers,
-    required: REQUIRED_MANAGERS,
-    missing: Math.max(0, REQUIRED_MANAGERS - managers),
-  };
+  const row = db.prepare(
+    'SELECT game_state, COALESCE(rounds_completed, 0) AS rounds_completed FROM players WHERE npub = ?'
+  ).get(npub);
+  return ticketGate(row?.game_state, row?.rounds_completed || 0);
 }
 export function getMyTicketCount(npub, roundId) {
   return db.prepare(`SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=? AND npub=?`).get(roundId, npub)?.n || 0;
@@ -76,10 +75,8 @@ export function getPriceCurvePreview(npub) {
 const _buyTicketTx = db.transaction((npub, roundId) => {
   // Counted and priced inside the transaction, from the same rows the deduction
   // reads, so two concurrent purchases cannot both pass the daily check.
-  const { eligible, missing } = ticketEligibility(npub);
-  if (!eligible) {
-    return { ok: false, reason: `Automate the chain first — ${missing} more manager${missing === 1 ? '' : 's'} needed` };
-  }
+  const gate = ticketEligibility(npub);
+  if (!gate.eligible) return { ok: false, reason: ticketGateReason(gate) };
   const held = ticketsInRound(npub, roundId);
   if (held >= MAX_TICKETS_PER_ROUND) {
     return { ok: false, reason: `That is your ${MAX_TICKETS_PER_ROUND} for this draw — the next one opens after tonight's` };

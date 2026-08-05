@@ -146,6 +146,9 @@
 .lottery-mini-buy {
   display: flex;
   align-items: center;
+  /* The hint and the error are full-width lines under the button, not columns
+     beside it — as flex items they squeezed the button to a sliver. */
+  flex-wrap: wrap;
   gap: 10px;
   border-top: 1px solid var(--border-color);
   padding-top: 8px;
@@ -216,9 +219,20 @@
 
 
 /* A declined purchase has to say so — silence reads as a broken button. */
+/* Why the button is off. Muted, not an error — nothing has gone wrong. */
+.lottery-mini-hint {
+  flex-basis: 100%;
+  margin-top: -2px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 .lottery-mini-error {
-  display: block;
-  margin-top: 6px;
+  flex-basis: 100%;
+  margin-top: -2px;
   font-family: var(--font-body);
   font-size: 11px;
   color: #ff6b6b;

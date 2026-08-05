@@ -1,12 +1,15 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Cannabis, Ticket, Wallet, UserPlus, Info } from 'lucide-react'
+import { Cannabis, Ticket, Wallet, Trophy, Info } from 'lucide-react'
 import './BottomNav.css'
 
+// Invite lost its tab and moved into Info: it is a page most players open once,
+// and it was taking a fifth of the navigation. Ranking took the slot — three
+// boards that used to be buried at the bottom of the Grow page.
 const TABS = [
   { path: '/', icon: Cannabis, label: 'Grow' },
   { path: '/lottery', icon: Ticket, label: 'Lottery' },
   { path: '/wallet', icon: Wallet, label: 'Wallet' },
-  { path: '/invite', icon: UserPlus, label: 'Invite' },
+  { path: '/ranking', icon: Trophy, label: 'Ranking' },
   { path: '/info', icon: Info, label: 'Info' },
 ] as const
 

@@ -15,7 +15,15 @@
   .mi-page > .ml-hero,
   .mi-page > .mi-disclaimer,
   .mi-page > .mi-card-welcome,
-  .mi-page > .mi-card-howto {
+  .mi-page > .mi-card-howto,
+  /* The invite card carries a whole page inside it — link, stats, share and the
+     buddy list. In one grid column it left the other one empty from its top to
+     the footer. */
+  .mi-page > .mi-card-invite,
+  /* The race and the boards are both tables of players — they want the width,
+     not half of it. */
+  .mi-page > .lb-card,
+  .mi-page > .gr-card {
     grid-column: 1 / -1;
   }
 }
@@ -167,4 +175,20 @@
 .mi-play-btn:active {
   transform: scale(0.97);
   box-shadow: 0 0 24px rgba(57, 255, 20, .5);
+}
+
+/* The invite page folded into a card here: it brings its own layout, so all it
+   needs is to stop being a page — no outer padding, no page-height minimum. */
+.invite-embedded {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+  background: none;
+}
+
+.invite-embedded .invite-hero {
+  margin-top: 0;
 }

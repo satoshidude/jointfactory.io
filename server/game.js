@@ -1,7 +1,21 @@
 import { db, logEvent } from './db.js';
 import { getActiveBoosts } from './boosts.js';
 import { rehydrate, throughput, countManagers, progressBreakdown, maxLevelJump,
-         MAX_LEVEL_STEP, initialState } from '../shared/economy.js';
+         MAX_LEVEL_STEP, MAX_PLANT_LEVEL, initialState, managerSpend, ROUND_TARGET } from '../shared/economy.js';
+import { noteProgress } from './rounds.js';
+
+/**
+ * Put back the managers of the stored state — used when the account cannot pay
+ * for the ones the incoming state claims. Only the manager fields are touched;
+ * everything else the save brought along is honest and stays.
+ */
+function restoreManagers(next, stored) {
+  const was = new Map();
+  for (const p of stored?.plantagen || []) if (Number.isInteger(p?.id)) was.set(String(p.id), p.managerLevel || 0);
+  for (const p of next?.plantagen || []) if (Number.isInteger(p?.id)) p.managerLevel = was.get(String(p.id)) || 0;
+  if (next?.courier) next.courier.mgrLevel = stored?.courier?.mgrLevel || 0;
+  if (next?.fabrik) next.fabrik.mgrLevel = stored?.fabrik?.mgrLevel || 0;
+}
 
 export function loadState(npub) {
   const player = db.prepare('SELECT * FROM players WHERE npub = ?').get(npub);
@@ -31,41 +45,57 @@ export function loadState(npub) {
 
 // Atomic saveState transaction
 const _saveStateTx = db.transaction((npub, payload) => {
-  const { gameState, joints, total_joints_earned, joints_per_sec, manager_sats_spent, joints_rev } = payload;
+  const { gameState, joints, total_joints_earned, joints_per_sec, joints_rev } = payload;
   let potUpdated = false;
 
-  // Sats the client reports as spent this session — managers beyond the free
-  // quota and speed upgrades. Deducted unconditionally.
-  //
-  // This used to be gated on `countManagers(gameState) >= 3`, counting only
-  // plantation #1, courier and factory. Anyone who had not yet automated all
-  // three got their purchases for free: the upgrade persisted in game_state
-  // while the balance was never touched. The gate protected nothing — an
-  // over-reported amount only costs the player their own sats, whereas the
-  // skipped deduction handed out speed levels and managers for nothing.
-  const mgrSpent = Math.floor(manager_sats_spent || 0);
-  if (mgrSpent > 0) {
-    // Atomic deduct — no-op when the balance does not cover it, in which case
-    // the client keeps the amount pending and retries on the next save.
-    const deducted = db.prepare(`UPDATE players SET sats = sats - ? WHERE npub = ? AND sats >= ?`).run(mgrSpent, npub, mgrSpent);
-    if (deducted.changes > 0) {
-      // Gross into the pot — the house cut is taken once, at payout.
-      db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ?
-                  WHERE id = (SELECT id FROM lottery_rounds WHERE status = 'open' ORDER BY id DESC LIMIT 1)`).run(mgrSpent);
-      console.log(`[Lottery] Adding ${mgrSpent} sats from ${npub.slice(0, 8)}... to pot`);
-      // Managers are the only sats spend the client reports rather than requests,
-      // so this is where that money becomes visible to the analytics.
-      logEvent(npub, 'manager', mgrSpent, { managers: countManagers(gameState) });
-      potUpdated = true;
-    } else {
-      console.warn(`[Game] Spend of ${mgrSpent} sats by ${npub.slice(0, 12)}… exceeds balance — not deducted`);
-    }
-  }
-
   const existing = db.prepare(
-    `SELECT joints, total_joints_earned, speed_level, last_seen_at, joints_rev, game_state,
+    `SELECT joints, total_joints_earned, speed_level, last_seen_at, joints_rev, game_state, sats,
+            COALESCE(rounds_completed, 0) AS rounds_completed,
+            COALESCE(switch_pending, 0) AS switch_pending,
             COALESCE(state_saved_at, last_seen_at) AS state_saved_at FROM players WHERE npub = ?`
   ).get(npub);
+
+  // An account that predates rounds does not play until its owner has confirmed
+  // the switch. Refused here, before anything is priced or written: the tab that
+  // was open yesterday would otherwise post a chain built on a curve that no
+  // longer exists, over a state the player has not agreed to yet.
+  if (existing?.switch_pending) {
+    return { ok: false, reason: 'switch_required' };
+  }
+
+  // Managers the incoming state has that the stored one did not, priced here.
+  //
+  // The client used to report what it had spent and the server deducted that
+  // number, which meant a client reporting nothing got its managers for nothing.
+  // The price is not the client's to know anyway now: it falls with every round
+  // the player finishes, and three of the plots stop costing anything at all.
+  //
+  // Unaffordable hires are undone rather than given away — the state goes back to
+  // the managers the account actually has.
+  let managerRefused = false;
+  if (existing) {
+    let stored = {};
+    try { stored = JSON.parse(existing.game_state || '{}'); rehydrate(stored); } catch { /* empty */ }
+    const spend = managerSpend(stored, gameState, existing.rounds_completed);
+    if (spend.cost > 0) {
+      const deducted = db.prepare(`UPDATE players SET sats = sats - ? WHERE npub = ? AND sats >= ?`)
+        .run(spend.cost, npub, spend.cost);
+      if (deducted.changes > 0) {
+        // Gross into the pot — the house cut is taken once, at payout.
+        db.prepare(`UPDATE lottery_rounds SET total_sats_collected = total_sats_collected + ?
+                    WHERE id = (SELECT id FROM lottery_rounds WHERE status = 'open' ORDER BY id DESC LIMIT 1)`).run(spend.cost);
+        console.log(`[Lottery] Adding ${spend.cost} sats from ${npub.slice(0, 8)}... to pot`);
+        logEvent(npub, 'manager', spend.cost, {
+          hired: spend.hired, round: existing.rounds_completed + 1, managers: countManagers(gameState),
+        });
+        potUpdated = true;
+      } else {
+        console.warn(`[Game] ${npub.slice(0, 12)}… hired ${spend.hired.join(', ')} for ${spend.cost} sats with ${existing.sats} — refused`);
+        restoreManagers(gameState, stored);
+        managerRefused = true;
+      }
+    }
+  }
 
   // One row per player per session, for retention: last_seen_at only ever holds
   // the latest visit, so how often anyone came back was unrecoverable. A gap of
@@ -94,6 +124,16 @@ const _saveStateTx = db.transaction((npub, payload) => {
   // term keeps small balances from tripping over rounding; the point is to bound
   // the number, not to recompute it.
   let plausible = Math.floor(joints || 0);
+  // Set when the incoming state is not a purchase history at all. The balance was
+  // already protected; the *state* was not, and it was persisted anyway — so a
+  // rejected claim still became the baseline the next save is measured against.
+  let keepStoredState = false;
+  // Ceiling for the lifetime counter, which was never bounded at all. It only
+  // fed a leaderboard before; it now decides when a round is finished, how many
+  // prestige points it pays and what time goes into the Billionaires Club — so a
+  // client that simply reports a larger number could claim a record it never ran.
+  // It grows with production, exactly like the balance, so the same allowance fits.
+  let totalCeiling = Infinity;
 
   // A purchase made since the client last read its balance bumps joints_rev.
   // The client echoes the revision it knows; a mismatch means it is about to
@@ -107,6 +147,16 @@ const _saveStateTx = db.transaction((npub, payload) => {
   if (staleBalance) {
     console.warn(`[Game] Stale balance from ${npub.slice(0, 12)}… (rev ${joints_rev} vs ${existing.joints_rev}) — keeping server figure`);
     plausible = existing.joints;
+    // The lifetime figure in that same post is just as stale, and leaving it
+    // unbounded here would be the way around the ceiling below.
+    totalCeiling = existing.total_joints_earned || 0;
+    // So is the chain. A stale post is a snapshot from before something the
+    // client has not seen yet, and the largest such thing is a round reset: the
+    // open tab posted its finished six-plot chain a moment after the reset and
+    // wrote it straight over the fresh one, leaving an account with no joints
+    // and an endgame factory. Costs nothing in the ordinary case — the client
+    // adopts the revision from this same answer and its next save goes through.
+    keepStoredState = true;
   } else if (existing) {
     // Since the last *save*, not since the last sign-in: logging in sets
     // last_seen_at to now, so measuring against it charged a returning player
@@ -167,16 +217,28 @@ const _saveStateTx = db.transaction((npub, payload) => {
     try { bought = progressBreakdown(stored, gameState); spent = bought.cost; } catch { /* unreadable */ }
 
     const allowance = (rate * elapsed + fromStock) * 1.5 + 1000;
+    // Never past the round target: counting stops there, so a client reporting
+    // more has either lost track or is trying it on.
+    totalCeiling = Math.min(ROUND_TARGET, (existing.total_joints_earned || 0) + allowance);
 
     // A claim the account could not have afforded, or a level jump no amount of
     // clicking explains: the incoming state is not a purchase history, so the
     // balance simply stays where the server had it. Zeroing the account would
     // punish, and the guard is here to refuse a gain, not to take what is there.
     const jump = maxLevelJump(stored, gameState);
-    const impossible = jump > MAX_LEVEL_STEP || spent > existing.joints + allowance;
+    // Levels past the ceiling are not for sale. A newly unlocked plot arrives on
+    // an inherited level (see inheritedLevel), so the jump check alone would wave
+    // one through at any height.
+    const overCap = (gameState?.plantagen || []).some(p => (p?.level || 0) > MAX_PLANT_LEVEL);
+    const impossible = jump > MAX_LEVEL_STEP || overCap || spent > existing.joints + allowance;
     if (impossible) {
-      console.warn(`[Game] ${npub.slice(0, 12)}… claims ${jump > MAX_LEVEL_STEP ? `+${jump} levels` : `${spent} joints of upgrades`} in one save — balance kept`);
+      console.warn(`[Game] ${npub.slice(0, 12)}… claims ${overCap ? 'a level past the cap' : jump > MAX_LEVEL_STEP ? `+${jump} levels` : `${spent} joints of upgrades`} in one save — state and balance kept`);
       plausible = Math.min(plausible, existing.joints);
+      // The stored state stays as well. Keeping only the balance left the
+      // rejected chain in the database, and every ceiling after that is built
+      // from the stored state — so a refused claim quietly became the baseline
+      // for the next one.
+      keepStoredState = true;
     } else {
       // Half again on top of what the model says, not triple.
       //
@@ -212,6 +274,14 @@ const _saveStateTx = db.transaction((npub, payload) => {
   const corrected = plausible !== reported;
   if (corrected) logEvent(npub, 'clamp', reported - plausible, { reported, kept: plausible, stale: !!staleBalance });
 
+  const savedState = keepStoredState ? existing.game_state : JSON.stringify(gameState || {});
+  // Never below what is stored: the counter only ever grows, and the wipe guard
+  // above has already refused an incoming zero.
+  const savedTotal = keepStoredState
+    ? (existing.total_joints_earned || 0)
+    : Math.max(existing?.total_joints_earned || 0,
+               Math.min(Math.floor(total_joints_earned || 0), Math.floor(totalCeiling)));
+
   // Save game state — sats is NEVER written from client
   db.prepare(`
     UPDATE players SET
@@ -223,15 +293,24 @@ const _saveStateTx = db.transaction((npub, payload) => {
       state_saved_at = unixepoch()
     WHERE npub = ?
   `).run(
-    JSON.stringify(gameState || {}),
+    savedState,
     plausible,
-    Math.floor(total_joints_earned || 0),
+    savedTotal,
     joints_per_sec || 0,
     npub
   );
 
+  // When the round's target fell, and when the sixth plot opened. Read from what
+  // the guard let through, never from a client's own claim to a record.
+  try { noteProgress(npub, savedTotal, keepStoredState ? null : gameState); } catch (err) {
+    console.warn('[Rounds] progress note failed:', err.message);
+  }
+
   const rev = db.prepare('SELECT joints_rev FROM players WHERE npub = ?').get(npub)?.joints_rev ?? 0;
-  return { ok: true, potUpdated, joints: plausible, joints_rev: rev, corrected };
+  // manager_refused tells the client its optimistic hire did not go through, so
+  // it can put the sats back on screen instead of showing a manager it has not
+  // got.
+  return { ok: true, potUpdated, joints: plausible, joints_rev: rev, corrected, manager_refused: managerRefused };
 });
 
 export function saveState(npub, payload) {

@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Trophy, Zap, Cannabis, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Trophy, Cannabis, Star, Timer, Crown, Medal, Award } from 'lucide-react'
 import { nip19 } from 'nostr-tools'
 import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import './Leaderboard.css'
-import { fmtNum as fmtSats } from '../../lib/format'
-import { speedMultiplier } from '../../../shared/economy.js'
+import { fmtNum } from '../../lib/format'
 
 interface PlayerInfo {
   npub: string
@@ -14,88 +13,180 @@ interface PlayerInfo {
   total_won_sats: number
   total_joints_earned: number
   speed_level?: number
+  prestige_points?: number
+  rounds_completed?: number
 }
 
-const COLORS = ['#ffd700', '#39ff14', '#cc44ff', '#00d4ff', '#ff6b6b', '#ff69b4', '#ff8c00']
-const PER_PAGE = 11
+interface ClubEntry {
+  npub: string
+  display_name: string
+  round_no: number
+  seconds_to_target: number
+  boost_sats: number
+  megafarm_at: number | null
+}
 
+/** One player, with everything the board knows about them. */
+interface Entry {
+  npub: string
+  name: string
+  /** Joints this round — what the board ranks by. */
+  total: number
+  /** Rounds finished. */
+  stars: number
+  /** Fastest quadrillion they ever rolled, in seconds. Null until they do. */
+  best: number | null
+}
+
+const dur = (s: number) => s >= 86400 ? `${(s / 86400).toFixed(1)} d` : `${(s / 3600).toFixed(1)} h`
+const link = (npub: string) => {
+  try { return `/u/${nip19.npubEncode(npub)}` } catch { return `/u/${npub}` }
+}
+
+/**
+ * One board, not two.
+ *
+ * The standings were split across tabs — who is ahead in this round, and who
+ * was fastest to a quadrillion — which made the reader click to compare two
+ * facts about the same twenty people. They are three columns, so they are one
+ * table: the stars say who keeps coming back, the best time says who is fast,
+ * and the total says who is ahead right now.
+ */
 export default function Leaderboard() {
   const auth = useAuth()
   const [players, setPlayers] = useState<PlayerInfo[]>([])
-  const [page, setPage] = useState(0)
+  const [club, setClub] = useState<ClubEntry[]>([])
 
   useEffect(() => {
-    const fetch = () => {
+    const load = () => {
       apiFetch('/players').then(data => {
         if (data?.players) {
           setPlayers((data.players as PlayerInfo[])
             .filter(p => p.total_joints_earned > 0)
-            .sort((a, b) => b.total_won_sats - a.total_won_sats))
+            .sort((a, b) => b.total_joints_earned - a.total_joints_earned))
         }
       }).catch(() => {})
+      apiFetch('/rounds/leaderboard').then(data => {
+        if (data?.club) setClub(data.club as ClubEntry[])
+      }).catch(() => {})
     }
-    fetch()
-    const iv = setInterval(fetch, 30000)
+    load()
+    const iv = setInterval(load, 30000)
     return () => clearInterval(iv)
   }, [])
 
-  if (players.length === 0) return null
+  const you = auth.npub
 
-  const rates = players.map(p => p.joints_per_sec).filter(r => r > 0)
-  const maxRate = Math.max(...rates, 1)
-  const minRate = Math.min(...rates, maxRate)
-  const rateSpan = Math.log10(maxRate / minRate) || 1
-  const totalPages = Math.ceil(players.length / PER_PAGE)
-  const pagePlayers = players.slice(page * PER_PAGE, (page + 1) * PER_PAGE)
+  // A player can finish more than one round; the board carries their best.
+  const bestOf = (npub: string) => {
+    const times = club.filter(e => e.npub === npub).map(e => e.seconds_to_target)
+    return times.length ? Math.min(...times) : null
+  }
+
+  const entries: Entry[] = players.map(p => ({
+    npub: p.npub,
+    name: you === p.npub ? 'YOU' : (p.display_name || 'anon'),
+    total: p.total_joints_earned,
+    stars: p.prestige_points ?? 0,
+    best: bestOf(p.npub),
+  }))
+
+  // Second, first, third — the shape of an actual podium.
+  const podium = [entries[1], entries[0], entries[2]]
+  const rest = entries.slice(3, 3 + 12)
 
   return (
     <div className="lb-card">
-      <div className="lb-header">
-        <Trophy size={20} className="lb-header-icon" />
-        <span className="lb-title">Leaderboard</span>
-        {totalPages > 1 && (
-          <div className="lb-pager">
-            <button className="lb-pager-btn" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
-              <ChevronLeft size={14} />
-            </button>
-            <span className="lb-pager-info">{page + 1}/{totalPages}</span>
-            <button className="lb-pager-btn" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
-              <ChevronRight size={14} />
-            </button>
+      <div className="lb-head">
+        <Trophy size={15} className="lb-head-icon" />
+        <span className="lb-head-title">Standings</span>
+        <span className="lb-head-note">joints this round · best quadrillion · rounds finished</span>
+      </div>
+
+      {entries.length === 0 ? (
+        <p className="lb-empty">No players yet.</p>
+      ) : (
+        <>
+          <div className="lb-podium">
+            {podium.map((e, i) => {
+              // Rendered 2 · 1 · 3, so the middle block is the winner.
+              const place = i === 1 ? 1 : i === 0 ? 2 : 3
+              if (!e) return <div key={place} className="lb-plinth lb-plinth-empty" />
+              return (
+                <div key={e.npub} className={`lb-plinth lb-place-${place}${you === e.npub ? ' lb-plinth-you' : ''}`}>
+                  {/* The winner gets something the other two do not. A podium
+                      where all three plinths look alike is just three boxes. */}
+                  {place === 1 && <Crown size={18} className="lb-crown" />}
+                  {/* The disc carries the honour, the step carries the number —
+                      both showing "2" was one 2 too many. */}
+                  <div className="lb-medal">
+                    {place === 1 ? <Trophy size={24} /> : place === 2 ? <Medal size={19} /> : <Award size={19} />}
+                  </div>
+                  <a className="lb-plinth-name" href={link(e.npub)}>{e.name}</a>
+                  {/* Rounds finished, as stars. Up to five are drawn; past that
+                      a count, because six little glyphs stop being countable. */}
+                  {e.stars > 0 && (
+                    <div className="lb-plinth-stars" title={`${e.stars} rounds finished`}>
+                      {e.stars <= 5
+                        ? Array.from({ length: e.stars }, (_, k) => <Star key={k} size={11} />)
+                        : <><Star size={11} /> ×{e.stars}</>}
+                    </div>
+                  )}
+                  <div className="lb-plinth-value">{fmtNum(e.total)}</div>
+                  <div className="lb-plinth-caption">joints this round</div>
+                  {/* Their record, where they have one. It is the other half of
+                      what the board is about, and it used to be a tab away. */}
+                  <div className="lb-plinth-best">
+                    {e.best != null ? <><Timer size={10} /> {dur(e.best)}</> : <>&nbsp;</>}
+                  </div>
+                  {/* The step itself: gold is tallest, bronze is lowest, and the
+                      numeral is cut into it the way it is on a real one. */}
+                  <div className="lb-step"><span>{place}</span></div>
+                </div>
+              )
+            })}
           </div>
-        )}
-      </div>
-      <div className="lb-head-row">
-        <span className="lb-h-rank">#</span>
-        <span className="lb-h-name">Name</span>
-        <span className="lb-h-speed">Speed</span>
-        <span className="lb-h-sats">Earnings</span>
-        <span className="lb-h-total">Total</span>
-      </div>
-      <div className="lb-rows">
-        {pagePlayers.map((p, i) => {
-          const globalIdx = page * PER_PAGE + i
-          const isYou = auth.npub === p.npub
-          // Log-scaled, like the growth race: rates span nine orders of
-          // magnitude on production, so a linear bar shows only the leader.
-          const barPct = p.joints_per_sec > 0
-            ? Math.max(4, 4 + (Math.log10(p.joints_per_sec / minRate) / rateSpan) * 96)
-            : 0
-          const barColor = isYou ? 'var(--neon-gold)' : COLORS[globalIdx % COLORS.length]
-          return (
-            <div key={p.npub} className={`lb-row${isYou ? ' lb-row-you' : ''}${globalIdx < 3 ? ` lb-row-top${globalIdx + 1}` : ''}`}>
-              <div className="lb-bar" style={{ width: `${barPct}%`, background: barColor }} />
-              <span className="lb-rank">
-                {globalIdx < 3 ? <Trophy size={12} className={`lb-trophy-${globalIdx + 1}`} /> : `#${globalIdx + 1}`}
-              </span>
-              <a className="lb-name" href={`/u/${(() => { try { return nip19.npubEncode(p.npub) } catch { return p.npub } })()}`}>{isYou ? 'YOU' : (p.display_name || 'anon')}</a>
-              <span className="lb-speed">×{speedMultiplier(p.speed_level ?? 0).toFixed(2)}</span>
-              <span className="lb-sats"><Zap size={11} /> {fmtSats(p.total_won_sats)}</span>
-              <span className="lb-total"><Cannabis size={11} /> {fmtSats(p.total_joints_earned)}</span>
-            </div>
-          )
-        })}
-      </div>
+
+          {rest.length > 0 && (
+            <>
+              <div className="lb-head-row">
+                <span className="lb-h-rank">#</span>
+                <span className="lb-h-name">Name</span>
+                <span>Stars</span>
+                <span>Best</span>
+                <span>Total</span>
+              </div>
+              <div className="lb-rows">
+                {rest.map((e, i) => (
+                  <div key={e.npub} className={`lb-row${you === e.npub ? ' lb-row-you' : ''}`}>
+                    <span className="lb-rank">#{i + 4}</span>
+                    <a className="lb-name" href={link(e.npub)}>
+                      <span className="lb-name-text">{e.name}</span>
+                    </a>
+                    <span className="lb-cell">
+                      {e.stars > 0
+                        ? <span className="lb-stars-cell" title={`${e.stars} rounds finished`}>
+                            <Star size={11} /> {e.stars}
+                          </span>
+                        // A column of purple zeros pulls the eye to the players who
+                        // have done the least. Nothing to show reads as nothing.
+                        : <span className="lb-stars-none">–</span>}
+                    </span>
+                    <span className="lb-cell">
+                      {/* No clock here — the column is called Best, and the icon
+                          only cost the cell a second line. */}
+                      {e.best != null
+                        ? <span className="lb-strong">{dur(e.best)}</span>
+                        : <span className="lb-stars-none">–</span>}
+                    </span>
+                    <span className="lb-cell"><Cannabis size={11} /> {fmtNum(e.total)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
     </div>
   )
 }

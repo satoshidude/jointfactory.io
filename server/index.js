@@ -11,6 +11,7 @@ import * as wsHub from './ws.js';
 import { verifyNostrAuth, getOrCreatePlayer, checkReferralReward, listReferralBoosts,
         claimReferralBoost, REFERRAL_BOOST } from './auth.js';
 import { loadState, saveState, updateProfile, deletePlayer } from './game.js';
+import { resetRound, roundStatus, roundLeaderboards, switchToRounds, switchPreview } from './rounds.js';
 import { createInvoice, confirmAndCredit, payToLightningAddress, SAT_PACKS, WEBHOOK_SECRET } from './lightning.js';
 import { buyTicket, runDraw, getCurrentRound, getRoundTickets,
         startCron, getTicketPrice, getMyTicketCount, getPriceCurvePreview,
@@ -216,6 +217,10 @@ fastify.get('/api/game/state', { preHandler: requireAuth }, async (req) => {
     // Unclaimed invite rewards — rendered as tiles in the boost card.
     boost_grants: listReferralBoosts(req.user.npub),
     speed: speedStatus(req.user.npub),
+    round: roundStatus(req.user.npub),
+    // Non-null only while the account still has to confirm the switch to rounds.
+    // The client renders the switch screen instead of the game on this.
+    switch_offer: switchPreview(req.user.npub),
   };
 });
 fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
@@ -242,9 +247,44 @@ fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
   // A reward is unlocked by the *buddy's* save, on someone else's account, so a
   // referrer has no other way to hear about it. Riding along on their own saves
   // makes the tile appear within one autosave interval without a poll.
-  return { ...result, boost_grants: listReferralBoosts(req.user.npub) };
+  return { ...result, boost_grants: listReferralBoosts(req.user.npub), round: roundStatus(req.user.npub) };
 });
 fastify.post('/api/game/profile', { preHandler: requireAuth }, async (req) => updateProfile(req.user.npub, req.body));
+
+// Close the round and start over. Refused below the target — the server owns
+// that judgement, the same way it owns when the target was reached.
+fastify.post('/api/game/reset', { preHandler: requireAuth }, async (req, reply) => {
+  const result = resetRound(req.user.npub);
+  if (!result.ok) return reply.code(400).send({ error: result.reason, needed: result.needed, earned: result.earned });
+  wsHub.broadcastPlayerUpdate(req.user.npub, 0, 0, 0);
+  return result;
+});
+
+// Take an account that predates rounds into the round economy. Idempotent, and
+// the only thing that clears the freeze — there is no deadline and no automatic
+// conversion.
+fastify.post('/api/game/switch', { preHandler: requireAuth }, async (req, reply) => {
+  // The switch is one-way and wipes a chain the player spent weeks on, so a bare
+  // POST must not be enough to fire it. The confirmation the screen asks for has
+  // to travel with the request: anything that reaches this route without meaning
+  // to — a replayed request, a retry, a stray handler — is refused rather than
+  // acted on. Accounts were seen switching in development without anyone
+  // pressing the button, and the cause was never found.
+  if (req.body?.confirm !== true) {
+    console.log(`[switch] refused, no confirmation: ${req.user?.npub?.slice(0, 12)}… from ${req.headers.referer || 'unknown'}`);
+    return reply.code(400).send({ error: 'confirm_required' });
+  }
+  console.log(`[switch] confirmed by ${req.user?.npub?.slice(0, 12)}… from ${req.headers.referer || 'unknown'}`);
+  const result = switchToRounds(req.user.npub);
+  if (!result.ok) return reply.code(400).send({ error: result.reason });
+  wsHub.broadcastPlayerUpdate(req.user.npub, 0, 0, 0);
+  return result;
+});
+
+fastify.get('/api/rounds/leaderboard', async (req) => {
+  const limit = Math.min(200, Math.max(1, Number(req.query?.limit) || 50));
+  return roundLeaderboards(limit);
+});
 
 // Speed: the scaling joints sink. Priced in seconds of the buyer's own
 // production, so the monthly ceiling holds however large their output grows.
@@ -608,11 +648,25 @@ fastify.get('/api/health/solvency', async () => solvency());
 // ── Players list ─────────────────────────────────────────────────────────────
 fastify.get('/api/players', async () => {
   // Get players
+  // The open round comes along: a race between players who started at different
+  // times is not decided by who is furthest, but by who needs the least time
+  // for the round. Without started_at the lane could only show the former.
   const allPlayers = db.prepare(`
-    SELECT npub, display_name, joints, total_joints_earned, joints_per_sec, speed_level,
-           last_seen_at, created_at, game_state
-    FROM players WHERE COALESCE(is_bot, 0) = 0
-    ORDER BY total_joints_earned DESC LIMIT 1000
+    SELECT p.npub, p.display_name, p.joints, p.total_joints_earned, p.joints_per_sec,
+           p.speed_level,
+           COALESCE(p.prestige_points, 0) AS prestige_points,
+           COALESCE(p.rounds_completed, 0) AS rounds_completed,
+           p.last_seen_at, p.created_at, p.game_state,
+           r.round_no        AS round_no,
+           -- Same fallback currentRound() uses when it has to open a row: an
+           -- account that never had one has been running its round since it
+           -- was created.
+           COALESCE(r.started_at, p.created_at) AS round_started_at,
+           r.seconds_to_target AS round_seconds_to_target
+    FROM players p
+    LEFT JOIN rounds r ON r.npub = p.npub AND r.ended_at IS NULL
+    WHERE COALESCE(p.is_bot, 0) = 0
+    ORDER BY p.total_joints_earned DESC LIMIT 1000
   `).all().map(p => {
     const mgrs = countManagers(p.game_state);
     const { game_state, ...rest } = p;

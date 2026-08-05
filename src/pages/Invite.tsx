@@ -192,7 +192,15 @@ function NostrShareCard({ inviteUrl, nostrCopied, setNostrCopied }: { inviteUrl:
   );
 }
 
-export default function InvitePage() {
+/**
+ * The invite page, and the same thing folded into the Info page.
+ *
+ * `embedded` drops the hero and nothing else: Info already has one at the top,
+ * and two heroes on one page read as two pages. Everything below — the link, the
+ * reward card, the buddy list, the Nostr post — is identical, because there is
+ * one implementation of it.
+ */
+export default function InvitePage({ embedded = false }: { embedded?: boolean } = {}) {
   const auth = useAuth();
   const [inviteCode, setInviteCode] = useState('');
   const [referrals, setReferrals] = useState<Referral[]>([]);
@@ -230,7 +238,7 @@ export default function InvitePage() {
 
   if (!auth.isLoggedIn) {
     return (
-      <div className="invite-page">
+      <div className={embedded ? 'invite-embedded' : 'invite-page'}>
         <div className="invite-hero">
           <div className="invite-hero-glow" />
           <div className="invite-hero-icon-wrap">
@@ -245,7 +253,7 @@ export default function InvitePage() {
           <div className="invite-hero-perks">
             <div className="invite-perk">
               <Gauge size={20} />
-              <span>1 hour of 2x output</span>
+              <span>30 min of 2x output</span>
             </div>
             <div className="invite-perk">
               <Users size={20} />
@@ -258,20 +266,21 @@ export default function InvitePage() {
   }
 
   return (
-    <div className="invite-page">
-      {/* Hero */}
-      <div className="invite-hero">
-        <div className="invite-hero-glow" />
-        <div className="invite-hero-icon-wrap">
-          <div className="invite-hero-icon">
-            <UserPlus size={48} />
+    <div className={embedded ? 'invite-embedded' : 'invite-page'}>
+      {!embedded && (
+        <div className="invite-hero">
+          <div className="invite-hero-glow" />
+          <div className="invite-hero-icon-wrap">
+            <div className="invite-hero-icon">
+              <UserPlus size={48} />
+            </div>
           </div>
+          <h1 className="invite-hero-title">Invite a Buddy</h1>
+          <p className="invite-hero-subtitle">
+            Every buddy who automates their chain earns you half an hour of double output
+          </p>
         </div>
-        <h1 className="invite-hero-title">Invite a Buddy</h1>
-        <p className="invite-hero-subtitle">
-          Every buddy who automates their chain earns you an hour of double output
-        </p>
-      </div>
+      )}
 
       {/* Reward — one card, because there is one reward */}
       <div className="invite-rewards-row">

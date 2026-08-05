@@ -143,6 +143,56 @@ try {
   db.exec(`UPDATE players SET state_saved_at = last_seen_at WHERE state_saved_at IS NULL`);
 } catch(_) {}
 
+// ── Rounds ───────────────────────────────────────────────────────────────────
+// A game that never ends has no second act: the players at the top of the curve
+// had nothing left to do, and their numbers climbed into suffixes nobody feels.
+// Play now runs in rounds that finish at ROUND_TARGET, and finishing one may be
+// banked for prestige and started over.
+//
+// One row per round per player. `seconds_to_target` is the Billionaires Club
+// time — raw, with the sats spent on boosts beside it, so an expensive place is
+// visible without being penalised. It stays NULL for rounds that never got
+// there, including the pre-round histories written by scripts/migrate-rounds.mjs.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rounds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    npub TEXT NOT NULL,
+    round_no INTEGER NOT NULL,
+    started_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    ended_at INTEGER,
+    reached_target_at INTEGER,
+    seconds_to_target INTEGER,
+    joints_earned INTEGER DEFAULT 0,
+    boost_sats INTEGER DEFAULT 0,
+    megafarm_at INTEGER,
+    prestige_points INTEGER DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_rounds_npub ON rounds(npub, round_no);
+  CREATE INDEX IF NOT EXISTS idx_rounds_time ON rounds(seconds_to_target);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_rounds_open ON rounds(npub) WHERE ended_at IS NULL;
+`);
+
+// Totals that survive a reset. total_joints_earned is the *round* counter and
+// goes back to zero; without a separate all-time figure the growth chart and the
+// player's own history would be erased every time they start over.
+try { db.exec(`ALTER TABLE players ADD COLUMN lifetime_joints INTEGER DEFAULT 0`); } catch(_) {}
+try { db.exec(`ALTER TABLE players ADD COLUMN prestige_points INTEGER DEFAULT 0`); } catch(_) {}
+try { db.exec(`ALTER TABLE players ADD COLUMN rounds_completed INTEGER DEFAULT 0`); } catch(_) {}
+
+// Set on the accounts that predate rounds. Their balances come from a curve that
+// no longer exists — up to twenty quadrillion joints beside a target of one
+// billion — so they cannot simply keep playing, and overwriting them without
+// asking would take months of play away from people who never agreed to it.
+//
+// While this is 1 the account is frozen: saveState refuses, and the client shows
+// the switch screen. Confirming clears it. Nothing else does — an account that
+// never confirms stays exactly as it is, for as long as its owner wants.
+//
+// Default 0, so accounts created from here on are playing rounds from birth and
+// so are test fixtures. scripts/migrate-rounds.mjs --mark raises it once, on the
+// accounts that were already there.
+try { db.exec(`ALTER TABLE players ADD COLUMN switch_pending INTEGER DEFAULT 0`); } catch(_) {}
+
 // Key-value store for bot state (e.g. nostr event IDs)
 db.exec(`
   CREATE TABLE IF NOT EXISTS kv_store (

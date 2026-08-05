@@ -6,7 +6,7 @@ import {
   courierTripTime, fabrikCycleTime,
   PLANTATION_DEFS,
 } from '../../game/useGameLoop'
-import { FREE_MANAGERS, boostMultipliers, speedMultiplier } from '../../../shared/economy.js'
+import { boostMultipliers, speedMultiplier, MAX_PLANT_LEVEL } from '../../../shared/economy.js'
 import './StationCard.css'
 import { fmtNum } from '../../lib/format'
 
@@ -153,8 +153,8 @@ function useMilestoneBlow(level: number) {
 
 // ── Plant Row ───────────────────────────────────────────────────────────────
 
-function PlantRow({ p, i, joints, managerCount, isLoggedIn, boostMult, onUpgradeLevel, onBuyManager, onGrow }: {
-  p: PlantationState; i: number; joints: number; managerCount: number
+function PlantRow({ p, i, joints, mgrCost, isLoggedIn, boostMult, onUpgradeLevel, onBuyManager, onGrow }: {
+  p: PlantationState; i: number; joints: number; mgrCost: number
   isLoggedIn: boolean; boostMult: number
   onUpgradeLevel: (i: number) => void
   onBuyManager: (i: number) => void; onGrow: (i: number) => void
@@ -166,7 +166,11 @@ function PlantRow({ p, i, joints, managerCount, isLoggedIn, boostMult, onUpgrade
   const lvCost = plantLevelCost(p)
   const milestone = plantMilestoneInfo(p.level)
   const isAuto = p.managerLevel > 0
-  const canAfford = joints >= lvCost
+  // A plot stops at MAX_PLANT_LEVEL — the way on is the next plantation, which
+  // opens on half of this level. Shown as a ceiling so it does not arrive as a
+  // button that has quietly stopped working.
+  const maxed = p.level >= MAX_PLANT_LEVEL
+  const canAfford = joints >= lvCost && !maxed
   const progress = 1 - (p.timer / p.cycleTime)
   const blow = useMilestoneBlow(p.level)
 
@@ -191,31 +195,42 @@ function PlantRow({ p, i, joints, managerCount, isLoggedIn, boostMult, onUpgrade
         <div className="plant-row-name">{p.name}</div>
         <div className="plant-row-sub">
           {fmtNum(rate)}/s · {cycle.toFixed(1)}s · <span className="plant-row-milestone">
-            {milestone.capped
-              ? `x${milestone.multiplier} max`
-              : `${milestone.nextMult}x in ${milestone.levelsToNext}`}
+            {maxed
+              ? `Lv ${p.level}/${MAX_PLANT_LEVEL} max`
+              : milestone.capped
+                ? `x${milestone.multiplier} max`
+                : `${milestone.nextMult}x in ${milestone.levelsToNext}`}
           </span>
         </div>
       </div>
       <div className="plant-row-actions">
+        {maxed ? (
+          <button className="station-btn station-btn-level plant-row-btn insufficient" disabled>
+            <span className="plant-btn-line">Lvl {p.level}</span>
+            <span className="plant-btn-line">maxed</span>
+          </button>
+        ) : (
         <button className={`station-btn station-btn-level plant-row-btn${canAfford ? '' : ' insufficient'}`}
           onClick={() => onUpgradeLevel(i)} disabled={!canAfford}>
-          <span className="plant-btn-line">Lvl {p.level + 1}</span>
+          <span className="plant-btn-line">Lvl {p.level + 1} / {MAX_PLANT_LEVEL}</span>
           <span className="plant-btn-line"><Cannabis size={12} /> {fmtNum(lvCost)}</span>
         </button>
-        {!isAuto && managerCount < FREE_MANAGERS && (
+        )}
+        {/* Free for one of two reasons — the opening quota, or the plot having
+            been earned free by finishing rounds. mgrCost is 0 either way. */}
+        {!isAuto && mgrCost === 0 && (
           <button className="station-btn station-btn-manager station-btn-free plant-row-btn" onClick={() => onBuyManager(i)}>
             Manager — Free!
           </button>
         )}
-        {!isAuto && managerCount >= FREE_MANAGERS && !isLoggedIn && (
+        {!isAuto && mgrCost > 0 && !isLoggedIn && (
           <button className="station-btn station-btn-manager plant-row-btn" disabled>
             Log in
           </button>
         )}
-        {!isAuto && managerCount >= FREE_MANAGERS && isLoggedIn && (
+        {!isAuto && mgrCost > 0 && isLoggedIn && (
           <button className="station-btn station-btn-manager plant-row-btn" onClick={() => onBuyManager(i)}>
-            Manager — {p.mgrCost} sats
+            Manager — {mgrCost} sats
           </button>
         )}
       </div>
@@ -225,11 +240,14 @@ function PlantRow({ p, i, joints, managerCount, isLoggedIn, boostMult, onUpgrade
 
 // ── Plantations Group Card ──────────────────────────────────────────────────
 
-export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isLoggedIn, boosts = [], speedLevel = 0, onUpgradeLevel, onBuyManager, onGrow, onUnlock }: {
+export function PlantationsCard({ plantagen, cannabis, joints, managerCosts, isLoggedIn, boosts = [], speedLevel = 0, frozen = false, onUpgradeLevel, onBuyManager, onGrow, onUnlock }: {
   plantagen: PlantationState[]
   cannabis: number
   joints: number
-  managerCount: number
+  /** Sats per station, keyed by plantation id — see makeDisplay. */
+  managerCosts: Record<string, number>
+  /** The round is over — the chain stands still until the reset. */
+  frozen?: boolean
   isLoggedIn: boolean
   boosts?: ActiveBoost[]
   speedLevel?: number
@@ -250,7 +268,7 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
   }
 
   return (
-    <div className="station-card station-plant">
+    <div className={`station-card station-plant${frozen ? ' station-frozen' : ''}`}>
       <div className="station-header">
         <Sprout size={24} className="station-header-icon" />
         <span className="station-name">Plantations</span>
@@ -281,7 +299,7 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
       {/* Individual plant rows */}
       <div className="plant-list">
         {plantagen.map((p, i) => (
-          <PlantRow key={p.id} p={p} i={i} joints={joints} managerCount={managerCount}
+          <PlantRow key={p.id} p={p} i={i} joints={joints} mgrCost={managerCosts[String(p.id)] ?? 0}
             isLoggedIn={isLoggedIn} boostMult={plantBoost}
             onUpgradeLevel={onUpgradeLevel}
             onBuyManager={onBuyManager} onGrow={onGrow} />
@@ -323,11 +341,13 @@ export function PlantationsCard({ plantagen, cannabis, joints, managerCount, isL
 
 // ── Courier Station Card ────────────────────────────────────────────────────
 
-export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedIn, boosts = [], speedLevel = 0, onUpgradeCap, onBuyManager, onSend }: {
+export function CourierCard({ courier, cannabis, joints, mgrCost, isLoggedIn, boosts = [], speedLevel = 0, frozen = false, onUpgradeCap, onBuyManager, onSend }: {
   courier: CourierState
   cannabis: number
   joints: number
-  managerCount: number
+  mgrCost: number
+  /** The round is over — the chain stands still until the reset. */
+  frozen?: boolean
   isLoggedIn: boolean
   boosts?: ActiveBoost[]
   speedLevel?: number
@@ -345,7 +365,7 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
   const canSend = courier.state === 'idle' && cannabis > 0
 
   return (
-    <div className="station-card station-courier">
+    <div className={`station-card station-courier${frozen ? ' station-frozen' : ''}`}>
       <div className="station-header">
         <Footprints size={24} className="station-header-icon" />
         <span className="station-name">Courier</span>
@@ -383,23 +403,26 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
       </div>
 
       <div className="station-actions">
+        {/* What the upgrade buys, not what it does to the number: "x2" made the
+            player multiply the capacity row above in their head to find out
+            whether 480 joints was worth it. */}
         <button className="station-btn station-btn-level" onClick={onUpgradeCap}
           disabled={joints < courier.capCost}>
-          Cap x2 — <Cannabis size={12} /> {fmtNum(courier.capCost)}
+          Cap → {fmtNum(payload * 2)} — <Cannabis size={12} /> {fmtNum(courier.capCost)}
         </button>
-        {!isAuto && managerCount < FREE_MANAGERS && (
+        {!isAuto && mgrCost === 0 && (
           <button className="station-btn station-btn-manager station-btn-free" onClick={onBuyManager}>
             Hire Manager — Free!
           </button>
         )}
-        {!isAuto && managerCount >= FREE_MANAGERS && !isLoggedIn && (
+        {!isAuto && mgrCost > 0 && !isLoggedIn && (
           <button className="station-btn station-btn-manager" disabled>
             Log in to hire more
           </button>
         )}
-        {!isAuto && managerCount >= FREE_MANAGERS && isLoggedIn && (
+        {!isAuto && mgrCost > 0 && isLoggedIn && (
           <button className="station-btn station-btn-manager" onClick={onBuyManager}>
-            Hire Manager — {courier.mgrCost} sats
+            Hire Manager — {mgrCost} sats
           </button>
         )}
       </div>
@@ -409,13 +432,15 @@ export function CourierCard({ courier, cannabis, joints, managerCount, isLoggedI
 
 // ── Factory Station Card ────────────────────────────────────────────────────
 
-export function FactoryCard({ fabrik, courier, plantagen, cannabisAtFactory, joints, managerCount, isLoggedIn, boosts = [], speedLevel = 0, onUpgradeCap, onBuyManager, onRoll }: {
+export function FactoryCard({ fabrik, courier, plantagen, cannabisAtFactory, joints, mgrCost, isLoggedIn, boosts = [], speedLevel = 0, frozen = false, onUpgradeCap, onBuyManager, onRoll }: {
   fabrik: FabrikState
   courier: CourierState
   plantagen: PlantationState[]
   cannabisAtFactory: number
   joints: number
-  managerCount: number
+  mgrCost: number
+  /** The round is over — the chain stands still until the reset. */
+  frozen?: boolean
   isLoggedIn: boolean
   boosts?: ActiveBoost[]
   speedLevel?: number
@@ -455,7 +480,7 @@ export function FactoryCard({ fabrik, courier, plantagen, cannabisAtFactory, joi
   const canRoll = !fabrik.processing && cannabisAtFactory > 0
 
   return (
-    <div className="station-card station-factory">
+    <div className={`station-card station-factory${frozen ? ' station-frozen' : ''}`}>
       <div className="station-header">
         <Factory size={24} className="station-header-icon" />
         <span className="station-name">Factory</span>
@@ -532,21 +557,21 @@ export function FactoryCard({ fabrik, courier, plantagen, cannabisAtFactory, joi
       <div className="station-actions">
         <button className="station-btn station-btn-level" onClick={onUpgradeCap}
           disabled={joints < fabrik.capCost}>
-          Cap x2 — <Cannabis size={12} /> {fmtNum(fabrik.capCost)}
+          Cap → {fmtNum(batch * 2)} — <Cannabis size={12} /> {fmtNum(fabrik.capCost)}
         </button>
-        {!isAuto && managerCount < FREE_MANAGERS && (
+        {!isAuto && mgrCost === 0 && (
           <button className="station-btn station-btn-manager station-btn-free" onClick={onBuyManager}>
             Hire Manager — Free!
           </button>
         )}
-        {!isAuto && managerCount >= FREE_MANAGERS && !isLoggedIn && (
+        {!isAuto && mgrCost > 0 && !isLoggedIn && (
           <button className="station-btn station-btn-manager" disabled>
             Log in to hire more
           </button>
         )}
-        {!isAuto && managerCount >= FREE_MANAGERS && isLoggedIn && (
+        {!isAuto && mgrCost > 0 && isLoggedIn && (
           <button className="station-btn station-btn-manager" onClick={onBuyManager}>
-            Hire Manager — {fabrik.mgrCost} sats
+            Hire Manager — {mgrCost} sats
           </button>
         )}
       </div>

@@ -19,7 +19,7 @@ const { db } = await import('../server/db.js')
 const { getTicketPrice, getPriceCurvePreview, buyTicket, ticketsInRound } = await import('../server/lottery.js')
 const {
   initialState, PLANTATION_DEFS, newPlantation, throughput, ticketPrice, ticketScale,
-  MAX_TICKETS_PER_ROUND, DAY_SECONDS, RATE_BEGINNER, RATE_TOP,
+  MAX_TICKETS_PER_ROUND, DAY_SECONDS, RATE_BEGINNER, RATE_TOP, START_LEVEL, BASE_CAPACITY,
 } = await import('../shared/economy.js')
 
 let fail = 0
@@ -52,9 +52,16 @@ function makePlayer(npub, { plantLevels, capacity, joints }) {
 // ── Calibration ─────────────────────────────────────────────────────────────
 console.log('\n── Kalibrierung: Lose pro Tag aus reiner Produktion ──')
 console.log('  Spieler       Rate         Los #1      4 Lose        = Produktionstage')
+// Spread over the anchors rather than fixed rates, so the table keeps meaning
+// something when the round is recalibrated.
+const step = Math.pow(RATE_TOP / RATE_BEGINNER, 1 / 5)
 const rows = [
-  ['Einsteiger', RATE_BEGINNER], ['nach 1h', 30], ['früh', 1e3],
-  ['Mitte', 6.5e3], ['fortgeschr.', 1e7], ['Top', RATE_TOP],
+  ['Einsteiger', RATE_BEGINNER],
+  ['nach 1h', RATE_BEGINNER * step],
+  ['früh', RATE_BEGINNER * step ** 2],
+  ['Mitte', RATE_BEGINNER * step ** 3],
+  ['fortgeschr.', RATE_BEGINNER * step ** 4],
+  ['Top', RATE_TOP],
 ]
 for (const [name, rate] of rows) {
   let sum = 0
@@ -73,8 +80,7 @@ check('Preis steigt innerhalb des Tages',
       ticketPrice(1, 1e6) < ticketPrice(2, 1e6) &&
       ticketPrice(2, 1e6) < ticketPrice(3, 1e6))
 check('Skala fällt monoton mit der Rate',
-      ticketScale(RATE_BEGINNER) > ticketScale(1e3) &&
-      ticketScale(1e3) > ticketScale(1e7) && ticketScale(1e7) > ticketScale(RATE_TOP))
+      rows.every(([, rate], i) => i === 0 || ticketScale(rows[i - 1][1]) > ticketScale(rate)))
 check('Skala unter/über den Ankern gedeckelt',
       ticketScale(0.1) === ticketScale(RATE_BEGINNER) && ticketScale(1e15) === 1)
 
@@ -84,13 +90,16 @@ db.prepare(`INSERT INTO lottery_rounds (draws_at, status) VALUES (unixepoch() + 
 
 // A hoarder: endgame rate, but thirteen days of production already banked —
 // exactly the situation the live top accounts are in.
+// Levels are what a finished round looks like under the current curve; the
+// capacity is wide enough that the plantations are the limit, which puts the
+// chain at the top anchor. The hoard is about thirteen days of that output.
 const hoardRate = makePlayer('hoarder', {
-  plantLevels: [107, 70, 55, 59, 81, 80], capacity: 1e11, joints: 1.77e15,
+  plantLevels: [37, 35, 37, 40, 42, 45], capacity: 2e11, joints: 2.5e16,
 })
 const results = []
 for (let i = 0; i < 8; i++) results.push(buyTicket('hoarder'))
 const bought = results.filter(r => r.ok).length
-console.log(`  Rate ${fmt(hoardRate)}/s, Bestand 1.77Q Joints (~13 Produktionstage)`)
+console.log(`  Rate ${fmt(hoardRate)}/s, Bestand ${fmt(2.5e16)} Joints (~${(2.5e16 / (hoardRate * DAY_SECONDS)).toFixed(0)} Produktionstage)`)
 console.log(`  8 Kaufversuche → ${bought} gekauft, dann: "${results.find(r => !r.ok)?.reason}"`)
 check(`Horter auf ${MAX_TICKETS_PER_ROUND} Lose je Ziehung begrenzt`, bought === MAX_TICKETS_PER_ROUND)
 check('Zähler stimmt', ticketsInRound('hoarder') === MAX_TICKETS_PER_ROUND)
@@ -117,7 +126,7 @@ check('übertragene Lose zählen gegen das Kontingent',
 
 // ── Beginner reality check ──────────────────────────────────────────────────
 console.log('\n── Einsteiger ──')
-const beginnerRate = makePlayer('beginner', { plantLevels: [1], capacity: 20, joints: 0 })
+const beginnerRate = makePlayer('beginner', { plantLevels: [START_LEVEL], capacity: BASE_CAPACITY.courier, joints: 0 })
 const oneDay = beginnerRate * DAY_SECONDS
 const twoDays = beginnerRate * 2 * DAY_SECONDS
 console.log(`  Rate ${beginnerRate}/s → nach 1 Tag ${fmt(oneDay)} Joints, nach 2 Tagen ${fmt(twoDays)}`)
@@ -140,16 +149,23 @@ console.log('\n── Gekaufter Speed zählt in den Preis ──')
 }
 
 console.log('\n── Nicht manipulierbar ──')
+// The price must come from the saved chain, not from a number the client sent.
+// Comparing against the chain's own rate keeps this true at any calibration —
+// a fixed joint threshold only ever tested the curve it was written for.
+const honest = ticketPrice(ticketsInRound('hoarder'), hoardRate)
 db.prepare('UPDATE players SET joints_per_sec = 0 WHERE npub = ?').run('hoarder')
-check('gemeldete Rate 0 senkt den Preis nicht', getTicketPrice('hoarder') > 1e12)
+check('gemeldete Rate 0 senkt den Preis nicht', getTicketPrice('hoarder') === honest)
 
-// ── The three-manager rule is server-side ───────────────────────────────────
-// A chainless account produces nothing, so its ticket falls to the one-joint
-// floor: four joints used to buy four entries in a round paying real sats.
+// ── Der Ticket-Gate ist serverseitig ────────────────────────────────────────
+// Zwei Bedingungen: die Kette automatisiert (ein kettenloses Konto produziert
+// nichts, sein Los fiel auf den Ein-Joint-Boden — vier Joints kauften vier
+// Lose in einer Runde mit echten Sats), und ein Manager in dieser Runde für
+// Sats gekauft. Die drei Gratis-Manager sind genau die drei, die die Lotterie
+// verlangt hat; damit stand das Tor offen.
 console.log('\n── Ohne automatisierte Kette kein Los ──')
 {
   const { ticketEligibility, buyTicket } = await import('../server/lottery.js')
-  const { initialState } = await import('../shared/economy.js')
+  const { initialState, FREE_MANAGERS, managerPrice } = await import('../shared/economy.js')
   const bare = initialState()
   db.prepare('INSERT INTO players (npub, display_name, joints, sats, game_state) VALUES (?,?,?,?,?)')
     .run('freeloader', 'Freeloader', 1_000_000, 0, JSON.stringify(bare))
@@ -165,9 +181,46 @@ console.log('\n── Ohne automatisierte Kette kein Los ──')
   check('Joints unberührt',
         db.prepare("SELECT joints j FROM players WHERE npub='freeloader'").get().j === 1_000_000)
 
+  const save = () => db.prepare('UPDATE players SET game_state = ? WHERE npub = ?')
+    .run(JSON.stringify(bare), 'freeloader')
+
   bare.plantagen[0].managerLevel = 1; bare.courier.mgrLevel = 1; bare.fabrik.mgrLevel = 1
-  db.prepare('UPDATE players SET game_state = ? WHERE npub = ?').run(JSON.stringify(bare), 'freeloader')
-  check('mit drei Managern berechtigt', ticketEligibility('freeloader').eligible === true)
+  save()
+
+  console.log('\n── Drei Gratis-Manager reichen nicht ──')
+  {
+    const elig = ticketEligibility('freeloader')
+    check(`die Kette gilt als automatisiert`, elig.missing === 0)
+    check(`kein Manager bezahlt (${FREE_MANAGERS} sind frei)`, elig.paid === 0)
+    check('trotzdem nicht berechtigt', elig.eligible === false)
+    const res = buyTicket('freeloader')
+    check('Kauf wird abgewiesen', res.ok === false)
+    console.log(`  Server: "${res.reason}"`)
+    check('die Begründung nennt die Sats', /sats/i.test(res.reason))
+    check('Preis stimmt mit der Runde überein', res.reason.includes(String(managerPrice(0))))
+  }
+
+  console.log('\n── Ein bezahlter Manager öffnet das Tor ──')
+  {
+    // Der vierte Manager fällt aus der Gratis-Quote und kostet Sats.
+    bare.plantagen.push({ ...bare.plantagen[0], id: 1, managerLevel: 1 })
+    save()
+    const elig = ticketEligibility('freeloader')
+    check('ein bezahlter Manager gezählt', elig.paid === 1)
+    check('berechtigt', elig.eligible === true)
+    check('Kauf geht durch', buyTicket('freeloader').ok === true)
+  }
+
+  console.log('\n── Runden-Gratis-Manager zählen nicht als bezahlt ──')
+  {
+    // Ab Runde 2 kostet Outdoor nichts mehr — dann darf er auch nicht als
+    // Beitrag zum Pot durchgehen, sonst öffnet ein Gratis-Klick das Tor.
+    db.prepare('UPDATE players SET rounds_completed = 1 WHERE npub = ?').run('freeloader')
+    const elig = ticketEligibility('freeloader')
+    check('Outdoor ist rundenfrei, also unbezahlt', elig.paid === 0)
+    check('damit nicht mehr berechtigt', elig.eligible === false)
+    db.prepare('UPDATE players SET rounds_completed = 0 WHERE npub = ?').run('freeloader')
+  }
 }
 
 rmSync(dir, { recursive: true, force: true })

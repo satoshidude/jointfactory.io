@@ -69,7 +69,8 @@ export function getOrCreatePlayer(npub, referralCode) {
       }
     }
     db.prepare(`
-      INSERT INTO players (npub, display_name, sats, joints, invite_code, referred_by, referral_rewarded) VALUES (?, ?, 0, 0, ?, ?, 0)
+      INSERT INTO players (npub, display_name, sats, joints, invite_code, referred_by, referral_rewarded, switch_pending)
+      VALUES (?, ?, 0, 0, ?, ?, 0, 0)
     `).run(npub, name, inviteCode, referredBy);
     player = db.prepare('SELECT * FROM players WHERE npub = ?').get(npub);
     is_new = true;

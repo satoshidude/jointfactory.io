@@ -5,10 +5,10 @@ import { fmtNum } from '../../lib/format'
 import './SpeedCard.css'
 
 /**
- * Permanent speed, paid in joints.
+ * Speed for the rest of the round, paid in joints.
  *
- * Replaces prestige, which needed a paragraph to explain and still did not
- * land. This needs one line: joints buy speed, speed never goes away.
+ * One line to explain: joints buy speed, speed lifts the whole chain. It goes
+ * with the reset like everything else the round built.
  *
  * The price is a share of the buyer's own production, so it is quoted by the
  * server rather than computed here — the client's idea of the rate lags behind
@@ -50,7 +50,7 @@ export default function SpeedCard({ level, multiplier, nextMultiplier, nextCost,
 
       <p className="speed-lead">
         Spend joints to run the whole chain <strong>+{stepPct} %</strong> faster —
-        plantations, courier and factory. It never expires.
+        plantations, courier and factory. It lasts to the end of the round.
       </p>
 
       {isLoggedIn ? (

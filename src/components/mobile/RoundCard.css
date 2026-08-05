@@ -1,0 +1,266 @@
+/* The round: gold, because it is the one thing in the game that ends. */
+
+.round-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+
+/* Inside the race card. The round and the race are the same target seen twice —
+   one frame is enough, and the Grow page is long. */
+.round-card.round-embedded {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.round-card.round-embedded.round-done { box-shadow: none; }
+
+/* Embedded the round is a caption over the race, not a headline of its own:
+   the lanes below are what the card is for. */
+.round-card.round-embedded { gap: 7px; }
+.round-card.round-embedded .round-icon-box { width: 20px; height: 20px; }
+.round-card.round-embedded .round-header { gap: 5px; }
+.round-card.round-embedded .round-title { font-size: 12px; letter-spacing: .5px; }
+.round-card.round-embedded .round-lead { font-size: 11px; }
+.round-card.round-embedded .round-history { font-size: 9px; }
+
+.round-card.round-done {
+  border-color: rgba(255, 215, 0, .45);
+  box-shadow: 0 0 18px rgba(255, 215, 0, .12);
+}
+
+.round-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* A box for alignment, not a frame: the icon sits on the same 38px square as the
+   other card headers so the titles line up, but nothing is drawn around it —
+   at 18px and unaligned it read as a footnote next to the lottery bolt. */
+.round-icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.round-icon {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, .4));
+}
+
+.round-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--neon-gold);
+  text-shadow: 0 0 10px rgba(255, 215, 0, .35);
+}
+
+.round-prestige {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 5px 9px;
+  border: 1px solid rgba(204, 68, 255, .35);
+  border-radius: 999px;
+  background: rgba(204, 68, 255, .08);
+  font-family: var(--font-heading);
+  font-size: 15px;
+  line-height: 1;
+  color: var(--neon-purple);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.round-prestige:hover {
+  border-color: rgba(204, 68, 255, .7);
+  background: rgba(204, 68, 255, .16);
+}
+
+.round-star {
+  fill: currentColor;
+  filter: drop-shadow(0 0 5px rgba(204, 68, 255, .5));
+}
+
+.round-btn-reset .round-star {
+  color: var(--neon-purple);
+}
+
+.round-stars-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: -2px;
+}
+
+.round-stars-inline svg { fill: currentColor; }
+
+.round-link {
+  color: var(--neon-gold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.round-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 215, 0, .12);
+  overflow: hidden;
+}
+
+.round-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--neon-green), var(--neon-gold));
+  box-shadow: 0 0 10px rgba(255, 215, 0, .35);
+  transition: width .4s ease-out;
+}
+
+.round-figures {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.round-figures span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.round-figures svg { color: var(--neon-green); }
+.round-goal { color: var(--neon-gold); }
+
+.round-lead {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.round-lead strong { color: var(--neon-gold); font-weight: 600; }
+
+.round-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.round-btn-reset {
+  border-color: rgba(255, 215, 0, .5);
+  color: var(--neon-gold);
+}
+
+.round-btn-reset:hover { background: rgba(255, 215, 0, .08); }
+
+.round-btn-go {
+  border-color: rgba(255, 215, 0, .7);
+  background: rgba(255, 215, 0, .12);
+  color: var(--neon-gold);
+}
+
+.round-btn:disabled { opacity: .5; cursor: default; }
+
+.round-confirm p {
+  margin: 0 0 8px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.round-confirm p strong { color: var(--neon-purple); font-weight: 600; }
+
+.round-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.round-confirm-actions .round-btn { flex: 1; }
+
+.round-history {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: .75;
+}
+
+.round-error {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--neon-pink, #ff4d6d);
+}
+
+/* ── The finished run, in four numbers ────────────────────────────────────── */
+
+.round-stats {
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 215, 0, .25);
+  border-radius: 8px;
+  background: rgba(255, 215, 0, .05);
+}
+
+.round-stats-label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--neon-gold);
+  opacity: .85;
+}
+
+.round-stats dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 18px;
+  margin: 0;
+}
+
+.round-stats dl > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.round-stats dt {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.round-stats dd {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--neon-gold);
+  white-space: nowrap;
+}

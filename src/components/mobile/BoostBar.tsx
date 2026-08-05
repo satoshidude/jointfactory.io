@@ -115,10 +115,12 @@ export default function BoostBar({ boosts, grants, sats, isLoggedIn, onBuy, onCl
             >
               <span className="boost-btn-name">{def.name}</span>
               <span className="boost-btn-effect">{def.short}</span>
+              {/* What the sats buy is half the price: the same 10 sats bought 30
+                  minutes or an hour depending on the tile, and the card never said. */}
               <span className="boost-btn-meta">
                 {active
                   ? <><Timer size={11} /> {fmtRemaining(active.expires_at - now)}</>
-                  : <><Zap size={11} /> {def.cost}</>}
+                  : <><Zap size={11} /> {def.cost} · {def.durationSec / 60} min</>}
               </span>
             </button>
           )

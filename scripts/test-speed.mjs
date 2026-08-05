@@ -23,7 +23,7 @@ const { buySpeed, speedStatus, playerRate } = await import('../server/speed.js')
 const {
   initialState, newPlantation, PLANTATION_DEFS, throughput,
   speedCost, speedCostSeconds, speedMultiplier,
-  SPEED_STEP, SPEED_MONTHLY_CAP, SPEED_MAX_SECONDS,
+  SPEED_STEP, SPEED_MONTHLY_CAP, SPEED_MAX_SECONDS, START_LEVEL, BASE_CAPACITY,
 } = await import('../shared/economy.js')
 
 let fail = 0
@@ -38,9 +38,8 @@ function makePlayer(npub, { plantLevels, capacity, joints }) {
   gs.plantagen[0].managerLevel = 1
   gs.plantagen[0].level = plantLevels[0]
   for (let i = 1; i < plantLevels.length; i++) {
-    const p = newPlantation(PLANTATION_DEFS[i])
+    const p = newPlantation(PLANTATION_DEFS[i], plantLevels[i])
     p.managerLevel = 1
-    p.level = plantLevels[i]
     gs.plantagen.push(p)
   }
   gs.courier.mgrLevel = 1; gs.courier.capacity = capacity
@@ -60,7 +59,8 @@ check('Deckel entspricht der Monatsgrenze',
 check('erste Stufe kostet 5 min Produktion', speedCostSeconds(0) === 300)
 check('Kosten steigen bis zum Deckel und bleiben dort',
       speedCostSeconds(10) > speedCostSeconds(5) && speedCostSeconds(200) === SPEED_MAX_SECONDS)
-check('Multiplikator ist multiplikativ', Math.abs(speedMultiplier(2) - 1.02 * 1.02) < 1e-9)
+check('Multiplikator ist multiplikativ',
+      Math.abs(speedMultiplier(2) - (1 + SPEED_STEP) ** 2) < 1e-9)
 
 // The cap binds once the price has reached its ceiling. The first ~24 steps are
 // deliberately cheaper — a ramp so the ladder is reachable early — so a run from
@@ -77,16 +77,23 @@ function stepsFor(budgetSeconds, fromLevel = 0) {
   const factor = speedMultiplier(40 + steady) / speedMultiplier(40)
   console.log(`  am Deckel:     30 Tage Produktion → ${steady} Stufen → ×${factor.toFixed(3)}`)
   check('am Deckel höchstens +20 % im Monat', factor <= SPEED_MONTHLY_CAP + 0.001)
-  check('Anlaufphase bleibt moderat', speedMultiplier(fresh) < 2)
+  // Ein ganzer Monat Produktion ist mehr als eine Runde lang — die Anlaufphase
+  // darf spürbar sein, aber die Kette nicht vervielfachen.
+  check('Anlaufphase bleibt moderat', speedMultiplier(fresh) < 5)
 }
 
 // ── Price is relative to the buyer's own output ─────────────────────────────
 console.log('\n── Preis hängt an der eigenen Produktion ──')
-const smallRate = makePlayer('small', { plantLevels: [1], capacity: 20, joints: 1e12 })
-const bigRate = makePlayer('big', { plantLevels: [107, 70, 55, 59, 81, 80], capacity: 1e11, joints: 1e15 })
+// A fresh chain and a finished round — the two ends of one round's curve.
+const smallRate = makePlayer('small', { plantLevels: [START_LEVEL], capacity: BASE_CAPACITY.courier, joints: 1e6 })
+const bigRate = makePlayer('big', { plantLevels: [37, 35, 37, 40, 42, 45], capacity: 2e11, joints: 1e15 })
 console.log(`  klein ${fmt(smallRate)}/s → ${fmt(speedCost(0, smallRate))}   ·   groß ${fmt(bigRate)}/s → ${fmt(speedCost(0, bigRate))}`)
+// In seconds of the buyer's own output, both pay the same. The tolerance is
+// relative because the small chain's price rounds to whole joints, and at a
+// fraction of a joint per second that rounding is worth several seconds.
 check('gleicher Preis in Produktionszeit',
-      Math.abs(speedCost(0, smallRate) / smallRate - speedCost(0, bigRate) / bigRate) < 1)
+      Math.abs(speedCost(0, smallRate) / smallRate - speedCost(0, bigRate) / bigRate)
+        < 0.05 * speedCostSeconds(0))
 
 // ── Purchase ────────────────────────────────────────────────────────────────
 console.log('\n── Kauf ──')
@@ -96,8 +103,8 @@ const res = buySpeed('small')
 const afterJoints = db.prepare('SELECT joints FROM players WHERE npub=?').get('small').joints
 check(`Kauf ok, Stufe ${res.level}`, res.ok && res.level === 1)
 check(`genau der genannte Preis abgezogen (${fmt(quoted)})`, beforeJoints - afterJoints === quoted)
-check('Multiplikator ×1.02', Math.abs(res.multiplier - 1.02) < 1e-9)
-check('Rate steigt entsprechend', Math.abs(playerRate('small') / smallRate - 1.02) < 1e-6)
+check(`Multiplikator ×${(1 + SPEED_STEP).toFixed(2)}`, Math.abs(res.multiplier - (1 + SPEED_STEP)) < 1e-9)
+check('Rate steigt entsprechend', Math.abs(playerRate('small') / smallRate - (1 + SPEED_STEP)) < 1e-6)
 check('nächste Stufe kostet mehr', speedStatus('small').next_cost > quoted)
 
 // ── Guards ──────────────────────────────────────────────────────────────────
@@ -115,9 +122,12 @@ db.prepare('INSERT INTO players (npub, display_name, sats, joints, game_state) V
 const idleRes = buySpeed('idle')
 check(`ohne laufende Kette abgelehnt: "${idleRes.reason}"`, !idleRes.ok)
 
-// Reported rate must not be able to lower the price.
+// Reported rate must not be able to lower the price. Checked against the price
+// the saved chain earns rather than a fixed number of joints — the latter only
+// ever tested the curve it was written against.
+const honest = speedCost(speedStatus('big').level, bigRate)
 db.prepare('UPDATE players SET joints_per_sec = 0 WHERE npub = ?').run('big')
-check('gemeldete Rate 0 senkt den Preis nicht', speedStatus('big').next_cost > 1e9)
+check('gemeldete Rate 0 senkt den Preis nicht', speedStatus('big').next_cost === honest)
 
 // ── Chain-wide effect ───────────────────────────────────────────────────────
 console.log('\n── Wirkung auf die Kette ──')

@@ -24,7 +24,8 @@ process.env.JF_NOSTR_OFFLINE = '1'
 
 const { db } = await import('../server/db.js')
 const { saveState } = await import('../server/game.js')
-const { initialState, throughput, BOOSTS, plantLevelCost, progressCost, MAX_LEVEL_STEP } = await import('../shared/economy.js')
+const { initialState, throughput, BOOSTS, plantLevelCost, progressCost, MAX_LEVEL_STEP,
+        MAX_PLANT_LEVEL, inheritedLevel, newPlantation, PLANTATION_DEFS } = await import('../shared/economy.js')
 
 let fail = 0
 const check = (label, cond) => { console.log(`  ${cond ? '✓' : '✗'} ${label}`); if (!cond) fail++ }
@@ -34,7 +35,10 @@ const now = () => Math.floor(Date.now() / 1000)
 /** A chain with `managers` stations automated, levelled up so it produces. */
 function chain(managers) {
   const gs = initialState()
-  gs.plantagen[0].level = 60
+  // Below MAX_PLANT_LEVEL with room to spare: the unpaid-purchase case below
+  // buys twenty levels on top, and levels past the ceiling are refused
+  // outright rather than billed.
+  gs.plantagen[0].level = 25
   gs.courier.capacity = 5_000_000
   gs.fabrik.capacity = 5_000_000
   if (managers >= 1) gs.plantagen[0].managerLevel = 1
@@ -237,6 +241,74 @@ console.log('\n── Unmöglicher Sprung ──')
   check('Guthaben bleibt der Serverstand', balance('jumper') === 1_000_000)
   check('als Korrektur gemeldet', res.corrected === true)
   check('kein Rechenlauf über die Grenze hinaus (< 250 ms)', ms < 250)
+}
+
+// ── An unlocked plot arrives with levels on it ──────────────────────────────
+// A new plantation opens on half the highest level already owned, which reads
+// exactly like a level jump the player never paid for. Of everything the guard
+// sees, this is the case most likely to be mistaken for cheating — and it is the
+// single most expensive purchase in the game.
+console.log('\n── Freischaltung mit geerbtem Level ──')
+{
+  const gs = chain(3)
+  seed('unlocker', gs, 10_000_000, 30)
+  const next = JSON.parse(JSON.stringify(gs))
+  const level = inheritedLevel(next.plantagen)
+  const plot = newPlantation(PLANTATION_DEFS[1], level)
+  plot.managerLevel = 1
+  next.plantagen.push(plot)
+  const price = PLANTATION_DEFS[1].unlockCost
+  console.log(`  Plantage 2 öffnet auf Level ${level} für ${fmt(price)} Joints`)
+  check('nur die Freischaltung wird berechnet, nicht die geerbten Level',
+        progressCost(gs, next) === price)
+  const res = save('unlocker', next, 10_000_000 - price)
+  check('ehrliche Freischaltung wird nicht gekappt',
+        res.corrected === false && balance('unlocker') === 10_000_000 - price)
+}
+
+// ── The ceiling on a single plot ────────────────────────────────────────────
+console.log('\n── Levelgrenze ──')
+{
+  const gs = chain(3)
+  seed('capper', gs, 1e12, 30)
+  const over = JSON.parse(JSON.stringify(gs))
+  over.plantagen[0].level = MAX_PLANT_LEVEL + 1
+  save('capper', over, 1e12)
+  const kept = JSON.parse(db.prepare("SELECT game_state g FROM players WHERE npub='capper'").get().g)
+  console.log(`  Level ${MAX_PLANT_LEVEL + 1} gemeldet (Grenze ${MAX_PLANT_LEVEL}) → gespeichert ${kept.plantagen[0].level}`)
+  check('über der Grenze abgewiesen', balance('capper') === 1e12)
+  // The state must not survive either: every later ceiling is built from what is
+  // stored, so a rejected chain left in the database raises the next allowance.
+  check('der abgewiesene Zustand wird nicht gespeichert', kept.plantagen[0].level === 25)
+
+  const atCap = JSON.parse(JSON.stringify(gs))
+  atCap.plantagen[0].level = MAX_PLANT_LEVEL
+  const paid = progressCost(gs, atCap)
+  const ok = save('capper', atCap, 1e12 - paid)
+  check('genau auf der Grenze erlaubt', ok.corrected === false)
+}
+
+// ── The lifetime counter is a claim too ─────────────────────────────────────
+// It used to be written straight through. That was survivable while it only fed
+// a leaderboard; it now decides when a round is finished, what it pays in
+// prestige and which time enters the Billionaires Club.
+console.log('\n── Lebenssumme ──')
+{
+  const gs = chain(3)
+  seed('liar', gs, 1_000_000, 30)
+  const rate = throughput(gs, { ignoreManagers: true }).jointsPerSec
+  const ceiling = Math.floor(1_000_000 + rate * 30 * 1.5 + 1000)
+  save('liar', gs, 1_000_000, { total_joints_earned: 1e15 })
+  const stored = db.prepare("SELECT total_joints_earned t FROM players WHERE npub='liar'").get().t
+  console.log(`  1 Q behauptet · ${fmt(rate)}/s über 30 s → Server hält ${fmt(stored)} (Decke ${fmt(ceiling)})`)
+  check('behauptete Lebenssumme wird gekappt', stored <= ceiling)
+
+  // And the honest case still passes through untouched.
+  db.prepare("UPDATE players SET state_saved_at = ? WHERE npub = 'liar'").run(now() - 30)
+  const honest = stored + Math.floor(rate * 30)
+  save('liar', gs, 1_000_000, { total_joints_earned: honest })
+  check('ehrliche Produktion zählt weiter',
+        db.prepare("SELECT total_joints_earned t FROM players WHERE npub='liar'").get().t === honest)
 }
 
 rmSync(dir, { recursive: true, force: true })

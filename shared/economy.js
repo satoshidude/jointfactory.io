@@ -27,17 +27,68 @@
  */
 export const UPG_MULT = Number(globalThis.process?.env?.JF_UPG_MULT) || 1.12
 
+/**
+ * The six plots, laid out for a round that ends at ROUND_TARGET.
+ *
+ * The round has to span from one joint a second to a quadrillion in a week, and
+ * that span is what every number here is for. Two things set it:
+ *
+ *   - **the jump between plots (x50).** The old ladder climbed by about x8, which
+ *     over six plots is x32,000 — far too little to reach a quadrillion from a
+ *     standing start. At x50 the six plots cover x312 million between them, and
+ *     the levels and milestones supply the rest.
+ *   - **a flat capacity brake (see CAPACITY_COST_TIERS).** A rising brake caps how
+ *     many doublings fit into a week, and with the old tiers that ceiling was
+ *     about seventeen. A quadrillion needs thirty-three.
+ *
+ * The unlock costs are deliberately *not* geometric. The first two are cheap so
+ * the third plot lands inside a new player's first session; from Hydroponic on
+ * they climb by x100, which is what keeps MegaFarm at the half-way mark instead
+ * of arriving in the first quarter with nothing left to do after it.
+ *
+ * Measured with scripts/tune-pacing.mjs, greedy-optimal player:
+ *   round the clock 3.7 d - 8 h a day 8.0 d - 4 h a day 14.0 d,
+ *   six plots in every profile, MegaFarm at 45-57 % of the round,
+ *   third plot open after 2 hours, first upgrade after 24 seconds.
+ */
 export const PLANTATION_DEFS = [
-  { id: 0, name: 'Balcony Grow',   icon: '\u{1F331}', baseProd: 5,       cycleTime: 4,   upgBase: 8,         upgMult: UPG_MULT, mgrCost: 20,  unlockCost: 0 },
-  { id: 1, name: 'Outdoor Plot',   icon: '\u{1F331}', baseProd: 60,      cycleTime: 5,   upgBase: 400,       upgMult: UPG_MULT, mgrCost: 100, unlockCost: 50_000 },
-  { id: 2, name: 'Indoor Room',    icon: '\u{1F3E0}', baseProd: 400,     cycleTime: 4,   upgBase: 15_000,    upgMult: UPG_MULT, mgrCost: 150, unlockCost: 2_000_000 },
-  { id: 3, name: 'Hydroponic Lab', icon: '\u{1F4A7}', baseProd: 3_000,   cycleTime: 3,   upgBase: 100_000,   upgMult: UPG_MULT, mgrCost: 200, unlockCost: 100_000_000 },
-  { id: 4, name: 'Greenhouse',     icon: '\u{1F333}', baseProd: 25_000,  cycleTime: 2.5, upgBase: 500_000,   upgMult: UPG_MULT, mgrCost: 250, unlockCost: 10_000_000_000 },
-  // MegaFarm at a trillion was reachable in eleven days on the old capacity
-  // curve; under the braked one it sat beyond a year. Lowered so the last plot
-  // stays a goal rather than a rumour.
-  { id: 5, name: 'MegaFarm',       icon: '\u{1F3ED}', baseProd: 250_000, cycleTime: 2,   upgBase: 2_500_000, upgMult: UPG_MULT, mgrCost: 300, unlockCost: 100_000_000_000 },
+  { id: 0, name: 'Balcony Grow',   icon: '\u{1F331}', baseProd: 0.4,         cycleTime: 4,   upgBase: 8,             upgMult: UPG_MULT, mgrCost: 20,  unlockCost: 0 },
+  { id: 1, name: 'Outdoor Plot',   icon: '\u{1F331}', baseProd: 20,          cycleTime: 5,   upgBase: 400,           upgMult: UPG_MULT, mgrCost: 100, unlockCost: 3_000 },
+  { id: 2, name: 'Indoor Room',    icon: '\u{1F3E0}', baseProd: 1_000,       cycleTime: 4,   upgBase: 20_000,        upgMult: UPG_MULT, mgrCost: 150, unlockCost: 100_000 },
+  { id: 3, name: 'Hydroponic Lab', icon: '\u{1F4A7}', baseProd: 50_000,      cycleTime: 3,   upgBase: 1_000_000,     upgMult: UPG_MULT, mgrCost: 200, unlockCost: 300_000_000 },
+  { id: 4, name: 'Greenhouse',     icon: '\u{1F333}', baseProd: 2_500_000,   cycleTime: 2.5, upgBase: 50_000_000,    upgMult: UPG_MULT, mgrCost: 250, unlockCost: 30_000_000_000 },
+  { id: 5, name: 'MegaFarm',       icon: '\u{1F3ED}', baseProd: 125_000_000, cycleTime: 2,   upgBase: 2_500_000_000, upgMult: UPG_MULT, mgrCost: 300, unlockCost: 3_000_000_000_000 },
 ]
+
+/**
+ * Level a newly unlocked plot starts on: half the highest level already owned.
+ *
+ * On level 1 a new plot carries no milestone multiplier, so it produces a
+ * rounding error next to a developed one — MegaFarm would open at 15 K/s against
+ * a Greenhouse already doing 3.5 M/s. Buying a level on the old plot was always
+ * the better move, and the last two plots were only ever reached because the old
+ * curve ran for months. Inheriting half the ladder makes a new plot competitive
+ * the moment it is paid for, which is what turns the climb into the main line of
+ * play instead of a dead end.
+ */
+export const UNLOCK_INHERIT = Number(globalThis.process?.env?.JF_UNLOCK_INHERIT) || 0.5
+
+/**
+ * Ceiling on a single plot's level.
+ *
+ * The greedy-optimal round ends at 37/18/12/17/19/19, so this costs an ordinary
+ * player nothing — it exists to close the degenerate line of pouring everything
+ * into the starter plot, and it bounds the milestone stack from below as well as
+ * MILESTONE_CAP bounds it from above.
+ */
+export const MAX_PLANT_LEVEL = Number(globalThis.process?.env?.JF_MAX_LEVEL) || 50
+
+/** Level a plot opens on, given the levels already owned. */
+/** @param {Array<{level: number}>} plantagen @returns {number} */
+export function inheritedLevel(plantagen) {
+  const top = Math.max(0, ...(plantagen || []).map(p => p?.level || 0))
+  return Math.min(MAX_PLANT_LEVEL, Math.max(1, Math.round(UNLOCK_INHERIT * top)))
+}
 
 // Milestone cycle: every 10 levels → ×2, then 15 → ×3, then 20 → ×4, repeat.
 /**
@@ -114,29 +165,32 @@ export function plantLevelCost(p) {
  */
 export const CAPACITY_STEP = Number(globalThis.process?.env?.JF_CAP_STEP) || 2
 
-/** Where a fresh courier and factory start — the yardstick for how far a station
- *  has already been widened. */
-export const BASE_CAPACITY = { courier: 20, fabrik: 100 }
+/** Where a fresh courier and factory start. The courier is the opening
+ *  bottleneck by design: 8 per round trip over 8 seconds is one joint a second,
+ *  which is where a new player begins. */
+export const BASE_CAPACITY = { courier: 8, fabrik: 40 }
 
 /**
- * The brake tightens with the number of upgrades already bought.
+ * How much more each capacity upgrade costs than the last. Flat, and that is the
+ * whole point.
  *
- * A flat 2.5 let a chain widen almost without resistance: the greedy player
- * crossed a quadrillion joints in under twelve days, and past that the numbers
- * stop meaning anything to a person. A flat 3 fixes the far end but triples the
- * wait for the second plantation, which is the first hour of the game.
+ * Capacity doubles per purchase, so a scale of 2 would mean a constant wait per
+ * doubling and an unlimited span. Anything above 2 is a brake: at 2.3 each
+ * doubling takes 15 % longer than the one before, which lets about thirty-three
+ * of them fit into a week — exactly what the span from one joint a second to a
+ * quadrillion needs.
  *
- * Rising in two steps keeps the opening exactly as fast as it was and slows the
- * late game instead: the second plantation still arrives after 1.4 hours, and a
- * quadrillion — where the numbers stop meaning anything — moves from twelve days
- * to a hundred and sixty-nine. Measured with scripts/tune-pacing.mjs; the tiers
- * are readable from JF_CAP_TIERS ("0:2.5,12:3.4,22:3.9") so the next calibration
+ * It used to rise to 3.4 and then 3.9, which capped the span at roughly seventeen
+ * doublings. That was right when a round ended at a billion; against a quadrillion
+ * it simply made the target unreachable — measured at 46 days, and *slower* the
+ * more the late tiers were loosened, because cheaper upgrades mean more of them
+ * to accumulate the same total.
+ *
+ * Readable from JF_CAP_TIERS ("0:2.3" or "0:2.3,20:2.6") so the next calibration
  * needs no code change.
  */
 export const CAPACITY_COST_TIERS = parseTiers(globalThis.process?.env?.JF_CAP_TIERS) || [
-  { from: 0, scale: 2.5 },
-  { from: 12, scale: 3.4 },
-  { from: 22, scale: 3.9 },
+  { from: 0, scale: 2.3 },
 ]
 
 /** "0:2.5,10:3.4,18:4" → the tier table, for sweeping without editing code. */
@@ -189,6 +243,118 @@ export function fabrikCycleTime(f, boostMult = 1) {
 export const FREE_MANAGERS = 3
 export const REQUIRED_MANAGERS = 3
 
+/**
+ * What a manager costs, by how many rounds the player has finished.
+ *
+ * Managers do not survive a reset — they are the one recurring sats sink in the
+ * game, and every sat spent on one goes into the lottery pot. Carrying them over
+ * would have made the second round free and dried the pot out with it.
+ *
+ * Instead the price falls as the player comes back: 90 in the first round, 60 in
+ * the second, 30 in the third, 21 from the fourth on. A returning player pays
+ * less for the same chain every time, which is what makes starting over cheap
+ * without making it free.
+ */
+export const MANAGER_PRICE_BY_ROUND = [90, 60, 30]
+export const MANAGER_PRICE_FLOOR = 21
+
+/**
+ * Plots whose manager stops costing anything once enough rounds are behind you:
+ * Outdoor after the first, Indoor after the second, Hydroponic after the third.
+ * Everything else is bought every round, at the price above.
+ *
+ * Keyed by plantation id, valued in rounds finished.
+ */
+export const MANAGER_FREE_AFTER = { 1: 1, 2: 2, 3: 3 }
+
+/** @param {number} roundsCompleted @returns {number} sats */
+export function managerPrice(roundsCompleted) {
+  const done = Math.max(0, Math.floor(roundsCompleted || 0))
+  return MANAGER_PRICE_BY_ROUND[done] ?? MANAGER_PRICE_FLOOR
+}
+
+/**
+ * Station keys are plantation ids as strings, plus 'courier' and 'fabrik' — the
+ * same vocabulary the manager helpers in server/rounds.js speak.
+ *
+ * @param {string} station
+ * @param {number} roundsCompleted
+ * @returns {boolean}
+ */
+export function managerFreeByRound(station, roundsCompleted) {
+  const needed = MANAGER_FREE_AFTER[station]
+  return needed !== undefined && Math.floor(roundsCompleted || 0) >= needed
+}
+
+/** Every station of a save, as keys, with whether a manager is on it. */
+function* stations(gs) {
+  for (const p of gs?.plantagen || []) {
+    if (Number.isInteger(p?.id)) yield [String(p.id), p.managerLevel > 0]
+  }
+  if (gs?.courier) yield ['courier', gs.courier.mgrLevel > 0]
+  if (gs?.fabrik) yield ['fabrik', gs.fabrik.mgrLevel > 0]
+}
+
+/**
+ * Free-quota slots already used.
+ *
+ * A manager that is free because of the round must not eat one: a player in
+ * round four would otherwise spend a slot on Outdoor — which costs nothing
+ * anyway — and end up paying for a station that should have been covered.
+ *
+ * @param {any} gs @param {number} roundsCompleted @returns {number}
+ */
+export function managerQuotaUsed(gs, roundsCompleted) {
+  let used = 0
+  for (const [key, hired] of stations(gs)) {
+    if (hired && !managerFreeByRound(key, roundsCompleted)) used++
+  }
+  return used
+}
+
+/**
+ * Price of hiring a manager on one station right now.
+ *
+ * @param {string} station '0'..'5' | 'courier' | 'fabrik'
+ * @param {any} gs current state, for the free quota
+ * @param {number} roundsCompleted
+ * @returns {number} sats
+ */
+export function managerCost(station, gs, roundsCompleted) {
+  if (managerFreeByRound(station, roundsCompleted)) return 0
+  if (managerQuotaUsed(gs, roundsCompleted) < FREE_MANAGERS) return 0
+  return managerPrice(roundsCompleted)
+}
+
+/**
+ * Sats the managers hired between two states must have cost.
+ *
+ * Priced here rather than taken from the client's word: a save used to report
+ * what it had spent and the server simply deducted it, so a client that reported
+ * nothing got its managers for nothing. Charged in hire order, because each one
+ * may be the one that uses up the free quota.
+ *
+ * @param {any} prev stored state @param {any} next incoming state
+ * @param {number} roundsCompleted
+ * @returns {{ cost: number, hired: string[] }}
+ */
+export function managerSpend(prev, next, roundsCompleted) {
+  const out = { cost: 0, hired: [] }
+  if (!next) return out
+  const before = new Map(stations(prev || {}))
+  // Walk a copy of the previous state forward, so the quota is counted as it was
+  // when each manager was actually taken on.
+  let used = managerQuotaUsed(prev || {}, roundsCompleted)
+  for (const [key, hired] of stations(next)) {
+    if (!hired || before.get(key)) continue
+    out.hired.push(key)
+    if (managerFreeByRound(key, roundsCompleted)) continue
+    if (used < FREE_MANAGERS) { used++; continue }
+    out.cost += managerPrice(roundsCompleted)
+  }
+  return out
+}
+
 /** Total managers hired across all stations. Accepts a state object or JSON string. */
 /** @param {any} gameState @returns {number} */
 export function countManagers(gameState) {
@@ -219,15 +385,81 @@ export function countLotteryManagers(gameState) {
   return count
 }
 
+/** A saved state, whether it arrives as an object or as its JSON. */
+function asState(gameState) {
+  if (!gameState) return null
+  if (typeof gameState !== 'string') return gameState
+  try { return JSON.parse(gameState) } catch { return null }
+}
+
+/**
+ * Managers in this round that cost sats.
+ *
+ * The free quota covers three, and three is exactly what the lottery has always
+ * asked for — so the gate has been standing open: a chain automated entirely
+ * for free could draw from a pot it had never paid into.
+ */
+export const REQUIRED_PAID_MANAGERS = 1
+
+/** @param {any} gameState @param {number} roundsCompleted @returns {number} */
+export function paidManagers(gameState, roundsCompleted) {
+  const gs = asState(gameState)
+  if (!gs) return 0
+  return Math.max(0, managerQuotaUsed(gs, roundsCompleted) - FREE_MANAGERS)
+}
+
+/**
+ * May this account buy a ticket in the round it is playing?
+ *
+ * Two conditions, and they ask different things. The chain must be automated,
+ * because the ticket price is a share of production and an idle account would
+ * pay the floor. And at least one manager must have been bought with sats,
+ * because every one of those sats goes into the pot being drawn.
+ *
+ * Managers do not survive a reset, so both are re-earned every round.
+ *
+ * @param {any} gameState @param {number} roundsCompleted
+ */
+export function ticketGate(gameState, roundsCompleted = 0) {
+  const managers = countLotteryManagers(gameState)
+  const paid = paidManagers(gameState, roundsCompleted)
+  const missing = Math.max(0, REQUIRED_MANAGERS - managers)
+  const missingPaid = Math.max(0, REQUIRED_PAID_MANAGERS - paid)
+  return {
+    eligible: missing === 0 && missingPaid === 0,
+    managers,
+    required: REQUIRED_MANAGERS,
+    missing,
+    paid,
+    requiredPaid: REQUIRED_PAID_MANAGERS,
+    missingPaid,
+    /** What the next paid manager costs, for the hint that asks for one. */
+    price: managerPrice(roundsCompleted),
+  }
+}
+
+/** The one sentence that says what is still missing. */
+export function ticketGateReason(gate) {
+  if (gate.missing > 0) {
+    return `Automate the chain first — ${gate.missing} more manager${gate.missing === 1 ? '' : 's'} needed`
+  }
+  if (gate.missingPaid > 0) {
+    return `Buy a manager with sats first — ${gate.price} sats, and they go into the pot`
+  }
+  return ''
+}
+
 // ── Boosts (the recurring sats sink) ─────────────────────────────────────────
 // Permanent upgrades exhaust themselves; consumables keep the same sats cycling
 // through pot → winners → boosts → pot, burning the 20 % house cut each lap.
 
+// Half an hour each, so the only thing that separates them is what they widen.
+// Full Throttle is all three at once and costs about what all three would.
 export const BOOSTS = {
-  fertilizer:   { id: 'fertilizer',   name: 'Fertilizer',   short: '2x Grow',    cost: 21,  durationSec: 1800, plant: 2 },
-  express:      { id: 'express',      name: 'Express Run',  short: '3x Courier', cost: 21,  durationSec: 1800, courier: 3 },
-  doubleshift:  { id: 'doubleshift',  name: 'Double Shift', short: '2x Factory', cost: 21,  durationSec: 1800, fabrik: 2 },
-  fullthrottle: { id: 'fullthrottle', name: 'Full Throttle', short: '2x Everything', cost: 50,  durationSec: 3600, plant: 2, courier: 2, fabrik: 2 },
+  fertilizer:   { id: 'fertilizer',   name: 'Fertilizer',   short: '2x Grow',    cost: 10,  durationSec: 1800, plant: 2 },
+  express:      { id: 'express',      name: 'Express Run',  short: '3x Courier', cost: 10,  durationSec: 1800, courier: 3 },
+  doubleshift:  { id: 'doubleshift',  name: 'Double Shift', short: '2x Factory', cost: 10,  durationSec: 1800, fabrik: 2 },
+  fullthrottle: { id: 'fullthrottle', name: 'Full Throttle', short: '2x Everything', cost: 21,  durationSec: 1800, plant: 2, courier: 2, fabrik: 2 },
 }
 
 /**
@@ -253,20 +485,26 @@ export function boostMultipliers(activeBoosts, nowSec) {
 
 // ── Speed (the scaling joints sink) ─────────────────────────────────────────
 //
-// Joints buy permanent speed for the whole chain. This replaces prestige, which
-// failed on comprehension twice: seeds were a second abstract currency, earned
-// only by resetting, measured in a unit nobody feels (quadrillions of lifetime
-// joints), and worth less with every one you owned — at 343 seeds another was
-// worth +0.28 %.
+// Joints buy speed for the whole chain, for the rest of the round.
 //
 // The price is denominated in *seconds of the buyer's own production*, not in a
-// fixed number of joints. That is what makes the ceiling hold: income grows by
-// something like a factor of 10^12 over a month, so any fixed joint curve gets
-// outrun — an earlier draft aimed at +20 % a month and produced x51.
+// fixed number of joints. That is what keeps it meaningful at every point of a
+// curve that spans a quadrillion: a step always costs the same amount of playing
+// time, whatever the numbers on screen say.
+//
+// The step was +2 % and it was dead. A capacity upgrade doubles the narrowest
+// station — when that station is the bottleneck, that is +100 % on the chain —
+// so against it a 2 % lift never won, and the greedy player bought two steps in a
+// whole round. At 5 % it is worth about x1.28 by the end of a round and shortens
+// it by roughly a tenth, which is a real decision without being the only one.
 
-export const SPEED_STEP = 0.02
+export const SPEED_STEP = Number(globalThis.process?.env?.JF_SPEED_STEP) || 0.05
 
-/** Ceiling on speed growth: spending a full month's output buys at most +20 %. */
+/**
+ * Ceiling on how cheap a step may get: spending a full month's output buys at
+ * most +20 %. It only sets the price ceiling now — the runaway it was written
+ * against cannot happen any more, because speed is cleared with every reset.
+ */
 export const SPEED_MONTHLY_CAP = 1.20
 
 const MONTH_SECONDS = 30 * 86400
@@ -276,7 +514,7 @@ const STEPS_PER_MONTH = Math.log(SPEED_MONTHLY_CAP) / Math.log(1 + SPEED_STEP)
 export const SPEED_MAX_SECONDS = MONTH_SECONDS / STEPS_PER_MONTH
 
 const SPEED_FIRST_SECONDS = 300   // the first step is five minutes of output
-const SPEED_SECONDS_GROWTH = 1.35 // ~24 steps to reach the ceiling
+const SPEED_SECONDS_GROWTH = Number(globalThis.process?.env?.JF_SPEED_GROWTH) || 1.35
 
 /**
  * Production time the next step costs, in seconds.
@@ -309,6 +547,35 @@ export function speedCost(level, rate) {
  */
 export function speedMultiplier(level) {
   return Math.pow(1 + SPEED_STEP, level || 0)
+}
+
+// ── Rounds and prestige ──────────────────────────────────────────────────────
+//
+// The game used to have no end. A player who reached the top of the curve had
+// nothing left to do, and the numbers kept climbing into suffixes nobody feels.
+// A round fixes both: it finishes at a billion joints — about a week with
+// managers and a few visits a day — and then you may start over.
+//
+// Resetting is voluntary and buys no advantage. It banks prestige points and a
+// time in the Billionaires Club, nothing else: every round is the same race, so
+// the times stay comparable across rounds and across players.
+
+export const ROUND_TARGET = Number(globalThis.process?.env?.JF_ROUND_TARGET) || 1_000_000_000_000_000
+
+/**
+ * Prestige points a round is worth when the player resets: one.
+ *
+ * It used to pay a point per doubling past the target, to give a reason to keep
+ * playing a finished round. Counting now stops *at* the target — see the cap in
+ * useGameLoop and saveState — so there is nothing past it to reward, and a star
+ * simply means a round. Which is what the leaderboard was always going to be
+ * read as anyway.
+ *
+ * @param {number} jointsEarned lifetime joints of the round being closed
+ * @returns {number}
+ */
+export function prestigePoints(jointsEarned) {
+  return Math.max(0, jointsEarned || 0) >= ROUND_TARGET ? 1 : 0
 }
 
 // ── Throughput ───────────────────────────────────────────────────────────────
@@ -492,15 +759,18 @@ export const DAY_SECONDS = 86400
  */
 export const TICKET_DAY_SHARE = [0.10, 0.18, 0.28, 0.44]
 
-/** A fresh plantation with the three free managers: 1.25 joints/s. */
-export const RATE_BEGINNER = 1.25
+/** A fresh chain with the three free managers: the courier's 8 per round trip. */
+export const RATE_BEGINNER = 1
 /**
  * Where the beginner discount runs out: at or above this rate a ticket costs
- * exactly its share of the buyer's day. It was set from the fastest player at
- * the time; the leaders have since passed it by more than an order of magnitude,
- * which changes nothing for them — the scale simply bottoms out at 1.
+ * exactly its share of the buyer's day.
+ *
+ * Both anchors moved with the round: the chain now tops out around 16 K/s at the
+ * billion rather than climbing past a billion a second for months. Left at the
+ * old 1.6e9 every player alive would sit at the beginner end of the scale and
+ * pay the 13x markup forever.
  */
-export const RATE_TOP = 1.6e9
+export const RATE_TOP = 20_000_000_000
 
 // Beginner target: the first ticket of the day costs two days of production.
 const BEGINNER_SCALE = (2 * DAY_SECONDS) / (DAY_SECONDS * TICKET_DAY_SHARE[0])
@@ -553,10 +823,23 @@ export function ticketPreview(held, rate, limit = 3) {
 // Lives here because the server builds starting state too — a new account is
 // created server-side and must match what the client would have produced.
 
-export function newPlantation(def) {
+/**
+ * Level the Balcony Grow opens on.
+ *
+ * At level 1 the tenth-scale curve gives 0.025 joints/s, so the first upgrade
+ * would be two and a half minutes of tapping — the old curve managed it in six
+ * seconds. Ten levels (0.5/s with the first milestone) puts it back at about
+ * twenty seconds. The head start is worth nothing later: the round is the same
+ * length with or without it.
+ */
+export const START_LEVEL = 10
+
+/** @param {any} def @param {number} [level] */
+export function newPlantation(def, level = 1) {
   return {
     id: def.id, name: def.name, icon: def.icon,
-    level: 1, baseProd: def.baseProd, cycleTime: def.cycleTime,
+    level: Math.min(MAX_PLANT_LEVEL, Math.max(1, level)),
+    baseProd: def.baseProd, cycleTime: def.cycleTime,
     timer: def.cycleTime, speed: 1, speedLevel: 0,
     managerLevel: 0, mgrCost: def.mgrCost,
     upgBase: def.upgBase, upgMult: def.upgMult,
@@ -568,20 +851,20 @@ export function initialState() {
   return {
     cannabis: 0,
     cannabisAtFactory: 0,
-    plantagen: [newPlantation(PLANTATION_DEFS[0])],
+    plantagen: [newPlantation(PLANTATION_DEFS[0], START_LEVEL)],
     _unlockIdx: 0,
     courier: {
       state: 'idle', posX: 15, carrying: 0,
-      capacity: 20, speed: 1, speedLevel: 0,
+      capacity: BASE_CAPACITY.courier, speed: 1, speedLevel: 0,
       tripTimer: 0, tripDuration: 4,
       mgrLevel: 0, mgrCost: 20,
-      capCost: 200, speedCost: 0,
+      capCost: 240, speedCost: 0,
     },
     fabrik: {
-      capacity: 100, speed: 1, speedLevel: 0,
+      capacity: BASE_CAPACITY.fabrik, speed: 1, speedLevel: 0,
       processing: false, timer: 0, processTime: 8,
       autoTimer: 0, mgrLevel: 0, mgrCost: 20,
-      capCost: 400, speedCost: 0,
+      capCost: 480, speedCost: 0,
       total: 0, _currentCharge: 0,
     },
     _ts: Date.now(),

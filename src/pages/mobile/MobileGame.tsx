@@ -4,16 +4,16 @@ import { useGameDisplay } from '../../stores/gameDisplayStore'
 import { useGameLoop } from '../../game/useGameLoop'
 import { nextObjective } from '../../game/objectives'
 import {
-  countLotteryManagers, REQUIRED_MANAGERS, ticketPrice, throughput,
-  speedMultiplier, speedCost,
+  ticketGate, ticketGateReason, ticketPrice, throughput,
+  speedMultiplier, speedCost, ROUND_TARGET,
 } from '../../../shared/economy.js'
 import { PlantationsCard, CourierCard, FactoryCard } from '../../components/mobile/StationCard'
 import LotteryMini from '../../components/mobile/LotteryMini'
+import RoundCard from '../../components/mobile/RoundCard'
 import BoostBar from '../../components/mobile/BoostBar'
 import SpeedCard from '../../components/mobile/SpeedCard'
-import GrowthRace from '../../components/mobile/GrowthRace'
 import ZapclubBanner from '../../components/mobile/ZapclubBanner'
-import Leaderboard from '../../components/mobile/Leaderboard'
+import GrowthRace from '../../components/mobile/GrowthRace'
 import './MobilePages.css'
 
 export default function MobileGame() {
@@ -29,14 +29,15 @@ export default function MobileGame() {
     auth.isNewAccount,
   )
 
-  // Lottery/withdraw eligibility: plantation #1, courier and factory automated.
+  // Ticket eligibility: the chain automated, and one manager paid for in sats.
   // Same function the server checks against, so the two cannot drift apart.
-  const mgrCount = useMemo(
-    () => countLotteryManagers(state),
-    [state.plantagen, state.courier?.mgrLevel, state.fabrik?.mgrLevel] // eslint-disable-line react-hooks/exhaustive-deps
+  const gate = useMemo(
+    () => ticketGate(state, state.roundsCompleted),
+    [state.plantagen, state.courier?.mgrLevel, state.fabrik?.mgrLevel, state.roundsCompleted] // eslint-disable-line react-hooks/exhaustive-deps
   )
-  const eligible = mgrCount >= REQUIRED_MANAGERS
-  const managersNeeded = REQUIRED_MANAGERS - mgrCount
+  const eligible = gate.eligible
+  const managersNeeded = gate.missing
+  const ticketHint = ticketGateReason(gate)
 
   // Sync display state for header stats + lottery eligibility
   useEffect(() => {
@@ -49,8 +50,9 @@ export default function MobileGame() {
       rawGameState: state,
       eligible,
       upgradesNeeded: managersNeeded,
+      ticketHint,
     })
-  }, [state.joints, state.sats, state.cannabis, state.cannabisAtFactory, state.courier.carrying, state.managerCount, eligible]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state.joints, state.sats, state.cannabis, state.cannabisAtFactory, state.courier.carrying, state.managerCount, eligible, ticketHint]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ticket prices scale with production, so the floor price is no longer a
   // useful yardstick — an endgame player pays ~5 minutes of output for their
@@ -62,6 +64,8 @@ export default function MobileGame() {
   const firstTicketCost = ticketPrice(0, rate)
   const nextSpeedCost = speedCost(state.speedLevel, rate)
   const objective = nextObjective(state, auth.isLoggedIn, state.joints >= firstTicketCost)
+  // Past the target the loop stops advancing the chain; the cards say so.
+  const roundOver = state.totalJointsEarned >= ROUND_TARGET
 
 
   // Sync total earned
@@ -86,10 +90,11 @@ export default function MobileGame() {
           plantagen={state.plantagen}
           cannabisAtFactory={state.cannabisAtFactory}
           joints={state.joints}
-          managerCount={state.managerCount}
+          mgrCost={state.managerCosts.fabrik ?? 0}
           isLoggedIn={auth.isLoggedIn}
           boosts={state.boosts}
           speedLevel={state.speedLevel}
+          frozen={roundOver}
           onUpgradeCap={actions.upgradeFabrikCap}
           onBuyManager={actions.buyFabrikManager}
           onRoll={actions.rollJoints}
@@ -99,10 +104,11 @@ export default function MobileGame() {
           courier={state.courier}
           cannabis={state.cannabis}
           joints={state.joints}
-          managerCount={state.managerCount}
+          mgrCost={state.managerCosts.courier ?? 0}
           isLoggedIn={auth.isLoggedIn}
           boosts={state.boosts}
           speedLevel={state.speedLevel}
+          frozen={roundOver}
           onUpgradeCap={actions.upgradeCourierCap}
           onBuyManager={actions.buyCourierManager}
           onSend={actions.sendCourier}
@@ -127,7 +133,6 @@ export default function MobileGame() {
           onBuy={actions.buySpeed}
         />
 
-        <Leaderboard />
       </div>
 
       <div className="mgp-col mgp-col-right">
@@ -135,17 +140,30 @@ export default function MobileGame() {
           plantagen={state.plantagen}
           cannabis={state.cannabis}
           joints={state.joints}
-          managerCount={state.managerCount}
+          managerCosts={state.managerCosts}
           isLoggedIn={auth.isLoggedIn}
           boosts={state.boosts}
           speedLevel={state.speedLevel}
+          frozen={roundOver}
           onUpgradeLevel={(i) => actions.upgradePlantLevel(i)}
           onBuyManager={(i) => actions.buyPlantManager(i)}
           onGrow={(i) => actions.grow(i)}
           onUnlock={actions.unlockPlantation}
         />
 
-        <GrowthRace />
+        {/* The standings, where the chain they are about is. The round rides on
+            top of them: both are the same run towards the same quadrillion, and
+            two frames for that cost the Grow page a screenful. */}
+        <GrowthRace header={
+          <RoundCard
+            embedded
+            totalEarned={state.totalJointsEarned}
+            isLoggedIn={auth.isLoggedIn}
+            // The loop holds the chain in refs across the whole session; reloading
+            // is the one way to be certain the fresh round is what it picks up.
+            onReset={() => window.location.reload()}
+          />
+        } />
 
         <ZapclubBanner />
       </div>

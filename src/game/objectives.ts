@@ -1,4 +1,5 @@
-import { FREE_MANAGERS, REQUIRED_MANAGERS, countManagers, countLotteryManagers } from '../../shared/economy.js'
+import { FREE_MANAGERS, REQUIRED_MANAGERS, countManagers, countLotteryManagers,
+         paidManagers, REQUIRED_PAID_MANAGERS, managerPrice } from '../../shared/economy.js'
 import type { DisplayState } from './useGameLoop'
 
 /**
@@ -50,6 +51,11 @@ export function nextObjective(state: DisplayState, isLoggedIn: boolean, canAffor
   // Chain runs — the reward loop needs an identity the server can pay out to.
   if (!isLoggedIn) {
     return 'Log in to play your joints for real sats'
+  }
+  // The pot is fed by manager sats, so a ticket asks for one of them. The free
+  // three are exactly the chain, which is why this comes after it and not with it.
+  if (paidManagers(state, state.roundsCompleted) < REQUIRED_PAID_MANAGERS) {
+    return `Buy one manager with sats — ${managerPrice(state.roundsCompleted)} sats, and the lottery opens`
   }
   if (canAffordTicket) {
     return 'You have enough joints for a ticket'

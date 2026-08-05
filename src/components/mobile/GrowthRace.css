@@ -8,6 +8,17 @@
   gap: 8px;
 }
 
+.gr-round {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* RoundCard renders nothing until it knows the round, and a lone divider above
+   the lanes reads as a mistake. */
+.gr-round:empty { display: none; }
+
 .gr-header {
   display: flex;
   align-items: center;
@@ -27,6 +38,31 @@
   text-shadow: 0 0 8px rgba(57, 255, 20, .4);
 }
 
+/* Sits with the race, not over it — the round header above is a caption now. */
+.gr-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  padding: 2px 7px 2px 5px;
+  border: 1px solid rgba(204, 68, 255, .3);
+  border-radius: 999px;
+  background: rgba(204, 68, 255, .08);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--neon-purple);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.gr-stars svg { fill: currentColor; }
+.gr-stars:hover { border-color: rgba(204, 68, 255, .65); background: rgba(204, 68, 255, .16); }
+
+/* With the stars claiming the free space, LIVE only needs its own gap. */
+.gr-stars + .gr-live { margin-left: 6px; }
+
 .gr-live {
   margin-left: auto;
   font-family: var(--font-body);
@@ -41,90 +77,80 @@
   letter-spacing: 0.5px;
 }
 
-/* Chart */
-.gr-chart-wrap {
-  margin-bottom: 4px;
-}
+/* ── Die Bahn ─────────────────────────────────────────────────────────────
+   Keine Tabelle mit Balken, sondern eine Rennbahn: jeder Läufer auf seiner
+   Spur, alle auf dieselbe goldene Ziellinie zu. Position ist der Anteil an der
+   Runde, logarithmisch über sechs Dekaden — linear klebte das ganze Feld an
+   der Startlinie. */
 
-.gr-chart-svg {
-  width: 100%;
-  display: block;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, .15);
-}
-
-.gr-chart-xaxis {
-  display: flex;
-  justify-content: space-between;
+.gr-legend {
   font-family: var(--font-body);
   font-size: 10px;
   color: var(--text-secondary);
-  opacity: 0.7;
-  padding: 2px 2px 0;
+  opacity: .7;
 }
 
-.gr-bars {
+/* Auf dem Telefon konkurriert die Legende mit dem Titel um dieselbe Zeile —
+   und die Goldkante erklärt sich ohnehin selbst. */
+@media (max-width: 520px) {
+  .gr-legend { display: none; }
+  .gr-row { grid-template-columns: 20px 52px 1fr 74px; gap: 6px; }
+  .gr-finish-flag { right: 74px; }
+}
+
+.gr-lanes {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+
+/* Die Ziellinie wird einmal benannt, genau über der Kante, die jede Bahn hat. */
+.gr-finish-flag {
+  position: absolute;
+  top: 0;
+  right: 84px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  color: var(--neon-gold);
+  text-shadow: 0 0 8px rgba(255, 215, 0, .5);
 }
 
 .gr-row {
   display: grid;
-  grid-template-columns: 24px 60px 1fr 70px;
+  grid-template-columns: 24px 62px 1fr 84px;
   align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
-  border-radius: 6px;
-  animation: gr-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: 4px;
 }
 
-.gr-row:nth-child(1) { animation-delay: 0s; }
-.gr-row:nth-child(2) { animation-delay: 0.05s; }
-.gr-row:nth-child(3) { animation-delay: 0.05s; }
-.gr-row:nth-child(4) { animation-delay: 0.1s; }
-.gr-row:nth-child(5) { animation-delay: 0.15s; }
-.gr-row:nth-child(6) { animation-delay: 0.2s; }
-.gr-row:nth-child(7) { animation-delay: 0.25s; }
-
-@keyframes gr-enter {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
+.gr-row.gr-you {
+  background: rgba(255, 215, 0, .09);
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, .22);
 }
 
-.gr-inactive {
-  opacity: 0.4;
-}
-
-.gr-you {
-  background: rgba(255, 215, 0, .06);
-}
-
-.gr-leader .gr-rank {
-  color: var(--neon-gold);
-}
+.gr-row.gr-inactive { opacity: .42; }
 
 .gr-rank {
   font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
   color: var(--text-secondary);
-  text-align: center;
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
-.gr-trophy {
-  color: var(--neon-gold);
-  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .5));
-}
+.gr-trophy { color: var(--neon-gold); filter: drop-shadow(0 0 5px rgba(255, 215, 0, .6)); }
 
 .gr-name {
   font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
   color: var(--text-primary);
   text-decoration: none;
   overflow: hidden;
@@ -132,85 +158,96 @@
   white-space: nowrap;
 }
 
-.gr-name:active {
-  opacity: 0.7;
-}
+.gr-row.gr-you .gr-name { color: var(--neon-gold); font-weight: 700; }
+.gr-name:hover { text-decoration: underline; }
 
-.gr-you .gr-name {
-  color: var(--neon-gold);
-  text-shadow: 0 0 6px rgba(255, 215, 0, .3);
-}
-
+/* Die Bahn selbst. Die Goldkante rechts ist das Ziel — bei allen an derselben
+   Stelle, sonst wäre es keine gemeinsame Ziellinie. */
 .gr-track {
-  height: 6px;
-  background: rgba(255, 255, 255, .05);
-  border-radius: 6px;
-  overflow: hidden;
+  position: relative;
+  height: 24px;
+  border-radius: 3px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, transparent 1px 28px),
+    rgba(255, 255, 255, .035);
+  border-right: 3px solid var(--neon-gold);
+  box-shadow: 2px 0 8px rgba(255, 215, 0, .25), inset 0 0 10px rgba(0, 0, 0, .45);
 }
 
-.gr-fill {
-  height: 100%;
-  border-radius: 6px;
-  border: 1px solid;
-  transition: width 1s ease;
+.gr-comet {
+  position: absolute;
+  left: 0;
+  top: 7px;
+  height: 10px;
+  border-radius: 5px;
+  transition: width 1.2s linear;
+}
+
+.gr-runner {
+  position: absolute;
+  top: 3px;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* A hot core rather than a flat disc — the thing the eye lands on. */
+  background-image: radial-gradient(circle at 35% 32%, rgba(255,255,255,.95), transparent 55%);
+  transition: left 1.2s linear;
+}
+
+.gr-runner-boost { color: #1a1508; }
+
+/* Der Führende pulsiert — das ist die einzige Bewegung im Bild, also fällt sie auf. */
+.gr-row.gr-leader .gr-runner {
+  animation: gr-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes gr-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
 }
 
 .gr-stats {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
-.gr-rate {
+.gr-stats-main {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* How much of that projected time is already spent. Quiet on purpose — it is
+   the context for the number above, not a second headline. */
+.gr-elapsed {
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: 9px;
+  color: var(--text-secondary);
+  opacity: .65;
+  font-variant-numeric: tabular-nums;
+}
+
+.gr-eta {
+  font-family: var(--font-body);
+  font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 5px currentColor;
 }
 
-.gr-trend {
-  display: flex;
-  align-items: center;
-  color: var(--text-secondary);
-  opacity: 0.6;
-}
+.gr-trend { display: inline-flex; color: var(--text-secondary); opacity: .5; }
+.gr-trend.up { color: var(--neon-green); opacity: 1; }
+.gr-trend.down { color: #ff6b6b; opacity: 1; }
 
-.gr-trend.up {
-  color: var(--neon-green);
-  opacity: 1;
+@media (prefers-reduced-motion: reduce) {
+  .gr-comet, .gr-runner { transition: none; }
+  .gr-row.gr-leader .gr-runner { animation: none; }
 }
-
-.gr-trend.down {
-  color: #ff6b6b;
-  opacity: 1;
-}
-
-/* Bought speed, next to the rate. A small comparable number where the rate
-   itself spans nine orders of magnitude. */
-.gr-speed {
-  font-family: var(--font-body);
-  font-size: 10px;
-  color: var(--neon-green);
-  font-variant-numeric: tabular-nums;
-  opacity: .85;
-}
-
-/* A boost running right now. The thick segments in the chart above mark where
-   one ran; this marks who is under one at this moment. */
-.gr-boosted {
-  color: var(--neon-gold);
-  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .6));
-}
-
-.gr-legend {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  font-family: var(--font-body);
-  font-size: 10px;
-  color: var(--text-secondary);
-}
-
-.gr-legend svg { color: var(--neon-gold); }

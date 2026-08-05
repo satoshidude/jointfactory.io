@@ -214,6 +214,11 @@ export default function LotteryMini() {
               <span className="lottery-mini-avail">{ticketsHeld}/{MAX_TICKETS_PER_ROUND} this draw</span>
             </>}
           </button>
+          {/* Disabled with no reason given used to read as broken. The gate has
+              two conditions now, so it has to say which one is open. */}
+          {!gd.eligible && gd.ticketHint && (
+            <span className="lottery-mini-hint">{gd.ticketHint}</span>
+          )}
           {buyError && <span className="lottery-mini-error">{buyError}</span>}
         </div>
       )}

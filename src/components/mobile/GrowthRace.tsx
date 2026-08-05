@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Cannabis, TrendingUp, TrendingDown, Minus, Trophy, Zap } from 'lucide-react'
+import { Cannabis, TrendingUp, TrendingDown, Minus, Trophy, Zap, Flag, Star } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { nip19 } from 'nostr-tools'
 import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import './GrowthRace.css'
 import { fmtNum } from '../../lib/format'
-import { speedMultiplier } from '../../../shared/economy.js'
+import { speedMultiplier, ROUND_TARGET } from '../../../shared/economy.js'
 
 interface PlayerInfo {
   npub: string
@@ -14,6 +15,12 @@ interface PlayerInfo {
   total_joints_earned: number
   total_won_sats: number
   speed_level?: number
+  /** Start of the round this player is in — everyone has their own clock. */
+  round_started_at?: number | null
+  round_no?: number | null
+  /** Set once they hit the target; the round time is then final. */
+  round_seconds_to_target?: number | null
+  prestige_points?: number
 }
 
 interface RateLog {
@@ -25,19 +32,55 @@ interface RateLog {
   boost?: number
 }
 
-const CHART_COLORS = [
-  { stroke: '#ffd700', glow: 'rgba(255,215,0,.5)' },
-  { stroke: '#39ff14', glow: 'rgba(57,255,20,.5)' },
-  { stroke: '#cc44ff', glow: 'rgba(204,68,255,.5)' },
-  { stroke: '#00d4ff', glow: 'rgba(0,212,255,.5)' },
-  { stroke: '#ff6b6b', glow: 'rgba(255,107,107,.5)' },
-  { stroke: '#ff69b4', glow: 'rgba(255,105,180,.5)' },
-  { stroke: '#ff8c00', glow: 'rgba(255,140,0,.5)' },
+const LANE_COLORS = [
+  { stroke: '#ffd700', glow: 'rgba(255,215,0,.65)' },
+  { stroke: '#39ff14', glow: 'rgba(57,255,20,.65)' },
+  { stroke: '#cc44ff', glow: 'rgba(204,68,255,.65)' },
+  { stroke: '#00d4ff', glow: 'rgba(0,212,255,.65)' },
+  { stroke: '#ff6b6b', glow: 'rgba(255,107,107,.65)' },
+  { stroke: '#ff69b4', glow: 'rgba(255,105,180,.65)' },
+  { stroke: '#ff8c00', glow: 'rgba(255,140,0,.65)' },
 ]
 
-const CHART_POINTS = 48
+/** How far back the trend arrow looks. */
+const TREND_WINDOW = 90 * 60
 
-export default function GrowthRace() {
+/**
+ * Decades of the round mapped onto a lane.
+ *
+ * Progress inside one round spans fifteen orders of magnitude, so a linear lane
+ * would park the whole field on the start line and show nothing. Six decades
+ * give a tenth of a percent a real place on the track.
+ */
+const LANE_DECADES = 6
+
+/** Unknown or unreachable finishes go last, never in the middle. */
+const rank = (secs: number) => Number.isFinite(secs) ? secs : Infinity
+
+/** "3.2 d", "4 h", "12 min" — a span, in the largest unit that still reads. */
+function dur(secs: number): string {
+  if (!Number.isFinite(secs)) return '—'
+  if (secs < 60) return '<1 min'
+  if (secs < 3600) return `${Math.round(secs / 60)} min`
+  if (secs < 86400) return `${(secs / 3600).toFixed(1)} h`
+  if (secs < 365 * 86400) return `${(secs / 86400).toFixed(1)} d`
+  return `${(secs / (365 * 86400)).toFixed(0)} y`
+}
+
+/**
+ * The race, as a race: runners on lanes, all pointed at the same finish.
+ *
+ * It was a chart of production over time, which answered a question nobody was
+ * asking — what a player wants at a glance is *am I ahead*, and a picture full
+ * of curves cannot say that.
+ *
+ * Position on the lane is how far into the round they are. But nobody starts at
+ * the same moment, so being furthest only means having started earliest: the
+ * rank and the big number are the *projected round time* — time already run
+ * plus what is left at the current rate. That is the same figure the Q Club
+ * records, so the live race and the highscore measure one thing.
+ */
+export default function GrowthRace({ header }: { header?: React.ReactNode } = {}) {
   const auth = useAuth()
   const [players, setPlayers] = useState<PlayerInfo[]>([])
   const [rateLogs, setRateLogs] = useState<RateLog[]>([])
@@ -49,7 +92,7 @@ export default function GrowthRace() {
       }).catch(() => {})
     }
     fetchPlayers()
-    const iv = setInterval(fetchPlayers, 30000)
+    const iv = setInterval(fetchPlayers, 15000)
     return () => clearInterval(iv)
   }, [])
 
@@ -62,243 +105,141 @@ export default function GrowthRace() {
         .catch(() => {})
     }
     fetchLogs()
-    const iv = setInterval(fetchLogs, 60_000)
+    const iv = setInterval(fetchLogs, 30_000)
     return () => { cancelled = true; clearInterval(iv) }
   }, [])
 
-  const raceData = useMemo(() => {
+  const lines = useMemo(() => {
     const now = Math.floor(Date.now() / 1000)
-    const CHART_WINDOW = 6 * 3600
-    const windowStart = now - CHART_WINDOW
-
-    const recentLogs = rateLogs.filter(l => l.ts >= windowStart && l.rate > 0)
-    const activeNpubs = new Set(recentLogs.map(l => l.npub))
+    const windowStart = now - TREND_WINDOW
+    const recent = new Set(rateLogs.filter(l => l.ts >= windowStart && l.rate > 0).map(l => l.npub))
 
     let candidates = players
-      .filter(p => p.joints_per_sec > 0)
-      .sort((a, b) => b.joints_per_sec - a.joints_per_sec)
+      .filter(p => (p.total_joints_earned || 0) > 0 || p.joints_per_sec > 0)
+      .sort((a, b) => (b.total_joints_earned || 0) - (a.total_joints_earned || 0))
       .slice(0, 10)
 
     const me = auth.npub ? players.find(p => p.npub === auth.npub) : null
-    if (me && me.joints_per_sec > 0 && !candidates.find(c => c.npub === auth.npub)) {
-      candidates = [...candidates.slice(0, 9), me]
-    }
+    if (me && !candidates.find(c => c.npub === auth.npub)) candidates = [...candidates.slice(0, 9), me]
+    if (candidates.length === 0) return []
 
-    if (candidates.length === 0) return null
+    return candidates.map((p, i) => {
+      const c = LANE_COLORS[i % LANE_COLORS.length]
+      const total = p.total_joints_earned || 0
+      const rate = p.joints_per_sec || 0
+      const eta = rate > 0 ? Math.max(0, ROUND_TARGET - total) / rate : Infinity
 
-    const lines = candidates.map((p, i) => {
-      const isYou = auth.npub === p.npub
-      const isActive = activeNpubs.has(p.npub)
-      const rate = p.joints_per_sec
-      const c = CHART_COLORS[i % CHART_COLORS.length]
+      const mine = rateLogs.filter(l => l.npub === p.npub).sort((a, b) => a.ts - b.ts)
+      // Where they stood when the window opened, so the arrow can say whether
+      // the finish came closer.
+      const then = mine.filter(l => l.ts <= windowStart).at(-1) ?? mine[0]
+      const etaThen = then && then.rate > 0 ? Math.max(0, ROUND_TARGET - then.total) / then.rate : Infinity
+      const trendPct = Number.isFinite(etaThen) && etaThen > 0 && Number.isFinite(eta)
+        ? ((etaThen - eta) / etaThen) * 100
+        : 0
 
-      const events = rateLogs
-        .filter(l => l.npub === p.npub && l.ts >= windowStart - 3600)
-        .sort((a, b) => a.ts - b.ts)
+      // Their own clock. A round that has already been won stops running — its
+      // time is what the club will record, not what has passed since.
+      const started = p.round_started_at || 0
+      const elapsed = started > 0 ? Math.max(0, now - started) : NaN
+      const projected = p.round_seconds_to_target != null
+        ? p.round_seconds_to_target
+        : Number.isFinite(elapsed) ? elapsed + eta : NaN
 
-      // Find last known rate (from logs or player data)
-      const allPlayerLogs = rateLogs
-        .filter(l => l.npub === p.npub)
-        .sort((a, b) => a.ts - b.ts)
-      const lastKnownRate = allPlayerLogs.length > 0
-        ? allPlayerLogs[allPlayerLogs.length - 1].rate
-        : rate
-      const stepDuration = CHART_WINDOW / CHART_POINTS
-
-      let points: number[]
-      // Boost state per point, so the line can be drawn differently where a
-      // burst was running — a boosted rate and a permanent upgrade both look
-      // like a jump otherwise.
-      const boosted: boolean[] = []
-      let trendPct = 0
-
-      if (events.length > 0) {
-        // Has data in window: use real logs, then extrapolate after last event
-        let baseTotal = 0
-        for (const ev of events) {
-          if (ev.ts <= windowStart) baseTotal = ev.total
-          else break
-        }
-        if (baseTotal === 0) baseTotal = events[0].total
-
-        const lastEvent = events[events.length - 1]
-        const lastEventTs = lastEvent.ts
-        const lastEventTotal = lastEvent.total
-        const extrapolateRate = lastEvent.rate || lastKnownRate
-
-        points = []
-        for (let h = 0; h <= CHART_POINTS; h++) {
-          const timeAt = windowStart + (h / CHART_POINTS) * CHART_WINDOW
-          if (timeAt > now) {
-            boosted.push(false)
-            points.push(points.length > 0 ? points[points.length - 1] : 0)
-            continue
-          }
-
-          if (timeAt <= lastEventTs) {
-            // Within logged data: use actual totals
-            let totalAtTime = baseTotal
-            let boostAtTime = 1
-            for (const ev of events) {
-              if (ev.ts <= timeAt) { totalAtTime = ev.total; boostAtTime = ev.boost ?? 1 }
-              else break
-            }
-            boosted.push(boostAtTime > 1)
-            points.push(Math.max(0, totalAtTime - baseTotal))
-          } else {
-            // After last event: extrapolate at last known rate (no speed upgrades)
-            const elapsed = timeAt - lastEventTs
-            const extrapolated = lastEventTotal + extrapolateRate * elapsed
-            boosted.push((lastEvent.boost ?? 1) > 1)
-            points.push(Math.max(0, extrapolated - baseTotal))
-          }
-        }
-
-        const firstEvent = events.find(e => e.ts >= windowStart)
-        const firstRate = firstEvent?.rate || rate
-        trendPct = firstRate > 0 ? ((lastEvent.rate - firstRate) / firstRate) * 100 : 0
-      } else {
-        // Fully offline: emulate steady production at last known rate
-        points = []
-        for (let h = 0; h <= CHART_POINTS; h++) {
-          boosted.push(false)
-          points.push(lastKnownRate * stepDuration * h)
-        }
-      }
+      const progress = Math.min(1, total / ROUND_TARGET)
+      const pos = progress >= 1 ? 100
+        : progress <= 0 ? 0
+        : Math.max(0, Math.min(100, ((Math.log10(progress) + LANE_DECADES) / LANE_DECADES) * 100))
 
       return {
-        name: isYou ? 'YOU' : (p.display_name || 'anon'), npub: p.npub, rate,
+        npub: p.npub,
+        name: auth.npub === p.npub ? 'YOU' : (p.display_name || 'anon'),
+        isYou: auth.npub === p.npub,
+        // A finished round has nothing left to log, so the recency test would
+        // grey out the very runner whose time everyone else is chasing.
+        isActive: recent.has(p.npub) || p.round_seconds_to_target != null,
+        boostedNow: (mine.at(-1)?.boost ?? 1) > 1,
         speedLevel: p.speed_level ?? 0,
-        boostedNow: (allPlayerLogs.at(-1)?.boost ?? 1) > 1,
-        color: c.stroke, glow: c.glow, isYou, isActive, trendPct, points, boosted,
+        rate, total, progress, pos, eta, trendPct, elapsed, projected,
+        done: p.round_seconds_to_target != null,
+        color: c.stroke, glow: c.glow,
       }
-    }).sort((a, b) => b.rate - a.rate)
-
-    const maxProduction = Math.max(...lines.flatMap(l => l.points), 1)
-    return { lines, maxProduction }
+    }).sort((a, b) => rank(a.projected) - rank(b.projected))
   }, [players, auth.npub, rateLogs])
 
-  if (!raceData || raceData.lines.length === 0) return null
-
-  const { lines, maxProduction } = raceData
-
-  // Bars are logarithmic. Rates span nine orders of magnitude on production —
-  // 1.25/s for a fresh account against 1.6 billion/s at the top — so a linear
-  // bar gave everyone but the leader the 8 % minimum and the race showed
-  // nothing. On a log scale the whole field is legible at once.
-  const rates = lines.map(l => l.rate).filter(r => r > 0)
-  const topRate = Math.max(...rates, 1)
-  const floorRate = Math.min(...rates, topRate)
-  const span = Math.log10(topRate / floorRate) || 1
-  const barPct = (rate: number) =>
-    rate <= 0 ? 8 : Math.max(8, 8 + (Math.log10(rate / floorRate) / span) * 92)
+  if (lines.length === 0) return null
 
   return (
     <div className="gr-card">
+      {/* The round, when the page has one to show. Same finish line as the lanes
+          below, so it belongs in the same frame. Empty collapses itself. */}
+      {header && <div className="gr-round">{header}</div>}
+
       <div className="gr-header">
         <Cannabis size={20} className="gr-header-icon" />
-        <span className="gr-title">Growth Race</span>
-        <span className="gr-legend"><Zap size={10} /> thick line = boost running</span>
+        <span className="gr-title">Race to 1 Q</span>
+        <span className="gr-legend">ranked by round time, not by who started first</span>
+        {/* Rounds finished, next to the race they were run in. The player list is
+            already loaded, so this costs nothing but a lookup. */}
+        {auth.npub && (
+          <Link to="/ranking" className="gr-stars" title="Rounds finished — see the boards">
+            <Star size={11} /> {players.find(p => p.npub === auth.npub)?.prestige_points ?? 0}
+          </Link>
+        )}
         <span className="gr-live">LIVE</span>
       </div>
 
-      {/* Chart */}
-      <div className="gr-chart-wrap">
-        <svg viewBox="0 0 400 120" preserveAspectRatio="xMidYMid meet" className="gr-chart-svg">
-          <defs>
-            {lines.map((line, i) => (
-              <linearGradient key={i} id={`grc${i}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={line.color} stopOpacity="0.2" />
-                <stop offset="100%" stopColor={line.color} stopOpacity="0" />
-              </linearGradient>
-            ))}
-            <filter id="gr-glow">
-              <feGaussianBlur stdDeviation="2" result="blur" />
-              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
-          </defs>
-          {[0.25, 0.5, 0.75].map(y => (
-            <line key={y} x1="0" y1={y * 110} x2="400" y2={y * 110} stroke="var(--border-color)" strokeWidth="0.3" strokeDasharray="3 6" />
-          ))}
-          {[...lines].reverse().map((line, ri) => {
-            const i = lines.length - 1 - ri
-            const coords = line.points.map((v, h) => ({
-              x: (h / (line.points.length - 1)) * 400,
-              y: 108 - (maxProduction > 0 ? (v / maxProduction) * 100 : 0)
-            }))
-            let linePath = `M${coords[0].x},${coords[0].y}`
-            for (let j = 1; j < coords.length; j++) {
-              const prev = coords[j - 1]
-              const cur = coords[j]
-              const cpx = (prev.x + cur.x) / 2
-              linePath += ` C${cpx},${prev.y} ${cpx},${cur.y} ${cur.x},${cur.y}`
-            }
-            const areaPath = `${linePath} L400,110 L0,110 Z`
-            const last = coords[coords.length - 1]
+      <div className="gr-lanes">
+        {/* The finish, named once above the stack. Ten identical labels would be
+            noise; the gold edge on each lane is enough to mark where it falls. */}
+        <div className="gr-finish-flag"><Flag size={11} /> 1 Q</div>
 
-            // Contiguous boosted spans, redrawn thicker on top of the line.
-            const spans: string[] = []
-            let runStart = -1
-            for (let j = 0; j <= line.boosted.length; j++) {
-              const on = line.boosted[j] === true
-              if (on && runStart === -1) runStart = j
-              if (!on && runStart !== -1) {
-                if (j - runStart > 1) {
-                  let d = `M${coords[runStart].x},${coords[runStart].y}`
-                  for (let k = runStart + 1; k < j && k < coords.length; k++) d += ` L${coords[k].x},${coords[k].y}`
-                  spans.push(d)
-                }
-                runStart = -1
-              }
-            }
-
-            return (
-              <g key={line.npub} opacity={line.isActive ? 1 : 0.3}>
-                <path d={areaPath} fill={`url(#grc${i})`} />
-                <path d={linePath} fill="none" stroke={line.color} strokeWidth="1.5" filter="url(#gr-glow)" opacity="0.85" />
-                {spans.map((d, si) => (
-                  <path key={si} d={d} fill="none" stroke={line.color} strokeWidth="4"
-                        strokeLinecap="round" filter="url(#gr-glow)" opacity="0.9" />
-                ))}
-                <circle cx={last.x} cy={last.y} r="3" fill={line.color} filter="url(#gr-glow)" />
-              </g>
-            )
-          })}
-        </svg>
-        <div className="gr-chart-xaxis">
-          <span>-6h</span><span>-3h</span><span>now</span>
-        </div>
-      </div>
-
-      {/* Racing bars */}
-      <div className="gr-bars">
         {lines.map((line, i) => {
-          const pct = barPct(line.rate)
           const isFirst = i === 0
           return (
-            <div key={line.npub} className={`gr-row${line.isYou ? ' gr-you' : ''}${isFirst ? ' gr-leader' : ''}${!line.isActive ? ' gr-inactive' : ''}`}>
+            <div key={line.npub}
+                 className={`gr-row${line.isYou ? ' gr-you' : ''}${isFirst ? ' gr-leader' : ''}${!line.isActive ? ' gr-inactive' : ''}`}>
               <div className="gr-rank">
-                {isFirst ? <Trophy size={12} className="gr-trophy" /> : `#${i + 1}`}
+                {isFirst ? <Trophy size={13} className="gr-trophy" /> : `#${i + 1}`}
               </div>
-              <a className="gr-name" href={`/u/${(() => { try { return nip19.npubEncode(line.npub) } catch { return line.npub } })()}`}>{line.name}</a>
-              <div className="gr-track">
-                <div className="gr-fill" style={{
-                  width: `${pct}%`,
-                  background: `linear-gradient(90deg, ${line.color}22, ${line.color}88)`,
-                  boxShadow: `0 0 10px ${line.glow}`,
-                  borderColor: line.color,
+
+              <a className="gr-name"
+                 href={`/u/${(() => { try { return nip19.npubEncode(line.npub) } catch { return line.npub } })()}`}>
+                {line.name}
+              </a>
+
+              <div className="gr-track"
+                   title={`${(line.progress * 100).toFixed(line.progress < 0.01 ? 3 : 1)} % of the round · ${fmtNum(line.rate)}/s · speed x${speedMultiplier(line.speedLevel).toFixed(2)}`
+                          + (Number.isFinite(line.elapsed) ? ` · running for ${dur(line.elapsed)}` : '')
+                          + (Number.isFinite(line.eta) ? ` · ${dur(line.eta)} left` : '')}>
+                {/* Ground covered, drawn as a tail that fades out behind the
+                    runner rather than a bar that competes with it. */}
+                <div className="gr-comet" style={{
+                  width: `${line.pos}%`,
+                  background: `linear-gradient(90deg, ${line.color}00 0%, ${line.color}44 45%, ${line.color}dd 100%)`,
                 }} />
+                <div className="gr-runner" style={{
+                  left: `${line.pos}%`,
+                  background: line.color,
+                  boxShadow: `0 0 9px 1px ${line.glow}`,
+                }}>
+                  {line.boostedNow && <Zap size={9} className="gr-runner-boost" />}
+                </div>
               </div>
+
+              {/* The round time they are heading for, and underneath how much of
+                  it they have already spent — the pair is what makes two runners
+                  who started days apart comparable at all. */}
               <div className="gr-stats">
-                {line.boostedNow && <Zap size={10} className="gr-boosted" />}
-                {line.speedLevel > 0 && (
-                  <span className="gr-speed" title={`Speed level ${line.speedLevel}`}>
-                    L{line.speedLevel} ×{speedMultiplier(line.speedLevel).toFixed(2)}
+                <div className="gr-stats-main">
+                  <span className="gr-eta" style={{ color: line.color }}>{dur(line.projected)}</span>
+                  {/* Up means the finish came closer over the last ninety minutes. */}
+                  <span className={`gr-trend${line.trendPct > 1 ? ' up' : line.trendPct < -1 ? ' down' : ''}`}>
+                    {line.trendPct > 1 ? <TrendingUp size={11} /> : line.trendPct < -1 ? <TrendingDown size={11} /> : <Minus size={11} />}
                   </span>
-                )}
-                <span className="gr-rate" style={{ color: line.color }}>{fmtNum(line.rate)}/s</span>
-                <span className={`gr-trend${line.trendPct > 1 ? ' up' : line.trendPct < -1 ? ' down' : ''}`}>
-                  {line.trendPct > 1 ? <TrendingUp size={10} /> : line.trendPct < -1 ? <TrendingDown size={10} /> : <Minus size={10} />}
+                </div>
+                <span className="gr-elapsed">
+                  {line.done ? 'finished' : Number.isFinite(line.elapsed) ? `${dur(line.elapsed)} in` : ''}
                 </span>
               </div>
             </div>

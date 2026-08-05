@@ -10,6 +10,8 @@ export interface GameDisplayState {
   rawGameState?: any;
   eligible?: boolean;
   upgradesNeeded?: number;
+  /** Why a ticket cannot be bought, in one sentence. Empty when it can. */
+  ticketHint?: string;
 }
 
 interface GameDisplayContextValue extends GameDisplayState {

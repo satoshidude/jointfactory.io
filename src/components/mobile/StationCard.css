@@ -438,3 +438,21 @@
 @media (prefers-reduced-motion: reduce) {
   .station-ring-wrap.ring-underfed { animation: none; opacity: .7; }
 }
+
+/* ── Frozen: the round is over ────────────────────────────────────────────── */
+/* Nothing is produced or counted past the target, so the rings hold where they
+   stand. Without the muting they would simply stop, which reads as a stall
+   rather than an ending. No label here — the round card two inches above
+   already says it, and six of them would be noise. */
+
+.station-card.station-frozen {
+  opacity: .72;
+  filter: saturate(.55);
+}
+
+.station-card.station-frozen .cycle-ring circle,
+.station-card.station-frozen .pulse-ring-stroke,
+.station-card.station-frozen .station-ring-wrap {
+  animation: none !important;
+  transition: none !important;
+}

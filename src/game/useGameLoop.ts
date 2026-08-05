@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
-  rehydrate, FREE_MANAGERS, throughput, boostMultipliers,
+  rehydrate, throughput, boostMultipliers,
   courierTripTime, fabrikCycleTime, PLANTATION_DEFS,
   initialState, newPlantation, speedMultiplier,
   plantOutput, plantRate, plantEffectiveCycle, plantMilestoneInfo, plantLevelCost,
   CAPACITY_STEP, BASE_CAPACITY, capacitySteps, capacityCostScale,
+  MAX_PLANT_LEVEL, inheritedLevel, ROUND_TARGET, managerCost, managerPrice,
 } from '../../shared/economy.js'
 
 // ── Plantation definitions (matching production) ─────────────────────────────
@@ -87,6 +88,10 @@ export interface DisplayState {
   fabrik: FabrikState
   unlockIdx: number
   managerCount: number
+  /** Sats a manager costs on each station right now, keyed '0'..'5'|courier|fabrik. */
+  managerCosts: Record<string, number>
+  /** Rounds the player has finished — what the manager price is derived from. */
+  roundsCompleted: number
   boosts: ActiveBoost[]
   speedLevel: number
 }
@@ -116,7 +121,8 @@ export function plantManagerCost(p: PlantationState): number {
 // argument — the same duplication that once left the live site showing miners
 // instead of plantations. A caller that wanted the boosted rate silently got the
 // bare one.
-export { courierTripTime, fabrikCycleTime, plantOutput, plantRate, plantEffectiveCycle, plantMilestoneInfo, plantLevelCost }
+export { courierTripTime, fabrikCycleTime, plantOutput, plantRate, plantEffectiveCycle, plantMilestoneInfo, plantLevelCost,
+         MAX_PLANT_LEVEL, ROUND_TARGET, managerCost, managerPrice }
 
 /**
  * Joints actually produced per second.
@@ -169,7 +175,7 @@ function saveLocal(gs: GameState) {
 }
 
 type LoadResult =
-  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number; boosts: ActiveBoost[]; grants: BoostGrant[]; speedLevel: number; jointsRev: number }
+  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number; boosts: ActiveBoost[]; grants: BoostGrant[]; speedLevel: number; jointsRev: number; roundsCompleted: number }
   | { status: 'no-auth' }
   | { status: 'error' }
 
@@ -193,11 +199,10 @@ async function loadFromServer(): Promise<LoadResult> {
       grants: (data.boost_grants ?? []) as BoostGrant[],
       speedLevel: data.speed_level ?? 0,
       jointsRev: data.joints_rev ?? 0,
+      roundsCompleted: data.round?.rounds_completed ?? 0,
     }
   } catch { return { status: 'error' } }
 }
-
-let _pendingManagerSats = 0
 
 // A buddy automating their chain unlocks a reward on someone else's account, so
 // the referrer cannot learn about it from anything they do themselves. Every
@@ -213,16 +218,11 @@ let _grantsListener: ((grants: BoostGrant[]) => void) | null = null
 // figure now, and this adopts it.
 let _balanceListener: ((joints: number, rev: number) => void) | null = null
 
-export function addManagerSatsSpent(amount: number) {
-  _pendingManagerSats += amount
-}
-
 async function saveToServer(gs: GameState, joints: number, sats: number, totalJointsEarned: number, _activeBoosts: ActiveBoost[] = [], _speedLevel = 0, _jointsRev = 0) {
   try {
     const auth = JSON.parse(localStorage.getItem('jf_auth') || '{}')
     if (!auth.token) return
     gs._ts = Date.now()
-    const mgrSats = _pendingManagerSats
     const res = await fetch('/api/game/state', {
       method: 'POST',
       headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
@@ -232,17 +232,21 @@ async function saveToServer(gs: GameState, joints: number, sats: number, totalJo
         sats: Math.floor(sats),
         total_joints_earned: Math.floor(totalJointsEarned),
         joints_per_sec: totalJointsPerSec(gs, _activeBoosts, _speedLevel),
-        manager_sats_spent: mgrSats,
         joints_rev: _jointsRev,
       }),
     })
     if (res.ok) {
-      _pendingManagerSats -= mgrSats
       const data = await res.json().catch(() => null)
       if (data?.boost_grants && _grantsListener) _grantsListener(data.boost_grants as BoostGrant[])
       if (data?.corrected && typeof data.joints === 'number' && _balanceListener) {
         console.warn('[JF] Balance corrected by the server:', Math.floor(joints), '→', data.joints)
         _balanceListener(data.joints, data.joints_rev ?? 0)
+      } else if (typeof data?.joints_rev === 'number' && data.joints_rev !== _jointsRev && _balanceListener) {
+        // A revision can move without the balance changing — a reset lands on an
+        // account whose figure already matched. Adopting it anyway is what keeps
+        // the next save from being stale as well, and a client that stays stale
+        // never gets its chain written at all.
+        _balanceListener(typeof data.joints === 'number' ? data.joints : Math.floor(joints), data.joints_rev)
       }
     }
   } catch { /* silent */ }
@@ -325,6 +329,9 @@ export function useGameLoop(
   const boostsRef = useRef<ActiveBoost[]>([])
   const [boostGrants, setBoostGrants] = useState<BoostGrant[]>([])
   const speedLevelRef = useRef(0)
+  // Rounds finished. Drives what a manager costs, so it has to reach the loop
+  // and the cards, not just the round card.
+  const roundsCompletedRef = useRef(0)
   const jointsRevRef = useRef(0)
   const readyRef = useRef(false)
   const canSaveRef = useRef(false)
@@ -409,7 +416,7 @@ export function useGameLoop(
         inTransitionRef.current = false
         canSaveRef.current = true
         readyRef.current = true
-        setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current))
+        setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
       } else {
         // ── EXISTING ACCOUNT: always load from server, discard guest ──
         loadFromServer().then(result => {
@@ -432,6 +439,7 @@ export function useGameLoop(
             boostsRef.current = result.boosts
             setBoostGrants(result.grants)
             speedLevelRef.current = result.speedLevel
+            roundsCompletedRef.current = result.roundsCompleted
         jointsRevRef.current = result.jointsRev
             jointsRevRef.current = result.jointsRev
             onJointsChange(result.joints)
@@ -449,7 +457,7 @@ export function useGameLoop(
           }
           inTransitionRef.current = false
           readyRef.current = true
-          setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current))
+          setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
         })
       }
     }
@@ -468,7 +476,8 @@ export function useGameLoop(
           // Offline catch-up: produce with speed=1
           const elapsed = result.gs._ts ? (Date.now() - result.gs._ts) / 1000 : 0
           if (elapsed > 2) {
-            const earned = simulateOffline(gsRef.current, elapsed, result.speedLevel)
+            const raw = simulateOffline(gsRef.current, elapsed, result.speedLevel)
+            const earned = Math.min(raw, Math.max(0, ROUND_TARGET - result.totalJointsEarned))
             result.joints += earned
             result.totalJointsEarned += earned
           }
@@ -482,6 +491,7 @@ export function useGameLoop(
         boostsRef.current = result.boosts
         setBoostGrants(result.grants)
         speedLevelRef.current = result.speedLevel
+        roundsCompletedRef.current = result.roundsCompleted
         jointsRevRef.current = result.jointsRev
         onJointsChange?.(result.joints)
         onSatsChange?.(result.sats)
@@ -496,7 +506,8 @@ export function useGameLoop(
             gsRef.current = gs
             const elapsed = gs._ts ? (Date.now() - gs._ts) / 1000 : 0
             if (elapsed > 2) {
-              const earned = simulateOffline(gsRef.current, elapsed, speedLevelRef.current)
+              const raw = simulateOffline(gsRef.current, elapsed, speedLevelRef.current)
+              const earned = Math.min(raw, Math.max(0, ROUND_TARGET - totalEarnedRef.current))
               jointsRef.current += earned
               totalEarnedRef.current += earned
             }
@@ -518,7 +529,8 @@ export function useGameLoop(
             // Offline catch-up for guests too
             const elapsed = gs._ts ? (Date.now() - gs._ts) / 1000 : 0
             if (elapsed > 2) {
-              const earned = simulateOffline(gsRef.current, elapsed, speedLevelRef.current)
+              const raw = simulateOffline(gsRef.current, elapsed, speedLevelRef.current)
+              const earned = Math.min(raw, Math.max(0, ROUND_TARGET - totalEarnedRef.current))
               jointsRef.current += earned
               totalEarnedRef.current += earned
             }
@@ -541,7 +553,7 @@ export function useGameLoop(
         canSaveRef.current = true
       }
       readyRef.current = true
-      setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current))
+      setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -564,6 +576,25 @@ export function useGameLoop(
       }
 
       const g = gsRef.current
+
+      // The round is over — the chain stops where it stands until the reset.
+      //
+      // Counting already stopped at the target, and a factory that keeps turning
+      // out batches nobody counts reads as a bug. Freezing the simulation makes
+      // the end of the round visible in the one place a player is looking: the
+      // rings. Rendering, saving and everything bought with sats carry on.
+      if (totalEarnedRef.current >= ROUND_TARGET) {
+        if (now - lastRender > 33) {
+          setDisplay(makeDisplay(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
+          lastRender = now
+        }
+        if (canSaveRef.current && Date.now() - lastServerSave > 30000) {
+          saveToServer(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, jointsRevRef.current)
+          lastServerSave = Date.now()
+        }
+        animId = requestAnimationFrame(tick)
+        return
+      }
 
       // Active boosts, recomputed each frame so one expiring takes effect at
       // once. At most four entries, so the cost is irrelevant.
@@ -642,7 +673,12 @@ export function useGameLoop(
       if (f.processing) {
         f.timer -= dt * f.speed * boost.fabrik
         if (f.timer <= 0) {
-          const produced = f._currentCharge
+          // The round stops counting at the target. The chain keeps running and
+          // the batch still completes — what ends is the accounting, so nobody
+          // grinds past a finished round and no number leaves the range the game
+          // was built for. All-time joints are kept on the account.
+          const room = Math.max(0, ROUND_TARGET - totalEarnedRef.current)
+          const produced = Math.min(f._currentCharge, room)
           jointsRef.current += produced
           totalEarnedRef.current += produced
           f.total += produced
@@ -654,7 +690,7 @@ export function useGameLoop(
 
       // ── Render at ~30fps ──
       if (now - lastRender > 33) {
-        setDisplay(makeDisplay(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current))
+        setDisplay(makeDisplay(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
         lastRender = now
       }
 
@@ -700,8 +736,6 @@ export function useGameLoop(
         const auth = JSON.parse(localStorage.getItem('jf_auth') || '{}')
         if (auth.token) {
           gsRef.current._ts = Date.now()
-          const mgrSats = _pendingManagerSats
-          _pendingManagerSats = 0
           const beacon = JSON.stringify({
             token: auth.token,
             gameState: gsRef.current,
@@ -709,7 +743,6 @@ export function useGameLoop(
             sats: Math.floor(satsRef.current),
             total_joints_earned: Math.floor(totalEarnedRef.current),
             joints_per_sec: totalJointsPerSec(gsRef.current, boostsRef.current, speedLevelRef.current),
-            manager_sats_spent: mgrSats,
             joints_rev: jointsRevRef.current,
           })
           navigator.sendBeacon('/api/game/beacon', new Blob([beacon], { type: 'application/json' }))
@@ -735,7 +768,7 @@ export function useGameLoop(
   // ── Actions ──
 
   const flush = useCallback(() => {
-    setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current))
+    setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
   }, [])
 
   // Redraw at once, save shortly after.
@@ -808,6 +841,9 @@ export function useGameLoop(
   const upgradePlantLevel = useCallback((index: number) => {
     const p = gsRef.current.plantagen[index]
     if (!p) return
+    // The ceiling is enforced on the save path too; refusing here is what keeps
+    // a player from paying for a level the server will not accept.
+    if (p.level >= MAX_PLANT_LEVEL) return
     const cost = plantLevelCost(p)
     if (jointsRef.current >= cost) {
       jointsRef.current -= cost
@@ -842,70 +878,46 @@ export function useGameLoop(
   }, [flushAndSave])
 
   // Count total managers across all stations
-  const countManagers = useCallback((): number => {
-    const g = gsRef.current
-    let count = 0
-    for (const p of g.plantagen) { if (p.managerLevel > 0) count++ }
-    if (g.courier.mgrLevel > 0) count++
-    if (g.fabrik.mgrLevel > 0) count++
-    return count
-  }, [])
-
+  // The price comes from the round, not from the plantation definition: it falls
+  // with every round finished, and Outdoor, Indoor and Hydroponic stop costing
+  // anything after the first, second and third. managerCost() knows the free
+  // quota too, so a zero here means free for whichever reason. The server prices
+  // the same hire from the stored state and deducts that — this is the optimistic
+  // half, so the button and the balance move at once.
   const buyPlantManager = useCallback((index: number) => {
     const p = gsRef.current.plantagen[index]
     if (!p || p.managerLevel > 0) return
-    const mgrs = countManagers()
-    if (mgrs < FREE_MANAGERS) {
-      // Free quota — matches REQUIRED_MANAGERS, so the lottery is reachable
-      // without depositing bitcoin
+    const cost = managerCost(String(p.id), gsRef.current, roundsCompletedRef.current)
+    if (cost === 0) {
       p.managerLevel = 1
       p.timer = 0.001
       flushAndSave()
-    } else {
-      // Beyond the free quota: costs sats
-      const cost = p.mgrCost
-      if (spendSats(cost)) {
-        p.managerLevel = 1
-        p.timer = 0.001
-        addManagerSatsSpent(cost)
-        flushAndSave()
-      }
+    } else if (spendSats(cost)) {
+      p.managerLevel = 1
+      p.timer = 0.001
+      flushAndSave()
     }
-  }, [spendSats, flushAndSave, countManagers])
+  }, [spendSats, flushAndSave])
 
   const buyCourierManager = useCallback(() => {
     const c = gsRef.current.courier
     if (c.mgrLevel > 0) return
-    const mgrs = countManagers()
-    if (mgrs < FREE_MANAGERS) {
+    const cost = managerCost('courier', gsRef.current, roundsCompletedRef.current)
+    if (cost === 0 || spendSats(cost)) {
       c.mgrLevel = 1
       flushAndSave()
-    } else {
-      const cost = c.mgrCost
-      if (spendSats(cost)) {
-        c.mgrLevel = 1
-        addManagerSatsSpent(cost)
-        flushAndSave()
-      }
     }
-  }, [spendSats, flushAndSave, countManagers])
+  }, [spendSats, flushAndSave])
 
   const buyFabrikManager = useCallback(() => {
     const f = gsRef.current.fabrik
     if (f.mgrLevel > 0) return
-    const mgrs = countManagers()
-    if (mgrs < FREE_MANAGERS) {
+    const cost = managerCost('fabrik', gsRef.current, roundsCompletedRef.current)
+    if (cost === 0 || spendSats(cost)) {
       f.mgrLevel = 1
       flushAndSave()
-    } else {
-      const cost = f.mgrCost
-      if (spendSats(cost)) {
-        f.mgrLevel = 1
-        addManagerSatsSpent(cost)
-        flushAndSave()
-      }
     }
-  }, [spendSats, flushAndSave, countManagers])
+  }, [spendSats, flushAndSave])
 
   /**
    * Buy a timed boost. The server owns the price, the deduction and the expiry
@@ -994,7 +1006,12 @@ export function useGameLoop(
     const def = PLANTATION_DEFS[nextIdx]
     if (jointsRef.current >= def.unlockCost) {
       jointsRef.current -= def.unlockCost
-      g.plantagen.push(newPlantation(def))
+      // A plot opens on half the highest level already owned. On level 1 it
+      // would carry no milestone multiplier and produce a rounding error next to
+      // a developed plot — the last two plantations were unreachable that way.
+      // server/game.js prices the unlock the same, so the guard sees a purchase
+      // rather than an impossible jump.
+      g.plantagen.push(newPlantation(def, inheritedLevel(g.plantagen)))
       g._unlockIdx = nextIdx
       flushAndSave()
     }
@@ -1015,11 +1032,18 @@ export function useGameLoop(
 
 // ── Display state builder ────────────────────────────────────────────────────
 
-function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: number, boosts: ActiveBoost[] = [], speedLevel = 0): DisplayState {
+function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: number, boosts: ActiveBoost[] = [], speedLevel = 0, roundsCompleted = 0): DisplayState {
   let mgrs = 0
   for (const p of g.plantagen) { if (p.managerLevel > 0) mgrs++ }
   if (g.courier.mgrLevel > 0) mgrs++
   if (g.fabrik.mgrLevel > 0) mgrs++
+  // What each station's manager costs right now. The price falls with every
+  // round finished and three of the plots stop costing anything, so a button
+  // cannot read it off the plantation definition any more.
+  const managerCosts: Record<string, number> = {}
+  for (const p of g.plantagen) managerCosts[String(p.id)] = managerCost(String(p.id), g, roundsCompleted)
+  managerCosts.courier = managerCost('courier', g, roundsCompleted)
+  managerCosts.fabrik = managerCost('fabrik', g, roundsCompleted)
   return {
     cannabis: g.cannabis,
     cannabisAtFactory: g.cannabisAtFactory,
@@ -1031,6 +1055,8 @@ function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: nu
     fabrik: { ...g.fabrik },
     unlockIdx: g._unlockIdx,
     managerCount: mgrs,
+    managerCosts,
+    roundsCompleted,
     boosts,
     speedLevel,
   }

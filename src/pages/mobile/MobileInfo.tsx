@@ -1,5 +1,6 @@
 import { useAuth } from '../../stores/authStore'
-import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, UserPlus, AlertTriangle, MessageSquare, Github, UserCog, Gauge, Rocket } from 'lucide-react'
+import { Cannabis, Factory, Footprints, Zap, Ticket, TrendingUp, KeyRound, UserPlus, AlertTriangle, MessageSquare, Github, UserCog, Gauge, Rocket, Trophy } from 'lucide-react'
+import InvitePage from '../Invite'
 import './MobileInfo.css'
 import './MobileLottery.css'
 
@@ -25,9 +26,10 @@ export default function MobileInfo() {
         <p className="mi-intro">
           Joint Factory is a real-time idle factory game built on{' '}
           <a href="https://nostr.how/en/what-is-nostr" target="_blank" rel="noopener noreferrer" className="mi-link purple">Nostr</a> and Bitcoin Lightning. Grow cannabis, roll joints, and earn real sats.
-          Play as a guest — the first three managers are free for everyone.
-          Log in with your Nostr key to save progress, play for sats and
-          compete on the leaderboard.
+          It runs in rounds: a round ends at one quadrillion joints, and then you
+          start over for a star. Play as a guest — the first three managers are
+          free for everyone. Log in with your Nostr key to save progress, play for
+          sats and race the others to the quadrillion.
         </p>
       </div>
 
@@ -45,6 +47,14 @@ export default function MobileInfo() {
       <div className="mi-card mi-card-howto">
         <h2 className="mi-card-title">How to Play</h2>
         <div className="mi-features">
+          <div className="mi-feature">
+            <Trophy size={22} className="mi-feat-icon gold" />
+            <div>
+              <h3 className="mi-feat-title">Rounds</h3>
+              <p className="mi-feat-desc">A round ends at one quadrillion joints — about a week with managers and a few visits a day. Counting stops there; the chain keeps running, but nothing more is added. Starting over banks a star and opens a fresh round. It clears joints, chain and speed. Your sats are never touched, and a star buys no advantage of any kind — every round is the same race, which is what keeps the times comparable.</p>
+            </div>
+          </div>
+
           <div className="mi-feature">
             <Cannabis size={22} className="mi-feat-icon green" />
             <div>
@@ -81,7 +91,7 @@ export default function MobileInfo() {
             <UserCog size={22} className="mi-feat-icon green" />
             <div>
               <h3 className="mi-feat-title">Managers</h3>
-              <p className="mi-feat-desc">A manager runs a station for you. The first three are free for everyone, so the whole chain can run without depositing anything. Further ones cost 100–300 sats.</p>
+              <p className="mi-feat-desc">A manager runs a station for you. The first three are free for everyone, so the whole chain can run without depositing anything. Beyond that the price falls with every round you finish: 90 sats in your first round, then 60, 30, and 21 from the fourth on. Outdoor, Indoor and Hydroponic stop costing anything after the first, second and third round. Managers are hired again each round — that is what keeps the lottery pot filled.</p>
             </div>
           </div>
 
@@ -89,7 +99,7 @@ export default function MobileInfo() {
             <Gauge size={22} className="mi-feat-icon green" />
             <div>
               <h3 className="mi-feat-title">Speed</h3>
-              <p className="mi-feat-desc">Spend joints for a permanent +2% on the whole chain. It never expires. The price is a slice of your own production, so it stays meaningful however big you get.</p>
+              <p className="mi-feat-desc">Spend joints for +5% on the whole chain — plantations, courier and factory at once. It lasts to the end of the round and is cleared with the reset, like everything else the round produced. The price is a slice of your own production, so it stays meaningful however big you get.</p>
             </div>
           </div>
 
@@ -97,7 +107,7 @@ export default function MobileInfo() {
             <Rocket size={22} className="mi-feat-icon gold" />
             <div>
               <h3 className="mi-feat-title">Boosts</h3>
-              <p className="mi-feat-desc">Timed multipliers for sats: 2x grow, 3x courier or 2x factory for 30 min (21 sats each), or Full Throttle — 2x everything for an hour (50 sats). Buying one feeds the lottery pot.</p>
+              <p className="mi-feat-desc">Timed multipliers for sats, half an hour each: 2x grow, 3x courier or 2x factory for 10 sats, or Full Throttle — all three at once — for 21. Buying one while it runs extends it. Every sat feeds the lottery pot.</p>
             </div>
           </div>
 
@@ -105,15 +115,15 @@ export default function MobileInfo() {
             <Ticket size={22} className="mi-feat-icon gold" />
             <div>
               <h3 className="mi-feat-title">Lottery</h3>
-              <p className="mi-feat-desc">Joints buy tickets, up to four per draw. A ticket costs a share of a day of your own production, so it is the same bite for everyone. Draws Tue, Thu &amp; Sat at 21:00. 80% of the pot is paid out and split by rank — 70/30 with two winners, 60/25/15 with three. Your share of the tickets is your chance at first place. A draw needs two players; with one, the pot carries over.</p>
+              <p className="mi-feat-desc">Joints buy tickets, up to four per draw. Two things unlock them: the chain automated on all three stations, and at least one manager bought with sats in the round you are playing — those sats are what fills the pot you are drawing from. A ticket costs a share of a day of your own production, so it is the same bite for everyone. Draws Tue, Thu &amp; Sat at 21:00. 80% of the pot is paid out and split by rank — 70/30 with two winners, 60/25/15 with three. Your share of the tickets is your chance at first place. A draw needs two players; with one, the pot carries over.</p>
             </div>
           </div>
 
           <div className="mi-feature">
             <TrendingUp size={22} className="mi-feat-icon green" />
             <div>
-              <h3 className="mi-feat-title">Leaderboard</h3>
-              <p className="mi-feat-desc">Compete against other players. Track your joints/s, your speed level and climb the rankings.</p>
+              <h3 className="mi-feat-title">Ranking</h3>
+              <p className="mi-feat-desc">One board under Ranking, top three on a podium: <strong>stars</strong> for rounds finished, <strong>best</strong> for the fastest quadrillion you ever rolled, <strong>total</strong> for the joints of the round you are in. The live race sits on the Grow page above your chain — every lane runs to the same quadrillion, but the ranking is the projected round time, so starting earlier puts you further along the lane without winning it.</p>
             </div>
           </div>
 
@@ -121,10 +131,18 @@ export default function MobileInfo() {
             <UserPlus size={22} className="mi-feat-icon green" />
             <div>
               <h3 className="mi-feat-title">Invite Friends</h3>
-              <p className="mi-feat-desc">Share your invite link. Everyone who joins through it appears as a tile in your boost card; once they automate all three stations, one click starts an hour of Full Throttle — 2x output chain-wide. Hours stack.</p>
+              <p className="mi-feat-desc">Share your invite link. Everyone who joins through it appears as a tile in your boost card; once they automate all three stations, one click starts half an hour of Full Throttle — 2x output chain-wide. They stack.</p>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ── Invite ───────────────────────────────────────
+          The invite page itself, without its hero. It used to be a tab of its
+          own, which put a page in the navigation that most players open once. */}
+      <div className="mi-card mi-card-invite">
+        <h2 className="mi-card-title">Invite a Buddy</h2>
+        <InvitePage embedded />
       </div>
 
       {/* ── Nostr Login ──────────────────────────────── */}

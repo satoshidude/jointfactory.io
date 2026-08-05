@@ -17,13 +17,14 @@ Stand: 2026-08-02 | Version: v0.3 | Branch: main
 | **Plantagen-System** | 6 Plots (Balcony Grow → MegaFarm), Level kosten Joints, Meilensteine verdoppeln — gedeckelt bei zehn Verdopplungen (x1024, Level 145) |
 | **Courier** | Transportiert Cannabis zur Fabrik, Kapazitaet mit Joints upgradebar |
 | **Fabrik** | Verarbeitet Cannabis zu Joints, Batch-Groesse mit Joints upgradebar |
-| **Manager** | Auto-Betrieb je Station, **erste 3 gratis** (auch fuer Gaeste), danach 100–300 Sats |
-| **Speed** | Dauerhaft +2 % auf die ganze Kette je Stufe, bezahlt in **Joints**, Preis in Sekunden der eigenen Produktion (Deckel 3,26 Tage/Stufe) |
-| **Boosts** | Zeitlich begrenzte Multiplikatoren fuer **Sats**: 2x Grow / 3x Courier / 2x Factory je 21 Sats, Full Throttle 2x alles 50 Sats |
-| **Lightning Lottery** | Di/Do/Sa 21:00, max. 4 Lose je Ziehung, Preis als Anteil eines Tagesausstoßes, Gewinne nach Rang gestaffelt (80/20 Split) |
+| **Manager** | Auto-Betrieb je Station, **erste 3 gratis** (auch fuer Gaeste), danach 90/60/30/21 Sats je nach abgeschlossenen Runden; gelten nur fuer die laufende Runde |
+| **Speed** | +5 % auf die ganze Kette je Stufe, bis zum Rundenende, bezahlt in **Joints**, Preis in Sekunden der eigenen Produktion (Deckel 3,26 Tage/Stufe) |
+| **Boosts** | Zeitlich begrenzte Multiplikatoren fuer **Sats**, je 30 min: 2x Grow / 3x Courier / 2x Factory je 10 Sats, Full Throttle 2x alles 21 Sats |
+| **Lightning Lottery** | Di/Do/Sa 21:00, max. 4 Lose je Ziehung, Preis als Anteil eines Tagesausstoßes, Gewinne nach Rang gestaffelt (80/20 Split). Voraussetzung: Kette automatisiert **und** ein Manager der laufenden Runde fuer Sats gekauft |
 | **Lightning Wallet** | Deposit (LNbits Invoice) + Withdraw (LNURL), jede Gutschrift gegen LNbits verifiziert |
-| **Leaderboard** | Ranking nach Lifetime-Joints + Speed-Stufe + Earnings |
-| **Growth Race** | Live-Chart der Produktionsraten (6h), Boost-Phasen als dicke Linie markiert |
+| **Runden** | Eine Runde endet bei 1 Q Joints. Reset bringt einen Stern, loescht Joints, Kette und Speed, laesst Sats unberuehrt. Sterne geben keinen Spielvorteil |
+| **Standings** | Eine Tabelle mit Podest: Sterne, beste Zeit zur Quadrillion, Joints der laufenden Runde (danach sortiert) |
+| **Race to 1 Q** | Bahnen auf der Grow-Seite: Position ist der Rundenfortschritt, Rang und Zahl die **hochgerechnete Rundenzeit** (verstrichen + Rest beim aktuellen Tempo) |
 | **Invite-System** | Referral-Links (/r/CODE); jeder Geworbene, der seine Kette automatisiert, schaltet **eine Stunde Full Throttle** frei — keine Sats |
 | **Nostr-Login** | NIP-07 (Browser Extension) oder nsec-Eingabe, kein Email/Passwort |
 | **Nostr-Bot** | Lottery-Erinnerungen, Gewinner-Notes, Owner-Reports, Broadcast-DMs aus dem Admin |
@@ -111,8 +112,13 @@ fuer Invites und keine Bot-Gewinne auf echten Konten.
 - **Lose**: hoechstens **4 je Ziehung**, Preis 10/18/28/44 % eines Tagesausstoßes
   des Kaeufers — vier Lose kosten also genau einen Tag. Ein Einsteiger zahlt fuer
   sein erstes Los zwei Produktionstage, ein Spitzenspieler zweieinhalb Stunden.
-- **Voraussetzung**: drei Manager (serverseitig geprueft — ohne Kette faellt der
-  Preis auf den Boden von einem Joint)
+- **Voraussetzung**: zwei Bedingungen, serverseitig geprueft (`ticketGate` in
+  `shared/economy.js`). Erstens die automatisierte Kette — ohne sie faellt der
+  Preis auf den Boden von einem Joint. Zweitens **mindestens ein Manager, der in
+  dieser Runde Sats gekostet hat**: die Gratis-Quote deckt drei Manager und drei
+  sind genau das, was die Kette braucht, also stand das Tor offen — eine komplett
+  kostenlos automatisierte Kette konnte aus einem Pot ziehen, in den sie nie
+  eingezahlt hatte.
 - **Gewinnerzahl**: ein aufgerundetes Drittel der Teilnehmer, **mindestens zwei**,
   hoechstens 21 und nie mehr als Teilnehmer
 - **Verteilung nach Rang**: 70/30, 60/25/15, 50/25/15/10 … Die Ziehung ist nach
@@ -134,8 +140,51 @@ fuer Invites und keine Bot-Gewinne auf echten Konten.
    Lottery
 3. Mit Joints: Level, Kapazitaet, neue Plantagen, dauerhafter Speed, Lose
 4. Mit Sats: Boosts (die wiederkehrende Senke) und Manager ab dem vierten
-5. Langzeitziel: alle 6 Plantagen, Speed-Leiter, Rang im Leaderboard und Sats
-   aus der Lottery
+5. **Rundenziel: 1 Billiarde Joints (1 Q)** — alle sechs Plantagen inklusive MegaFarm,
+   mit Managern und ein paar Blicken am Tag rund eine Woche
+6. Danach freiwilliger Reset: ein Stern, dazu die Rundenzeit als Bestzeit in den Standings
+   und die naechste Runde von vorn
+
+### Runden (seit 2026-08)
+
+Die Kurve hatte vorher kein Ende — 1 Quadrillion nach 169 Tagen, danach nichts.
+Drei Eingriffe machen daraus eine Runde:
+
+1. **Erbschaft beim Freischalten.** Eine neue Plantage startet auf halbem Level
+   der hoechsten vorhandenen. Auf Level 1 traegt sie keinen Meilenstein-
+   Multiplikator und ist gegen eine ausgebaute Plantage chancenlos — deshalb
+   wurden die letzten beiden Plantagen frueher praktisch nie gekauft.
+2. **Produktion durch zehn.** Gleiche Kaufreihenfolge, zehnfache Wartezeiten.
+   Der einzige Regler, der die Uhr verstellt, ohne das Spiel umzubauen.
+3. **Levelgrenze 50 je Plantage.** Kostet den optimalen Spieler nichts (er
+   erreicht 38/12/16/19/19/19) und schliesst das Hochziehen einer einzigen
+   Plantage aus.
+
+Was der Reset **nicht** anfasst: Sats. Prestige gibt **keinen** Spielvorteil —
+sonst waeren die Rundenzeiten ueber Runden hinweg nicht mehr vergleichbar.
+
+**Manager werden dagegen jede Runde neu bezahlt** — sie sind die einzige
+wiederkehrende Sats-Senke, und jeder Sat dafuer geht in den Lottery-Pot. Was den
+Reset trotzdem bezahlbar macht, ist der fallende Preis: 90 Sats in der ersten
+Runde, 60 in der zweiten, 30 in der dritten, ab der vierten 21. Outdoor, Indoor
+und Hydroponic kosten nach der ersten, zweiten und dritten Runde nichts mehr;
+Greenhouse und MegaFarm immer. Eine volle Kette kostet damit 450 Sats in Runde 1
+und 42 ab Runde 4.
+
+**Bestandskonten werden nicht ueberfahren.** Sie werden beim Deploy nur gesperrt
+(`switch_pending`) und bestaetigen einmal selbst. Wer bestaetigt, bekommt drei
+angerechnete Runden und drei Sterne — also sofort den Bodenpreis bei den Managern
+— und startet Runde 4 mit frischer Kette. Sats bleiben unangetastet, es gibt
+keine Frist, und Wallet sowie Info bleiben waehrend der Sperre erreichbar.
+
+Der Einstieg ist getrennt kalibriert: die dritte Plantage (Indoor Room, 8.000
+Joints) muss in den ersten acht Stunden fallen — bei *moderater*, nicht optimaler
+Spielweise. Wer sie verpasst, wartet einen ganzen Tag, weil die Sitzung vorbei
+ist. Die Rundenlaenge aendert das nicht: dank Erbschaft ist eine Plantage gleich
+viel wert, wann immer sie geoeffnet wird.
+
+Kalibriert und nachpruefbar mit `node scripts/tune-pacing.mjs` (bricht ab, wenn
+die Runde ihre Kriterien verfehlt).
 
 ---
 
@@ -150,7 +199,6 @@ fuer Invites und keine Bot-Gewinne auf echten Konten.
 | Vite | 7 | Build-Tool + Dev-Server |
 | Tailwind CSS | 4 | Styling |
 | Zustand | — | State Management (Auth, Display) |
-| Recharts | — | Growth Race Chart |
 | Lucide React | — | Icons (Cannabis = Waehrungssymbol) |
 | nostr-tools | — | NIP-07/NIP-98 Signing |
 
@@ -181,13 +229,18 @@ fuer Invites und keine Bot-Gewinne auf echten Konten.
 
 - `players` — Spielerdaten, Joints/Sats, Game State (JSON), Invite-Code,
   `speed_level`, `joints_rev` (Revision je serverseitiger Abbuchung),
-  `referral_rewarded`/`referral_claimed_at`, `is_bot`
+  `referral_rewarded`/`referral_claimed_at`, `is_bot`,
+  `lifetime_joints`/`prestige_points`/`rounds_completed` (ueberdauern den Reset),
+  `managers_owned` (mit Sats bezahlte Manager, kommen in jeder Runde zurueck)
+- `rounds` — eine Zeile je Spieler und Runde: Start, Ende, Zeit bis zur Quadrillion
+  (`seconds_to_target`, die Bestzeit in den Standings), MegaFarm-Zeitpunkt,
+  Boost-Sats der Runde, Prestige-Punkte
 - `lottery_rounds` — Runden-Status, Pot (brutto), Gewinner + Auszahlung je Rang
 - `lottery_tickets` — Loskaeufe je Runde
 - `active_boosts` — laufende Boosts je Spieler und Typ (Ablauf serverseitig)
 - `lightning_payments` — Deposit-Invoices + Status
 - `withdrawals` — Auszahlungslog
-- `rate_log` — Produktionsraten fuer Growth Race, inkl. Boost-Faktor
+- `rate_log` — Produktionsraten fuer Trend und Aktivitaet im Rennen, inkl. Boost-Faktor
 - `events` — Ereignislog je Spielerentscheidung (Signup, Manager, Speed, Boost,
   Ticket, Deposit, Withdraw, Draw, Win, Invite, Clamp, DM)
 - `daily_stats` — Tagesaggregat je Berliner Tag (`server/metrics.js`)
@@ -203,7 +256,7 @@ fuer Invites und keine Bot-Gewinne auf echten Konten.
 
 | Verbesserung | Aufwand | Impact |
 |-------------|---------|--------|
-| ~~Prestige/Reset-System~~ — **verworfen**, zweimal an der Verstaendlichkeit gescheitert. Ersetzt durch die Speed-Leiter: Joints kaufen dauerhaft +2 % auf die ganze Kette, Preis in Sekunden der eigenen Produktion | — | umgesetzt |
+| ~~Prestige/Reset-System~~ — **umgesetzt** (2026-08), nachdem es zweimal an der Verstaendlichkeit gescheitert war. Was es tragfaehig gemacht hat: ein Ziel, das erreichbar ist (1 Q statt einer offenen Kurve), und ein Stern, der **nichts** kann — kein Multiplikator, keine Abkuerzung, nur ein Zaehler. Die Speed-Leiter blieb daneben bestehen | — | umgesetzt |
 | **Achievements** — Meilensteine mit Belohnungen (z.B. "1M Joints produziert") | Gering | Mittel — Dopamin-Hits |
 | **Tages-Quests** — "Kaufe 3 Lottery-Tickets", "Erreiche Level 50" | Mittel | Hoch — taegliche Retention |
 | **Plantagen-Spezialisierung** — Verschiedene Sorten mit Traits (Speed vs. Ertrag) | Mittel | Mittel — strategische Tiefe |
@@ -224,7 +277,7 @@ fuer Invites und keine Bot-Gewinne auf echten Konten.
 | Verbesserung | Aufwand | Impact |
 |-------------|---------|--------|
 | ~~Sat-Sink erweitern~~ — **umgesetzt**: Boosts sind die wiederkehrende Senke, 80 % jeder Ausgabe landen im Pot | — | umgesetzt |
-| ~~Temporaere Boosts~~ — **umgesetzt**: 21 Sats / 30 min je Station, Full Throttle 50 Sats / 60 min | — | umgesetzt |
+| ~~Temporaere Boosts~~ — **umgesetzt**: 10 Sats / 30 min je Station, Full Throttle 21 Sats / 30 min | — | umgesetzt |
 | **Premium-Plantage** — Nur mit Sats kaufbar, hoher Output | Gering | Mittel |
 | **Lottery-Sidebet** — Wette auf Gewinnerzahl (Over/Under) | Mittel | Mittel |
 
@@ -237,7 +290,7 @@ fuer Invites und keine Bot-Gewinne auf echten Konten.
 | **Error Monitoring** — Sentry o.ae. fuer Production-Fehler | Gering | Mittel |
 | **DB Backup Cron** — Automatisches SQLite-Backup | Gering | Hoch — Datensicherheit |
 | **Tab-Sync** — Erkennung mehrerer offener Tabs (localStorage Lock) | Gering | Gering |
-| **Unit Tests** — Zumindest fuer Lottery-Logik und Waehrungs-Operationen | Mittel | Mittel |
+| ~~Unit Tests~~ — **umgesetzt**: zwoelf `scripts/test-*.mjs`, jedes gegen eine Wegwerf-Datenbank, dazu `tune-pacing.mjs` als Kurven-Waechter | — | umgesetzt |
 | **useGameLoop aufteilen** — 910 Zeilen in kleinere Hooks splitten | Mittel | Mittel — Wartbarkeit |
 
 ---
@@ -272,6 +325,7 @@ Auswertung der Produktions-DB (31 Spieler):
    Nostr-Post — erreicht niemanden direkt.
 2. **Idle-Decke frueh erreicht.** Ohne Prestige/Soft-Reset endet die Progression nach
    den 6 Plantagen + Max-Speed. Danach passiert nichts Neues.
+   **Behoben am 2026-08-03** — siehe Runden oben.
 3. **Onboarding-Reibung.** PoW-Challenge + nsec/Extension-Huerde direkt beim Einstieg,
    bevor der Spieler den Wert sieht.
 4. **Keine echte soziale Schleife.** Leaderboard ist passiv; Zap-Voting (der
@@ -287,7 +341,7 @@ Auswertung der Produktions-DB (31 Spieler):
 | 1 | **PWA + Web-Push** | Mittel | Der wichtigste Hebel: installierbar + direkte Lottery-/"deine Ernte wartet"-Pushes. Ohne Rueckkehr-Hook bleibt alles andere wirkungslos. |
 | 2 | **Onboarding entschaerfen** | Gering | Read-only-Vorschau ohne Login; PoW nur bei Verdacht; "spielen, dann anmelden". |
 | 3 | **Daily-Login-Reward + Tages-Quests** | Mittel | Gibt einen taeglichen Grund zurueckzukommen. |
-| 4 | **Prestige/Soft-Reset** | Mittel | Durchbricht die Idle-Decke, schafft Langzeitziel. |
+| 4 | ~~**Prestige/Soft-Reset**~~ **erledigt 2026-08-03** | — | Runde endet bei 1 Q (~1 Woche), Reset bankt Prestige-Punkte, zwei Ranglisten. Durchbricht die Idle-Decke und gibt der Rueckkehr ein Ziel. |
 | 5 | **Zap-Voting endlich bauen** | Mittel-Hoch | Der urspruengliche soziale/oekonomische Kern — Spieler zappen Spieler, echter Sats-Umlauf statt Bot-Lottery. |
 | 6 | **Nostr-DM-Reaktivierung** | Gering | "Deine Plantage produziert seit 3 Tagen ungeerntet" als NIP-04-DM an inaktive Spieler. |
 

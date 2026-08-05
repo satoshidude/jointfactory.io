@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Cannabis, Ticket, Wallet, UserPlus, User, Info, Menu, X } from 'lucide-react'
+import { Cannabis, Ticket, Wallet, Trophy, User, Info, Menu, X } from 'lucide-react'
 import { useAuth } from '../../stores/authStore'
 import LoginModal from '../LoginModal'
 import './DrawerNav.css'
@@ -9,7 +9,7 @@ const TABS = [
   { path: '/', icon: Cannabis, label: 'Grow' },
   { path: '/lottery', icon: Ticket, label: 'Lottery' },
   { path: '/wallet', icon: Wallet, label: 'Wallet' },
-  { path: '/invite', icon: UserPlus, label: 'Invite' },
+  { path: '/ranking', icon: Trophy, label: 'Ranking' },
   { path: '/profile', icon: User, label: 'Account' },
   { path: '/info', icon: Info, label: 'Info' },
 ]

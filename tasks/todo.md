@@ -387,5 +387,50 @@ Live-Daten ansehen: `VITE_API_TARGET=https://jointfactory.io npm run dev`
 - [ ] Neuer Account bis zum ersten Ticket ohne Deposit
 - [ ] Durchsatz-Check, Bot-Check, Cheat-Check
 
+## Runden-Release v0.4 (2026-08-05)
+
+Die Kurve hatte kein Ende: 1 Quadrillion nach 169 Tagen, danach nichts. Daraus
+ist eine Runde geworden, die in etwa einer Woche gespielt wird und wieder von
+vorn beginnt.
+
+### Ökonomie
+- [x] `ROUND_TARGET = 1 Q`, Kurve neu gebaut — Start bei ~1 Joint/s, alle sechs
+      Plots noetig, MegaFarm traegt 45–57 % der Runde
+- [x] Erbschaft beim Freischalten (halbes Hoechstlevel), Levelgrenze 50,
+      Produktion durch zehn — die drei Regler in `shared/economy.js`
+- [x] Manager kosten je Runde neu: 90/60/30/21 Sats, Outdoor/Indoor/Hydroponic
+      werden nach der 1./2./3. Runde dauerhaft frei. Serverseitig bepreist
+      (`managerSpend`), nicht nach Angabe des Clients
+- [x] Speed-Stufen (+5 %) in die Pacing-Rechnung aufgenommen
+- [x] Acht Kriterien in `scripts/tune-pacing.mjs`, bricht ab, wenn die Runde sie
+      verfehlt — 3,7 d rund um die Uhr, 8,0 d bei acht Stunden, 14,0 d bei vier
+
+### Lottery
+- [x] Ticket-Tor serverseitig: Kette automatisiert **und** ein Manager der
+      laufenden Runde fuer Sats gekauft (`ticketGate`). Die drei Gratis-Manager
+      sind genau die drei, die die Kette braucht — das Tor stand offen
+- [x] Grund steht unter dem Knopf, auf der Grow-Seite und der Lottery-Seite
+
+### Oberflaeche
+- [x] Round-Karte in die Race-Karte gezogen, eine Umrandung statt zwei
+- [x] Race als Bahnen: Position ist Rundenfortschritt, Rang und Zahl die
+      hochgerechnete Rundenzeit — sonst gewinnt, wer nur frueher angefangen hat
+- [x] Ranking-Seite: eine Tabelle statt drei Reiter, Podest mit Stufen
+- [x] Kapazitaets-Knoepfe nennen die naechste Menge statt „Cap x2"
+- [x] Feuerwerk beim Erreichen der Quadrillion, Ringe frieren danach ein
+
+### Bestandskonten
+- [x] `switch_pending` friert jedes Konto ein, bis sein Besitzer bestaetigt;
+      `saveState` weist Speicherungen ab, Wallet und Info bleiben erreichbar
+- [x] Bestaetigen bringt 3 Runden und 3 Sterne (max., ab 1 Q Lebenssumme)
+- [x] `POST /api/game/switch` verlangt `{"confirm": true}` — in der Entwicklung
+      sind Konten umgestiegen, ohne dass jemand den Knopf gedrueckt hat, und die
+      Ursache blieb offen. Ein nackter POST reicht seitdem nicht mehr
+
+### Offen
+- [ ] GitHub-PAT in `.git/config` rotieren (steht im Klartext)
+- [ ] Drei getrennte `/api/game/state`-Anfragen beim Seitenaufbau zusammenlegen
+- [ ] Auszahlungslimits
+
 ## Review
 _(wird am Ende gefüllt)_

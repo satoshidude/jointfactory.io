@@ -67,142 +67,358 @@
   font-variant-numeric: tabular-nums;
 }
 
-.lb-head-row {
-  display: grid;
-  grid-template-columns: 28px 1fr 54px 70px 80px;
-  gap: 6px;
-  padding: 0 6px;
+/* ── Kopfzeile ────────────────────────────────────────────────────────────
+   Die Reiter waren der Tabellenkopf: welcher aktiv war, entschied, was die
+   Spalten bedeuten. Es gibt nur noch eine Tabelle, also sagt eine Zeile, was
+   in ihr steht. */
+
+.lb-head {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lb-head-icon { color: var(--neon-gold); align-self: center; flex-shrink: 0; }
+
+.lb-head-title {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  color: var(--neon-gold);
+  text-shadow: 0 0 8px rgba(255, 215, 0, .35);
+}
+
+.lb-head-note {
   font-family: var(--font-body);
   font-size: 10px;
-  font-weight: 700;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  opacity: .7;
 }
 
-.lb-h-speed,
-.lb-h-sats,
-.lb-h-total {
-  text-align: right;
+@media (max-width: 460px) {
+  .lb-head-note { display: none; }
 }
 
-.lb-rows {
+/* ── Podest ────────────────────────────────────────────────────────────────
+   Zweiter, Erster, Dritter — in der Anordnung, die ein Podest tatsächlich hat.
+   Der Sockel des Ersten ist höher, nicht nur seine Schrift größer. */
+
+/* ── Das Podest ────────────────────────────────────────────────────────────
+   Drei gleich hohe Kästchen sind kein Podest. Jeder Platz hat seine Farbe,
+   seine Stufenhöhe und seine Auszeichnung; Gold bekommt zusätzlich Krone,
+   Schein und einen Pokal statt einer Ziffer. */
+
+.lb-podium {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1fr;
+  align-items: end;
+  gap: 7px;
+  padding: 16px 0 0;
+  margin-bottom: 6px;
+  /* The floor the three stand on. Without it the steps just stop, and the
+     tallest one reads as cut off rather than as the tallest. */
+  border-bottom: 2px solid rgba(255, 215, 0, .4);
+  box-shadow: 0 2px 14px -4px rgba(255, 215, 0, .35);
+}
+
+.lb-plinth {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-}
-
-.lb-row {
-  display: grid;
-  grid-template-columns: 28px 1fr 54px 70px 80px;
   align-items: center;
-  gap: 6px;
-  padding: 5px 6px;
-  min-height: 28px;
-  border-radius: 4px;
-  position: relative;
-  overflow: hidden;
-}
-
-.lb-bar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  opacity: 0.08;
-  pointer-events: none;
-}
-
-.lb-row-you {
-  background: rgba(255, 215, 0, .06);
-}
-
-.lb-row-you .lb-name {
-  color: var(--neon-gold);
-  text-shadow: 0 0 6px rgba(255, 215, 0, .3);
-}
-
-.lb-rank {
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-secondary);
+  gap: 5px;
+  padding: 14px 7px 0;
+  border: 1px solid var(--place-edge, var(--border-color));
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background:
+    linear-gradient(180deg, var(--place-wash, transparent) 0%, transparent 70%),
+    rgba(255, 255, 255, .022);
   text-align: center;
-  font-variant-numeric: tabular-nums;
+  min-width: 0;
 }
 
-.lb-trophy-1 {
-  color: #ffd700;
-  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .5));
+.lb-plinth-empty { visibility: hidden; }
+
+/* Jeder Platz setzt nur seine drei Variablen, den Rest erledigen die Regeln
+   darüber — sonst steht jede Farbe an sechs Stellen. */
+.lb-place-1 {
+  --place: #ffd700;
+  --place-edge: rgba(255, 215, 0, .55);
+  --place-wash: rgba(255, 215, 0, .13);
+  padding-top: 14px;
+  box-shadow: 0 0 22px rgba(255, 215, 0, .13), inset 0 1px 0 rgba(255, 215, 0, .3);
 }
 
-.lb-trophy-2 {
-  color: #c0c0c0;
-  filter: drop-shadow(0 0 4px rgba(192, 192, 192, .4));
+.lb-place-2 {
+  --place: #ccccd8;
+  --place-edge: rgba(200, 200, 216, .4);
+  --place-wash: rgba(200, 200, 216, .08);
 }
 
-.lb-trophy-3 {
-  color: #cd7f32;
-  filter: drop-shadow(0 0 4px rgba(205, 127, 50, .4));
+.lb-place-3 {
+  --place: #d08a3e;
+  --place-edge: rgba(208, 138, 62, .42);
+  --place-wash: rgba(208, 138, 62, .09);
 }
 
-.lb-name {
+.lb-plinth-you { box-shadow: inset 0 0 0 1px rgba(255, 215, 0, .4); }
+.lb-place-1.lb-plinth-you { box-shadow: 0 0 22px rgba(255, 215, 0, .18), inset 0 0 0 1px rgba(255, 215, 0, .5); }
+
+.lb-crown {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 7px rgba(255, 215, 0, .8));
+  animation: lb-crown-glow 2.6s ease-in-out infinite;
+}
+
+@keyframes lb-crown-glow {
+  0%, 100% { transform: translateY(0); opacity: .9; }
+  50%      { transform: translateY(-2px); opacity: 1; }
+}
+
+.lb-medal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--place-edge);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, var(--place-wash), transparent 70%);
+  color: var(--place);
+  font-family: var(--font-heading);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.lb-place-1 .lb-medal {
+  width: 42px;
+  height: 42px;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, .55));
+}
+
+.lb-plinth-name {
   font-family: var(--font-body);
   font-size: 12px;
-  font-weight: 600;
   color: var(--text-primary);
   text-decoration: none;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.lb-name:active {
-  opacity: 0.7;
+.lb-place-1 .lb-plinth-name { font-size: 13px; font-weight: 700; }
+.lb-plinth-name:hover { text-decoration: underline; }
+.lb-plinth-you .lb-plinth-name { color: var(--neon-gold); font-weight: 700; }
+
+.lb-plinth-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
-.lb-sats {
+.lb-place-1 .lb-plinth-value {
+  font-size: 19px;
+  color: var(--neon-gold);
+  text-shadow: 0 0 10px rgba(255, 215, 0, .4);
+}
+
+/* Die Bestzeit. Sie stand hinter einem Reiter und beantwortete dieselbe Frage
+   über dieselben Spieler — hier steht sie neben dem Stand. */
+.lb-plinth-best {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 13px;
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--neon-gold);
+  opacity: .8;
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-place-1 .lb-plinth-best { font-size: 11px; opacity: 1; }
+
+.lb-plinth-caption {
+  font-family: var(--font-body);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-secondary);
+  opacity: .6;
+}
+
+/* Die Stufe. Ihre Höhe ist der Platz — deshalb sitzen die drei Blöcke auf
+   verschiedenen Ebenen, obwohl sie am selben Boden stehen. */
+.lb-step {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% + 14px);
+  margin: 8px -7px 0;
+  border: 1px solid var(--place-edge);
+  border-bottom: 0;
+  /* Lit along the top edge and dark at the foot, so the block reads as standing
+     on the floor line rather than being cut off by it. */
+  background: linear-gradient(180deg, var(--place-wash) 0%, rgba(0, 0, 0, .3) 100%);
+  box-shadow: inset 0 1px 0 var(--place-edge);
+}
+
+.lb-step span {
+  font-family: var(--font-heading);
+  color: var(--place);
+  opacity: .55;
+  line-height: 1;
+}
+
+.lb-place-1 .lb-step { height: 40px; }
+.lb-place-1 .lb-step span { font-size: 22px; opacity: .8; text-shadow: 0 0 10px rgba(255, 215, 0, .5); }
+.lb-place-2 .lb-step { height: 26px; }
+.lb-place-2 .lb-step span { font-size: 15px; }
+.lb-place-3 .lb-step { height: 17px; }
+.lb-place-3 .lb-step span { font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-crown { animation: none; }
+}
+
+/* ── Der Rest als Tabelle ──────────────────────────────────────────────── */
+
+.lb-head-row,
+.lb-row {
+  display: grid;
+  grid-template-columns: 30px 1fr 56px 74px 82px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+}
+
+.lb-head-row {
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding-top: 6px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lb-head-row > span:nth-child(n+3) { text-align: right; }
+
+.lb-rows { display: flex; flex-direction: column; }
+
+.lb-row {
+  min-height: 26px;
+  border-bottom: 1px solid rgba(255, 255, 255, .04);
+}
+
+.lb-row:last-child { border-bottom: 0; }
+.lb-row-you { background: rgba(255, 215, 0, .06); border-radius: 3px; }
+
+.lb-rank {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-name {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+/* The name gives way, the star badge does not — a truncated name that swallows
+   the badge would defeat the point of putting it there. */
+.lb-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-name:hover .lb-name-text { text-decoration: underline; }
+.lb-row-you .lb-name { color: var(--neon-gold); font-weight: 700; }
+
+.lb-cell {
+  display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   gap: 3px;
   font-family: var(--font-body);
   font-size: 11px;
-  font-weight: 700;
-  color: var(--neon-gold);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
 }
 
-.lb-sats svg {
-  color: var(--neon-gold);
-  flex-shrink: 0;
-}
-
-.lb-total {
-  display: flex;
+.lb-cell svg { flex-shrink: 0; opacity: .8; }
+.lb-strong {
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 3px;
-  font-family: var(--font-body);
-  font-size: 11px;
+  white-space: nowrap;
+  color: var(--neon-gold);
   font-weight: 700;
-  color: var(--neon-green);
-  font-variant-numeric: tabular-nums;
 }
 
-.lb-total svg {
-  color: var(--neon-green);
-  flex-shrink: 0;
-}
-
-
-/* Bought speed. A small comparable figure beside two that span orders of
-   magnitude — the one column where players can read each other directly. */
-.lb-speed {
+.lb-empty {
+  margin: 0;
+  padding: 14px 6px;
   font-family: var(--font-body);
-  font-size: 11px;
-  color: var(--neon-green);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  z-index: 1;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
 }
+
+@media (max-width: 520px) {
+  .lb-head-row,
+  .lb-row { grid-template-columns: 26px 1fr 48px 62px 68px; gap: 4px; }
+  .lb-plinth-value { font-size: 12px; }
+  .lb-place-1 .lb-plinth-value { font-size: 14px; }
+}
+
+/* ── Sterne ────────────────────────────────────────────────────────────────
+   Ein abgeschlossener Durchlauf ist ein Stern. Sie standen in einem eigenen
+   Reiter, der dieselben Spieler nach derselben Zahl sortierte — jetzt stehen
+   sie dort, wo man ohnehin hinschaut: neben dem Namen. */
+
+.lb-plinth-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: var(--neon-purple);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-plinth-stars svg {
+  fill: currentColor;
+  filter: drop-shadow(0 0 4px rgba(204, 68, 255, .5));
+}
+
+.lb-place-1 .lb-plinth-stars svg { filter: drop-shadow(0 0 6px rgba(204, 68, 255, .8)); }
+
+.lb-stars-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--neon-purple);
+  font-weight: 700;
+}
+
+.lb-stars-cell svg { fill: currentColor; opacity: 1; }
+
+.lb-stars-none { color: var(--text-secondary); opacity: .4; }

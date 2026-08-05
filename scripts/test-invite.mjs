@@ -93,9 +93,12 @@ const m = boostMultipliers(after.boosts, now())
 console.log(`  Multiplikatoren beim Werber: plant ×${m.plant} · courier ×${m.courier} · fabrik ×${m.fabrik}`)
 check('doppelt auf allen drei Stationen', m.plant === 2 && m.courier === 2 && m.fabrik === 2)
 
+// Whatever the reward boost runs for — read from the definition rather than
+// written out, so retuning a boost does not silently make the reward a lie.
+const expected = BOOSTS[REFERRAL_BOOST].durationSec
 const remaining = after.boosts.find(b => b.type === REFERRAL_BOOST).expires_at - now()
-console.log(`  Restlaufzeit: ${Math.round(remaining / 60)} min`)
-check('eine Stunde', Math.abs(remaining - 3600) <= 2)
+console.log(`  Restlaufzeit: ${Math.round(remaining / 60)} min (${BOOSTS[REFERRAL_BOOST].name})`)
+check(`volle ${expected / 60} Minuten`, Math.abs(remaining - expected) <= 2)
 
 // ── No sats anywhere ────────────────────────────────────────────────────────
 console.log('\n── Keine Sats im Spiel ──')
@@ -124,7 +127,7 @@ check('zweite Kachel wartet', listReferralBoosts(REFERRER).length === 1)
 claimReferralBoost(REFERRER, 'buddy2')
 const after2 = getActiveBoosts(REFERRER).find(b => b.type === REFERRAL_BOOST).expires_at
 console.log(`  Laufzeit ${Math.round((before2 - now()) / 60)} min → ${Math.round((after2 - now()) / 60)} min`)
-check('um eine weitere Stunde verlängert', after2 - before2 === BOOSTS[REFERRAL_BOOST].durationSec)
+check('um eine weitere volle Laufzeit verlängert', after2 - before2 === BOOSTS[REFERRAL_BOOST].durationSec)
 
 // ── An unreferred player triggers nothing ───────────────────────────────────
 db.prepare('INSERT INTO players (npub, display_name, sats, joints, game_state) VALUES (?,?,?,?,?)')
