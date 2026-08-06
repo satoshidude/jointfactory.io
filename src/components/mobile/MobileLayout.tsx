@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Heart, Box } from 'lucide-react'
 import CompactHeader from './CompactHeader'
 import BottomNav from './BottomNav'
+import TakeoverBar from './TakeoverBar'
 import './MobileLayout.css'
 
 export default function MobileLayout({ children }: { children: ReactNode }) {
@@ -12,6 +13,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
         <BottomNav />
       </div>
       <main className="mobile-content">
+        <TakeoverBar />
         {children}
         <footer className="mobile-footer">
           <p>

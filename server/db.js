@@ -104,6 +104,12 @@ try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_players_invite_code ON play
 // Track total Lightning deposits per player
 try { db.exec(`ALTER TABLE players ADD COLUMN total_deposited INTEGER DEFAULT 0`); } catch(_) {}
 
+// Which client owns the account. Only the newest one may write its state — two
+// clients simulating the same chain clamp each other and buy the same upgrade
+// twice. See server/session.js.
+try { db.exec(`ALTER TABLE players ADD COLUMN active_session TEXT`); } catch(_) {}
+try { db.exec(`ALTER TABLE players ADD COLUMN active_session_at INTEGER`); } catch(_) {}
+
 // Bot accounts that keep the lottery looking alive.
 // Marked so they can be excluded from leaderboards, reports and payouts —
 // the fake activity used to run on real players' accounts, spending their

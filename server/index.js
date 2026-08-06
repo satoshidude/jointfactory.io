@@ -25,6 +25,7 @@ import { buySpeed, speedStatus } from './speed.js';
 import { solvency, houseBalance } from './house.js';
 import { initZapDb, publishWelcomeNote, publishInviteRegistered, publishReferralReward, publishLotteryWinNote, deletePlayerEvents, initLotteryReminder, OWNER_HEX, botSigner } from './zap.js';
 import { recipients, campaigns, sendBroadcast } from './broadcast.js';
+import { claimSession, isMasterSession } from './session.js';
 import { nip19 } from 'nostr-tools';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -223,7 +224,23 @@ fastify.get('/api/game/state', { preHandler: requireAuth }, async (req) => {
     switch_offer: switchPreview(req.user.npub),
   };
 });
+/**
+ * Take ownership of the account for this client. Called on page load and by the
+ * "continue here" button; last claim wins. See server/session.js.
+ */
+fastify.post('/api/game/claim', { preHandler: requireAuth }, async (req, reply) => {
+  const sid = req.headers['x-jf-session'];
+  if (!sid) return reply.code(400).send({ error: 'no_session' });
+  claimSession(req.user.npub, sid);
+  return { ok: true };
+});
+
 fastify.post('/api/game/state',   { preHandler: requireAuth }, async (req) => {
+  // A client that is not the owner does not get to write. Refused before the
+  // guard runs, so nothing is clamped, charged or stored on its behalf.
+  if (!isMasterSession(req.user.npub, req.headers['x-jf-session'])) {
+    return { ok: false, reason: 'not_master' };
+  }
   const result = saveState(req.user.npub, req.body);
   if (!result.ok) return result;
   const { joints, total_joints_earned, joints_per_sec } = req.body;

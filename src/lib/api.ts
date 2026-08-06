@@ -1,9 +1,13 @@
+import { SESSION_ID, SESSION_HEADER } from './session';
+
 const BASE = '/api';
 
 export async function apiFetch(path: string, opts: RequestInit = {}) {
   const token = JSON.parse(localStorage.getItem('jf_auth') || '{}').token;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    // Which tab is asking. The server only lets the newest one write. See session.ts.
+    [SESSION_HEADER]: SESSION_ID,
     ...(opts.headers as Record<string, string> || {}),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;

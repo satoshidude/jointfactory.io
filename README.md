@@ -185,6 +185,7 @@ node scripts/test-broadcast.mjs     # owner DMs: dry run, resume, no double send
 node scripts/test-ledger.mjs        # every credited sat has a source
 node scripts/test-rounds.mjs        # target detection, reset, prestige, boards
 node scripts/test-switch.mjs        # the one-time switch of accounts predating rounds
+node scripts/test-session.mjs       # only the newest client may write
 node scripts/test-schedule.mjs      # Tue/Thu/Sat 21:00 across DST
 node scripts/sim-economy.mjs 30     # 30-day simulation of a greedy player
 node scripts/tune-pacing.mjs        # how long a round takes, against its criteria
@@ -211,6 +212,18 @@ wallet and the info page stay reachable so nobody has to agree to anything to
 withdraw their own sats. Bots are reset directly — they cannot press a button.
 
 ### What the server decides
+
+**One client at a time.** Two clients logged into the same account both simulate
+the chain and both post the state they believe in. Neither is wrong from where it
+stands, but the server has one row: the guard clamps each against what the other
+stored, and an upgrade bought in one is invisible to the other, which buys it
+again. A live account paid for the same capacity step nine times in an hour and
+had 137 million joints clamped away across 83 saves. The newest client owns the
+account (`server/session.js`); older ones are refused before the guard runs, so
+nothing is clamped, charged or stored on their behalf, and they freeze with a bar
+offering to take it back. The id is per page load, not per login — two tabs on
+one machine share a token and are exactly the case nobody notices. Reads are
+never blocked.
 
 The client owns its joint count and posts an absolute figure, so the server bounds
 it (`saveState` in `server/game.js`): a balance may only grow by what the *stored*

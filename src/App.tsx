@@ -13,6 +13,7 @@ import NostrProfileEdit from './pages/mobile/NostrProfileEdit'
 import MobileAdmin from './pages/mobile/MobileAdmin'
 import SwitchToRounds from './components/mobile/SwitchToRounds'
 import { useRoundSwitch } from './hooks/useRoundSwitch'
+import { claimMaster } from './lib/session'
 import { useAuth } from './stores/authStore'
 import { GameDisplayProvider } from './stores/gameDisplayStore'
 import './App.css'
@@ -35,6 +36,12 @@ export default function App() {
   const location = useLocation()
   const auth = useAuth()
   const { offer, busy, error, confirm } = useRoundSwitch(auth.isLoggedIn)
+
+  // Opening the page is the login that counts: this client takes the account and
+  // any older one stops writing. See src/lib/session.ts.
+  useEffect(() => {
+    if (auth.isLoggedIn) claimMaster()
+  }, [auth.isLoggedIn])
 
   useEffect(() => {
     const ref = searchParams.get('ref')

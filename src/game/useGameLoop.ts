@@ -7,6 +7,7 @@ import {
   CAPACITY_STEP, BASE_CAPACITY, capacitySteps, capacityCostScale,
   MAX_PLANT_LEVEL, inheritedLevel, ROUND_TARGET, managerCost, managerPrice,
 } from '../../shared/economy.js'
+import { SESSION_ID, SESSION_HEADER, loseMaster, isMaster } from '../lib/session'
 
 // ── Plantation definitions (matching production) ─────────────────────────────
 
@@ -228,7 +229,11 @@ async function saveToServer(gs: GameState, joints: number, sats: number, totalJo
     gs._ts = Date.now()
     const res = await fetch('/api/game/state', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+        'Content-Type': 'application/json',
+        [SESSION_HEADER]: SESSION_ID,
+      },
       body: JSON.stringify({
         gameState: gs,
         joints: Math.floor(joints),
@@ -240,6 +245,9 @@ async function saveToServer(gs: GameState, joints: number, sats: number, totalJo
     })
     if (res.ok) {
       const data = await res.json().catch(() => null)
+      // Another client took the account. Stop writing at once — everything this
+      // one has simulated since is the other client's business now.
+      if (data?.ok === false && data.reason === 'not_master') { loseMaster(); return }
       if (data?.boost_grants && _grantsListener) _grantsListener(data.boost_grants as BoostGrant[])
       if (data?.corrected && typeof data.joints === 'number' && _balanceListener) {
         console.warn('[JF] Balance corrected by the server:', Math.floor(joints), '→', data.joints)
@@ -590,6 +598,15 @@ export function useGameLoop(
         return
       }
 
+      // Another client owns the account. Freeze rather than keep simulating: a
+      // chain that runs on without ever being saved only builds up a state that
+      // will be thrown away, and the numbers on screen would drift away from the
+      // ones the other client is actually playing.
+      if (!isMaster()) {
+        animId = requestAnimationFrame(tick)
+        return
+      }
+
       const g = gsRef.current
 
       // The round is over — the chain stops where it stands until the reset.
@@ -737,7 +754,7 @@ export function useGameLoop(
 
     // Save on page refresh/close — but NOT after logout
     const handleBeforeUnload = () => {
-      if (!canSaveRef.current || loggedOutRef.current) return
+      if (!canSaveRef.current || loggedOutRef.current || !isMaster()) return
       saveLocal(gsRef.current)
       // Save guest data on page close
       if (!loggedInRef.current) {

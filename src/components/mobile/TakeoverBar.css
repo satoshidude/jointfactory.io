@@ -1,0 +1,48 @@
+/* Gold, like everything that asks for a decision, and pinned so it cannot be
+   scrolled past — a paused chain with the reason offscreen reads as broken. */
+.tob {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 215, 0, .45);
+  border-radius: 8px;
+  background: rgba(40, 32, 0, .96);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, .5);
+}
+
+.tob-icon { color: var(--neon-gold); flex-shrink: 0; }
+
+.tob-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.tob-btn {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--neon-gold);
+  border-radius: 6px;
+  background: rgba(255, 215, 0, .14);
+  color: var(--neon-gold);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tob-btn:hover:not(:disabled) { background: rgba(255, 215, 0, .24); }
+.tob-btn:disabled { opacity: .6; cursor: default; }
+
+@media (max-width: 520px) {
+  .tob { flex-wrap: wrap; }
+  .tob-text { flex-basis: calc(100% - 25px); }
+  .tob-btn { margin-left: auto; }
+}
