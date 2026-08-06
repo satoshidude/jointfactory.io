@@ -110,8 +110,12 @@ fuer Invites und keine Bot-Gewinne auf echten Konten.
 
 - **Zeitplan**: Di, Do, Sa um 21:00 Berlin (DST-sicher, `shared/schedule.js`)
 - **Lose**: hoechstens **4 je Ziehung**, Preis 10/18/28/44 % eines Tagesausstoßes
-  des Kaeufers — vier Lose kosten also genau einen Tag. Ein Einsteiger zahlt fuer
-  sein erstes Los zwei Produktionstage, ein Spitzenspieler zweieinhalb Stunden.
+  des Kaeufers — vier Lose kosten also genau einen Tag, und das erste rund
+  zweieinhalb Stunden Produktion, egal auf welcher Stufe der Runde. Der frueher
+  aufgeschlagene Einsteiger-Faktor (20x bei 1 Joint/s, 1x bei 20 Mrd./s) ist
+  entfallen: er war fuer eine Runde bis 1 Mrd. kalibriert, und seit dem Ziel von
+  1 Q spannt eine einzelne Runde genau diesen Bereich — er mass nur noch den
+  Rundenfortschritt und traf jeden nach jedem Reset erneut.
 - **Voraussetzung**: zwei Bedingungen, serverseitig geprueft (`ticketGate` in
   `shared/economy.js`). Erstens die automatisierte Kette — ohne sie faellt der
   Preis auf den Boden von einem Joint. Zweitens **mindestens ein Manager, der in

@@ -746,9 +746,9 @@ export const MAX_TICKETS_PER_ROUND = 4
 export const DAY_SECONDS = 86400
 
 /**
- * Share of one day's production each of the four daily tickets costs, for a
- * player at the top anchor. Rising, so a further ticket the same day costs
- * more; the four together are exactly one day of output.
+ * Share of one day's production each of the four tickets of a draw costs.
+ * Rising, so a further ticket in the same draw costs more; the four together are
+ * exactly one day of output.
  *
  * The first was 15 %, i.e. 3.6 hours of production. Reachable in principle, but
  * not in practice: levels pay themselves back in seconds, so an active player's
@@ -759,38 +759,25 @@ export const DAY_SECONDS = 86400
  */
 export const TICKET_DAY_SHARE = [0.10, 0.18, 0.28, 0.44]
 
-/** A fresh chain with the three free managers: the courier's 8 per round trip. */
-export const RATE_BEGINNER = 1
 /**
- * Where the beginner discount runs out: at or above this rate a ticket costs
- * exactly its share of the buyer's day.
+ * Price of a player's next ticket: a share of a day of their own production,
+ * and nothing else.
  *
- * Both anchors moved with the round: the chain now tops out around 16 K/s at the
- * billion rather than climbing past a billion a second for months. Left at the
- * old 1.6e9 every player alive would sit at the beginner end of the scale and
- * pay the 13x markup forever.
- */
-export const RATE_TOP = 20_000_000_000
-
-// Beginner target: the first ticket of the day costs two days of production.
-const BEGINNER_SCALE = (2 * DAY_SECONDS) / (DAY_SECONDS * TICKET_DAY_SHARE[0])
-
-/**
- * Multiplier on the top-anchor price, by production rate.
- * 1 at the top anchor, ~13.3 at the beginner anchor, log-interpolated between.
+ * There used to be a second factor on top, a "beginner markup" that ran from 20x
+ * at one joint a second down to 1x at twenty billion, log-interpolated. It was
+ * calibrated when a round ended at a billion. Now a round ends at a quadrillion
+ * and spans that whole range by itself — a chain starts at one a second and
+ * finishes between ten and twenty-seven billion — so the ramp stopped
+ * distinguishing a newcomer from a veteran and started measuring how far into
+ * their round somebody was. Managers do not survive a reset, so everyone is a
+ * beginner again every round: a player at eight thousand a second paid 12.8x,
+ * which put the four tickets of one draw at 12.8 days of production inside a
+ * seven-day round, and every upgrade pushed the price further away.
  *
- * @param {number} rate joints per second
- * @returns {number}
- */
-export function ticketScale(rate) {
-  if (!rate || rate <= RATE_BEGINNER) return BEGINNER_SCALE
-  if (rate >= RATE_TOP) return 1
-  const t = Math.log10(rate / RATE_BEGINNER) / Math.log10(RATE_TOP / RATE_BEGINNER)
-  return BEGINNER_SCALE + t * (1 - BEGINNER_SCALE)
-}
-
-/**
- * Price of a player's next ticket.
+ * What the markup was there for — an idle account buying entries at the
+ * one-joint floor — is the job of ticketGate now, which asks for an automated
+ * chain and a manager bought with sats. A price is a bad gate; a gate is a good
+ * gate.
  *
  * @param {number} held tickets already held in this round
  * @param {number} rate joints per second
@@ -798,7 +785,7 @@ export function ticketScale(rate) {
  */
 export function ticketPrice(held, rate) {
   const n = Math.min(Math.max(0, held), TICKET_DAY_SHARE.length - 1)
-  return Math.max(1, Math.round(rate * DAY_SECONDS * TICKET_DAY_SHARE[n] * ticketScale(rate)))
+  return Math.max(1, Math.round(rate * DAY_SECONDS * TICKET_DAY_SHARE[n]))
 }
 
 /**

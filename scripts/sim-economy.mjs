@@ -19,7 +19,7 @@ if (upgArg) process.env.JF_UPG_MULT = upgArg.split('=')[1]
 const {
   PLANTATION_DEFS, CAPACITY_STEP, BASE_CAPACITY, capacitySteps, capacityCostScale, UPG_MULT,
   plantLevelCost, newPlantation, initialState, throughput,
-  ticketPrice, ticketScale, MAX_TICKETS_PER_ROUND, DAY_SECONDS,
+  ticketPrice, MAX_TICKETS_PER_ROUND, DAY_SECONDS,
   speedCostSeconds, speedMultiplier, SPEED_MONTHLY_CAP,
 } = await import('../shared/economy.js')
 
@@ -178,7 +178,7 @@ console.log('  Spieler        Rate         Los #1       4 Lose       = Produktio
 for (const [name, rate] of [['Einsteiger', 1.25], ['früh', 1e3], ['Mitte', 6.5e3], ['fortgeschr.', 1e7], ['Top', 1.6e9]]) {
   let sum = 0
   for (let n = 0; n < MAX_TICKETS_PER_ROUND; n++) sum += ticketPrice(n, rate)
-  console.log(`  ${name.padEnd(13)} ${fmt(rate).padStart(8)}/s ${fmt(ticketPrice(0, rate)).padStart(10)} ${fmt(sum).padStart(11)}  ${(sum / (rate * DAY_SECONDS)).toFixed(2).padStart(10)}  (Skala ${ticketScale(rate).toFixed(1)})`)
+  console.log(`  ${name.padEnd(13)} ${fmt(rate).padStart(8)}/s ${fmt(ticketPrice(0, rate)).padStart(10)} ${fmt(sum).padStart(11)}  ${(sum / (rate * DAY_SECONDS)).toFixed(2).padStart(10)}`)
 }
 
 console.log('')

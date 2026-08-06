@@ -18,8 +18,8 @@ process.env.DB_PATH = join(dir, 'test.db')
 const { db } = await import('../server/db.js')
 const { getTicketPrice, getPriceCurvePreview, buyTicket, ticketsInRound } = await import('../server/lottery.js')
 const {
-  initialState, PLANTATION_DEFS, newPlantation, throughput, ticketPrice, ticketScale,
-  MAX_TICKETS_PER_ROUND, DAY_SECONDS, RATE_BEGINNER, RATE_TOP, START_LEVEL, BASE_CAPACITY,
+  initialState, PLANTATION_DEFS, newPlantation, throughput, ticketPrice,
+  MAX_TICKETS_PER_ROUND, DAY_SECONDS, TICKET_DAY_SHARE, ROUND_TARGET, START_LEVEL, BASE_CAPACITY,
 } = await import('../shared/economy.js')
 
 let fail = 0
@@ -52,16 +52,16 @@ function makePlayer(npub, { plantLevels, capacity, joints }) {
 // ── Calibration ─────────────────────────────────────────────────────────────
 console.log('\n── Kalibrierung: Lose pro Tag aus reiner Produktion ──')
 console.log('  Spieler       Rate         Los #1      4 Lose        = Produktionstage')
-// Spread over the anchors rather than fixed rates, so the table keeps meaning
-// something when the round is recalibrated.
-const step = Math.pow(RATE_TOP / RATE_BEGINNER, 1 / 5)
+// Spread over the round rather than over fixed rates, so the table keeps meaning
+// something when the curve is recalibrated. A round runs from about one joint a
+// second to somewhere past ten billion.
 const rows = [
-  ['Einsteiger', RATE_BEGINNER],
-  ['nach 1h', RATE_BEGINNER * step],
-  ['früh', RATE_BEGINNER * step ** 2],
-  ['Mitte', RATE_BEGINNER * step ** 3],
-  ['fortgeschr.', RATE_BEGINNER * step ** 4],
-  ['Top', RATE_TOP],
+  ['Einsteiger', 1],
+  ['nach 1h', 1e2],
+  ['früh', 1e4],
+  ['Mitte', 1e6],
+  ['fortgeschr.', 1e8],
+  ['Rundenende', 1e10],
 ]
 for (const [name, rate] of rows) {
   let sum = 0
@@ -70,19 +70,30 @@ for (const [name, rate] of rows) {
   console.log(`  ${name.padEnd(12)} ${fmt(rate).padStart(8)}/s ${fmt(ticketPrice(0, rate)).padStart(10)} ${fmt(sum).padStart(11)}  ${days.toFixed(2).padStart(8)}`)
 }
 
-const topFour = [0, 1, 2, 3].reduce((s, n) => s + ticketPrice(n, RATE_TOP), 0)
-check('Top-Spieler: 4 Lose = genau 1 Produktionstag',
-      Math.abs(topFour / (RATE_TOP * DAY_SECONDS) - 1) < 0.01)
-check('Einsteiger: Los #1 = 2 Produktionstage',
-      Math.abs(ticketPrice(0, RATE_BEGINNER) / (RATE_BEGINNER * DAY_SECONDS) - 2) < 0.01)
-check('Preis steigt innerhalb des Tages',
+// The price is a share of a day of the buyer's own output and nothing else, so
+// it costs the same in production time at every point of the round. There used
+// to be a second factor on top — a beginner markup calibrated for a round that
+// ended at a billion — and once the round ended at a quadrillion it spanned the
+// same range by itself: a player at 8 K/s paid 12.8x, four tickets came to 12.8
+// days of production inside a seven-day round, and every upgrade moved it away.
+check('vier Lose = genau 1 Produktionstag, auf jeder Stufe der Runde',
+      rows.every(([, rate]) => {
+        const four = [0, 1, 2, 3].reduce((s, n) => s + ticketPrice(n, rate), 0)
+        return Math.abs(four / (rate * DAY_SECONDS) - 1) < 0.01
+      }))
+check('Los #1 = 2.4 h Produktion, unabhängig von der Rate',
+      rows.every(([, rate]) => Math.abs(ticketPrice(0, rate) / rate - DAY_SECONDS * TICKET_DAY_SHARE[0]) < 1))
+check('kein Aufschlag mehr — Preis wächst genau linear mit der Rate',
+      Math.abs(ticketPrice(0, 1e9) / ticketPrice(0, 1e6) - 1000) < 0.01)
+check('Preis steigt innerhalb der Ziehung',
       ticketPrice(0, 1e6) < ticketPrice(1, 1e6) &&
       ticketPrice(1, 1e6) < ticketPrice(2, 1e6) &&
       ticketPrice(2, 1e6) < ticketPrice(3, 1e6))
-check('Skala fällt monoton mit der Rate',
-      rows.every(([, rate], i) => i === 0 || ticketScale(rows[i - 1][1]) > ticketScale(rate)))
-check('Skala unter/über den Ankern gedeckelt',
-      ticketScale(0.1) === ticketScale(RATE_BEGINNER) && ticketScale(1e15) === 1)
+check('volle Losmenge bleibt klein gegen die Runde',
+      [1, 1e4, 1e8].every(rate => {
+        const four = [0, 1, 2, 3].reduce((s, n) => s + ticketPrice(n, rate), 0)
+        return four < ROUND_TARGET / 100
+      }))
 
 // ── Daily cap ───────────────────────────────────────────────────────────────
 console.log('\n── Losgrenze je Ziehung ──')
@@ -127,12 +138,17 @@ check('übertragene Lose zählen gegen das Kontingent',
 // ── Beginner reality check ──────────────────────────────────────────────────
 console.log('\n── Einsteiger ──')
 const beginnerRate = makePlayer('beginner', { plantLevels: [START_LEVEL], capacity: BASE_CAPACITY.courier, joints: 0 })
-const oneDay = beginnerRate * DAY_SECONDS
-const twoDays = beginnerRate * 2 * DAY_SECONDS
-console.log(`  Rate ${beginnerRate}/s → nach 1 Tag ${fmt(oneDay)} Joints, nach 2 Tagen ${fmt(twoDays)}`)
-console.log(`  Los #1 kostet ${fmt(getTicketPrice('beginner'))}`)
-check('nach 1 Tag noch nicht leistbar', oneDay < getTicketPrice('beginner'))
-check('nach 2 Tagen leistbar', twoDays >= getTicketPrice('beginner'))
+// Der Einsteiger zahlt denselben Anteil seines Tages wie alle anderen: 2,4 h
+// Produktion. Vorher waren es zwei Tage — der Aufschlag, der eine Runde lang
+// mitlief, obwohl eine Runde selbst nur eine Woche dauert.
+const tenMin = beginnerRate * 600
+const threeHours = beginnerRate * 3 * 3600
+const price = getTicketPrice('beginner')
+console.log(`  Rate ${beginnerRate}/s → Los #1 kostet ${fmt(price)} = ${(price / beginnerRate / 3600).toFixed(1)} h Produktion`)
+check('nach zehn Minuten noch nicht leistbar', tenMin < price)
+check('nach drei Stunden leistbar', threeHours >= price)
+check('genau der dokumentierte Tagesanteil',
+      Math.abs(price / (beginnerRate * DAY_SECONDS) - TICKET_DAY_SHARE[0]) < 0.001)
 
 // ── Not gameable through the reported rate ──────────────────────────────────
 console.log('\n── Gekaufter Speed zählt in den Preis ──')

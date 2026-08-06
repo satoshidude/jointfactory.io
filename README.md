@@ -98,7 +98,17 @@ tracked in a house ledger (`server/house.js`) and checked hourly.
   chain automated entirely for free could draw from a pot it had never paid into.
 
   Beyond that: at most four tickets per player **per draw**, costing 10 / 18 /
-  28 / 44 % of a day's output. 80 % of the pot is paid out; the number of winners
+  28 / 44 % of a day's output — the first one two and a half hours of production,
+  the four together exactly one day, whatever the player's rate. There used to be
+  a second factor on top, a beginner markup running from 20× at one joint a
+  second down to 1× at twenty billion. It was calibrated when a round ended at a
+  billion; once the round ended at a quadrillion it spanned that whole range by
+  itself, so the ramp stopped telling a newcomer from a veteran and started
+  measuring how far into their round somebody was — and managers do not survive a
+  reset, so everyone is a beginner again every round. A player at eight thousand
+  a second paid 12.8×, which put one draw's four tickets at 12.8 days of
+  production inside a seven-day round. What the markup was for is the gate's job
+  now. 80 % of the pot is paid out; the number of winners
   is a third of the entrants, never fewer than two and never more than 21, and
   the pot splits by rank (70/30 for two, 60/25/15 for three, and so on). Odds of
   being drawn first are exactly your share of the tickets. A draw needs two
