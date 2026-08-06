@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Zap, Ticket, TicketPlus, Users, Timer, Trophy, TrendingUp, ExternalLink, ChevronLeft, ChevronRight, Cannabis } from 'lucide-react'
 import { apiFetch, wsUrl } from '../../lib/api'
+import { liveTicketPrice } from '../../lib/ticketPrice'
 import { fmtCountdown, fmtDrawTime, fmtDateTime as fmtTime, fmtNum as fmtSats } from '../../lib/format'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
@@ -190,7 +191,9 @@ export default function MobileLottery() {
   const ticketHint = gd.ticketHint
     ?? (serverElig && !serverElig.eligible ? ticketGateReason(serverElig) : '')
   const roundLimitReached = ticketsHeld >= MAX_TICKETS_PER_ROUND
-  const canBuy = auth.isLoggedIn && auth.joints >= nextCost && nextCost > 0
+  // Priced off the running chain when there is one — see lib/ticketPrice.ts.
+  const cost = liveTicketPrice(gd.rawGameState, ticketsHeld, nextCost)
+  const canBuy = auth.isLoggedIn && auth.joints >= cost && cost > 0
     && !buying && eligible && !roundLimitReached
   const drawTime = fmtDrawTime(drawAtRef.current)
 
@@ -299,7 +302,7 @@ export default function MobileLottery() {
                   {buying ? 'Buying...' : roundLimitReached ? <>
                     <Ticket size={14} /> {MAX_TICKETS_PER_ROUND}/{MAX_TICKETS_PER_ROUND} this draw
                   </> : <>
-                    <TicketPlus size={14} /> Ticket — <Cannabis size={12} /> {fmtSats(nextCost)}
+                    <TicketPlus size={14} /> Ticket — <Cannabis size={12} /> {fmtSats(cost)}
                     <span className="lottery-mini-pipe">|</span>
                     <span className="lottery-mini-avail">{ticketsHeld}/{MAX_TICKETS_PER_ROUND} this draw</span>
                   </>}
@@ -310,8 +313,8 @@ export default function MobileLottery() {
                 {roundLimitReached && (
                   <span className="ml-hint">That is your four for this draw — the next allowance opens with the next round</span>
                 )}
-                {!roundLimitReached && nextCost > auth.joints && eligible && (
-                  <span className="ml-hint">Need {fmtSats(nextCost - Math.floor(auth.joints))} more Joints</span>
+                {!roundLimitReached && cost > auth.joints && eligible && (
+                  <span className="ml-hint">Need {fmtSats(cost - Math.floor(auth.joints))} more Joints</span>
                 )}
                 {buyError && <span className="ml-error">{buyError}</span>}
               </div>

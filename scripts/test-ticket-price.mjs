@@ -17,6 +17,7 @@ process.env.DB_PATH = join(dir, 'test.db')
 
 const { db } = await import('../server/db.js')
 const { getTicketPrice, getPriceCurvePreview, buyTicket, ticketsInRound } = await import('../server/lottery.js')
+const { playerRate } = await import('../server/speed.js')
 const {
   initialState, PLANTATION_DEFS, newPlantation, throughput, ticketPrice,
   MAX_TICKETS_PER_ROUND, DAY_SECONDS, TICKET_DAY_SHARE, ROUND_TARGET, START_LEVEL, BASE_CAPACITY,
@@ -149,6 +150,32 @@ check('nach zehn Minuten noch nicht leistbar', tenMin < price)
 check('nach drei Stunden leistbar', threeHours >= price)
 check('genau der dokumentierte Tagesanteil',
       Math.abs(price / (beginnerRate * DAY_SECONDS) - TICKET_DAY_SHARE[0]) < 0.001)
+
+// ── Der Knopf zeigt, was der Server berechnet ───────────────────────────────
+// Die Karte druckte den Preis, den der Server beim Seitenaufruf geschickt hat,
+// und frischte ihn nur bei einer Ziehung auf. Ein aktiver Spieler wuchs binnen
+// Minuten darüber hinaus: Knopf 9.8 M, Server 39.0 M, Kauf abgewiesen. Beide
+// Seiten rechnen jetzt mit derselben Funktion über dieselbe Kette.
+console.log('\n── Client und Server rechnen denselben Preis ──')
+{
+  const gs = JSON.parse(db.prepare('SELECT game_state g FROM players WHERE npub=?').get('beginner').g)
+  const lvl = db.prepare('SELECT speed_level s FROM players WHERE npub=?').get('beginner').s || 0
+  const clientRate = throughput(gs, { speedLevel: lvl }).jointsPerSec
+  check('gleiche Rate auf beiden Seiten', Math.abs(clientRate - playerRate('beginner')) < 1e-9)
+  check('gleicher Preis für das erste Los',
+        ticketPrice(0, clientRate) === getTicketPrice('beginner'))
+  // Und nach einem Ausbau, der die Kette wirklich schneller macht, bewegen sich
+  // beide Seiten gleich mit — das ist der Fall, der die Karte hat lügen lassen.
+  for (const p of gs.plantagen) p.level += 10
+  gs.courier.capacity *= 4
+  gs.fabrik.capacity *= 4
+  db.prepare('UPDATE players SET game_state=? WHERE npub=?').run(JSON.stringify(gs), 'beginner')
+  const after = throughput(gs, { speedLevel: lvl }).jointsPerSec
+  check('die Kette ist schneller geworden', after > clientRate)
+  check('nach dem Ausbau immer noch derselbe Preis auf beiden Seiten',
+        ticketPrice(0, after) === getTicketPrice('beginner'))
+  check('und er ist mitgewachsen', getTicketPrice('beginner') > ticketPrice(0, clientRate))
+}
 
 // ── Not gameable through the reported rate ──────────────────────────────────
 console.log('\n── Gekaufter Speed zählt in den Preis ──')

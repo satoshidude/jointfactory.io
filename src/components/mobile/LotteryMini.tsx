@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Zap, Ticket, TicketPlus, Users, Timer, Cannabis } from 'lucide-react'
 import { apiFetch, wsUrl } from '../../lib/api'
+import { liveTicketPrice } from '../../lib/ticketPrice'
 import { useAuth } from '../../stores/authStore'
 import { useGameDisplay } from '../../stores/gameDisplayStore'
 import './LotteryMini.css'
@@ -150,9 +151,12 @@ export default function LotteryMini() {
 
   // Four tickets per rolling day, so a hoarded balance cannot empty a round.
   const roundLimitReached = ticketsHeld >= MAX_TICKETS_PER_ROUND
+  // Priced off the running chain, not off the figure the last fetch brought —
+  // see lib/ticketPrice.ts. The server still owns the actual charge.
+  const cost = liveTicketPrice(gd.rawGameState, ticketsHeld, nextCost)
   // What is still missing for the next ticket, 0 when it is affordable.
-  const short = Math.max(0, Math.ceil(nextCost - auth.joints))
-  const canBuy = auth.isLoggedIn && auth.joints >= nextCost && nextCost > 0
+  const short = Math.max(0, Math.ceil(cost - auth.joints))
+  const canBuy = auth.isLoggedIn && auth.joints >= cost && cost > 0
     && !buying && gd.eligible && !roundLimitReached
 
   if (!round) return null
@@ -209,7 +213,7 @@ export default function LotteryMini() {
             </> : short > 0 ? <>
               <Cannabis size={12} /> {fmtSats(short)} more for a ticket
             </> : <>
-              <TicketPlus size={14} /> Ticket — <Cannabis size={12} /> {fmtSats(nextCost)}
+              <TicketPlus size={14} /> Ticket — <Cannabis size={12} /> {fmtSats(cost)}
               <span className="lottery-mini-pipe">|</span>
               <span className="lottery-mini-avail">{ticketsHeld}/{MAX_TICKETS_PER_ROUND} this draw</span>
             </>}
