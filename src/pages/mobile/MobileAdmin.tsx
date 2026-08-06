@@ -22,15 +22,25 @@ import './MobileAdmin.css'
 
 const OWNER_NPUB = '661419f8f48b1b496e2249aee97a6ad9d5bea907149dc7bf3eb7479f2bce555e'
 
-const DEFAULT_MESSAGE = `Hey {name}, JOINTFACTORY just got a big update!
+const DEFAULT_MESSAGE = `Hey {name},
 
-Lottery draws are now Tue, Thu & Sat at 21:00 — bigger pots, and up to a third of the players in a round win a share.
+Joint Factory runs in rounds now, and your account is waiting for you.
 
-New: spend joints for permanent speed on the whole chain, timed boosts for sats (2x grow, 3x courier, 2x factory, or 2x everything), and all three managers are free for everyone now.
+A round ends at one quadrillion joints — about a week with managers and a few visits a day. Counting stops there, you start over, and you keep a star for it. The whole curve was rebuilt around that, so the numbers on your account come from a game that no longer exists. Nothing on it changes until you confirm once, and there is no deadline.
 
-Invites pay in boosts instead of sats: every buddy who automates their chain earns you an hour of Full Throttle — 2x on plantations, courier and factory. They show up as a tile in your boost card, one click starts the hour, and several buddies stack.
+What you are credited: one finished round for every full quadrillion you ever earned, up to three. For most accounts that is none — the old curve ran 169 days and almost nobody reached the end of it. If that is you, nothing is lost: your first star comes from the first round you finish from here, and it is the same race for everyone.
 
-Your factory kept producing while you were away. Come see what piled up:
+Your sats are not touched. Neither are your deposits, your invite code or your referrals. The wallet stays open without confirming anything — if you would rather withdraw than start over, you can.
+
+What else is new:
+
+- A live race on the Grow page. Every lane runs to the same quadrillion, but the ranking is your projected round time, so starting earlier puts you further along the lane without winning it.
+- One standings board with a podium: stars, your best quadrillion, and the joints of the round you are in.
+- Managers are hired again each round and get cheaper every time you finish one: 90 sats, then 60, 30, and 21 from the fourth round on. Outdoor, Indoor and Hydroponic stop costing anything after the first, second and third.
+- A lottery ticket now asks for one manager bought with sats in the round you are playing. Those sats are the pot you draw from.
+- Speed is +5% on the whole chain per step and lasts to the end of the round.
+- Six plots all matter now. A new plantation opens at half your highest level, so Greenhouse and MegaFarm are finally worth buying — you need them to finish.
+
 https://jointfactory.io`
 
 interface Recipient {
@@ -63,7 +73,7 @@ export default function MobileAdmin() {
   const auth = useAuth()
   const isOwner = auth.isLoggedIn && auth.npub === OWNER_NPUB
 
-  const [campaign, setCampaign] = useState('update-v0.3')
+  const [campaign, setCampaign] = useState('rounds-v0.4')
   const [message, setMessage] = useState(DEFAULT_MESSAGE)
   const [confirm, setConfirm] = useState('')
   const [limit, setLimit] = useState(0)

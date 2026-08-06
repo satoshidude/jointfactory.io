@@ -23,8 +23,12 @@ managers at 21 sats instead of 90" — true for five people and worthless for
 thirty-one. The text below states the rule instead of the best case, which is the
 same correction the switch screen needed.
 
-Sequence in `/admin`: paste the text, name the campaign, **dry run first**, read
-the count, type the campaign name back, send.
+`/admin` is prefilled with exactly this text and the campaign name — the form
+opens ready to go. Sequence: read it, **dry run first**, check the count, type
+the campaign name back to unlock, send.
+
+Paragraphs are single lines on purpose. Nostr clients wrap them themselves, and
+hard breaks at eighty characters come out ragged on a phone.
 
 ---
 
@@ -35,37 +39,20 @@ Hey {name},
 
 Joint Factory runs in rounds now, and your account is waiting for you.
 
-A round ends at one quadrillion joints — about a week with managers and a few
-visits a day. Counting stops there, you start over, and you keep a star for it.
-The whole curve was rebuilt around that, so the numbers on your account come from
-a game that no longer exists. Nothing on it changes until you confirm once, and
-there is no deadline.
+A round ends at one quadrillion joints — about a week with managers and a few visits a day. Counting stops there, you start over, and you keep a star for it. The whole curve was rebuilt around that, so the numbers on your account come from a game that no longer exists. Nothing on it changes until you confirm once, and there is no deadline.
 
-What you are credited: one finished round for every full quadrillion you ever
-earned, up to three. For most accounts that is none — the old curve ran 169 days
-and almost nobody reached the end of it. If that is you, nothing is lost: your
-first star comes from the first round you finish from here, and it is the same
-race for everyone.
+What you are credited: one finished round for every full quadrillion you ever earned, up to three. For most accounts that is none — the old curve ran 169 days and almost nobody reached the end of it. If that is you, nothing is lost: your first star comes from the first round you finish from here, and it is the same race for everyone.
 
-Your sats are not touched. Neither are your deposits, your invite code or your
-referrals. The wallet stays open without confirming anything — if you would
-rather withdraw than start over, you can.
+Your sats are not touched. Neither are your deposits, your invite code or your referrals. The wallet stays open without confirming anything — if you would rather withdraw than start over, you can.
 
 What else is new:
 
-- A live race on the Grow page. Every lane runs to the same quadrillion, but the
-  ranking is your projected round time, so starting earlier puts you further
-  along the lane without winning it.
-- One standings board with a podium: stars, your best quadrillion, and the joints
-  of the round you are in.
-- Managers are hired again each round and get cheaper every time you finish one:
-  90 sats, then 60, 30, and 21 from the fourth round on. Outdoor, Indoor and
-  Hydroponic stop costing anything after the first, second and third.
-- A lottery ticket now asks for one manager bought with sats in the round you are
-  playing. Those sats are the pot you draw from.
+- A live race on the Grow page. Every lane runs to the same quadrillion, but the ranking is your projected round time, so starting earlier puts you further along the lane without winning it.
+- One standings board with a podium: stars, your best quadrillion, and the joints of the round you are in.
+- Managers are hired again each round and get cheaper every time you finish one: 90 sats, then 60, 30, and 21 from the fourth round on. Outdoor, Indoor and Hydroponic stop costing anything after the first, second and third.
+- A lottery ticket now asks for one manager bought with sats in the round you are playing. Those sats are the pot you draw from.
 - Speed is +5% on the whole chain per step and lasts to the end of the round.
-- Six plots all matter now. A new plantation opens at half your highest level, so
-  Greenhouse and MegaFarm are finally worth buying — you need them to finish.
+- Six plots all matter now. A new plantation opens at half your highest level, so Greenhouse and MegaFarm are finally worth buying — you need them to finish.
 
 https://jointfactory.io
 ```
