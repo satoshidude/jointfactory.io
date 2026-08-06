@@ -301,13 +301,18 @@ function simulateOffline(gs: GameState, elapsedSec: number, speedLevel = 0): num
   const leftoverAtFactory = (transportRate - jointsPerSec) * elapsedSec
   gs.cannabisAtFactory += leftoverAtFactory
 
-  // Reset courier to idle after offline
+  // Both stations are put back to idle, and whatever they were holding goes back
+  // where it came from rather than being thrown away. A load in transit and a
+  // batch in the machine were both already taken out of their buffers, so
+  // zeroing them destroyed up to one courier load and one factory batch on every
+  // return — small, but it only ever cost the player.
+  gs.cannabis += gs.courier.carrying || 0
   gs.courier.state = 'idle'
   gs.courier.posX = 15
   gs.courier.carrying = 0
   gs.courier.tripTimer = 0
 
-  // Reset fabrik to idle after offline
+  gs.cannabisAtFactory += gs.fabrik._currentCharge || 0
   gs.fabrik.processing = false
   gs.fabrik.timer = 0
   gs.fabrik._currentCharge = 0

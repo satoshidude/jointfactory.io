@@ -512,8 +512,12 @@ export function FactoryCard({ fabrik, courier, plantagen, cannabisAtFactory, joi
                 now spelled out on its own line, and only when it says something. */}
             <div className="station-stat-row">
               <span className="station-stat-label">Ready to roll</span>
+              {/* Weed, not joints. The cannabis leaf is the joint currency
+                  symbol everywhere else in the game — on a pile of unrolled
+                  weed it read as a balance. Stock and Waiting show the same
+                  quantity as a bare number, and so does this. */}
               <span className="station-stat-value" style={{ color: starved ? 'var(--neon-gold)' : 'var(--neon-green)' }}>
-                <Cannabis size={12} /> {fmtNum(cannabisAtFactory)}
+                {fmtNum(cannabisAtFactory)}
               </span>
             </div>
             {starved ? (
