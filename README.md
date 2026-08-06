@@ -90,12 +90,13 @@ tracked in a house ledger (`server/house.js`) and checked hourly.
   active boost extends it instead of stacking. Every sat feeds the lottery pot.
 - **Lottery** — two things unlock a ticket, and they ask different questions.
   The chain has to be automated on all three stations, because the price is a
-  share of production and an idle account would pay the one-joint floor. And at
-  least one manager has to have been bought **with sats** in the round being
-  played, because every one of those sats goes into the pot being drawn
-  (`ticketGate` in `shared/economy.js`). The free quota covers three managers and
-  three is exactly what the chain needs, so for a while the gate stood open: a
-  chain automated entirely for free could draw from a pot it had never paid into.
+  share of production and an idle account would pay the one-joint floor. And the
+  account has to have put **sats into the pot** during the round being played — a
+  boost from 10 sats or a manager, either one, since those are the two things
+  sats buy and every sat spent on them goes into the pot gross (`ticketGate` in
+  `shared/economy.js`). The free quota covers three managers and three is exactly
+  what the chain needs, so for a while the gate stood open: a chain automated
+  entirely for free could draw from a pot it had never paid into.
 
   Beyond that: at most four tickets per player **per draw**, costing 10 / 18 /
   28 / 44 % of a day's output — the first one two and a half hours of production,

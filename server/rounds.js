@@ -100,6 +100,23 @@ function boostSatsSince(npub, since) {
   ).get(npub, since)?.s || 0
 }
 
+/**
+ * Sats this account has put into the pot during the round.
+ *
+ * Managers and boosts are the two things sats buy, and every sat spent on either
+ * goes into the pot gross. Both are logged with their cost — a free manager and
+ * an invite-earned boost are not, which is exactly right: nothing was paid.
+ *
+ * @param {string} npub @param {number} since round start, unix seconds
+ * @returns {number} sats
+ */
+export function potSatsSince(npub, since) {
+  return db.prepare(
+    `SELECT COALESCE(SUM(amount), 0) s FROM events
+     WHERE npub = ? AND type IN ('manager', 'boost') AND ts >= ?`
+  ).get(npub, since)?.s || 0
+}
+
 const _resetTx = db.transaction((npub) => {
   const player = db.prepare(
     'SELECT joints, total_joints_earned, lifetime_joints, sats, game_state FROM players WHERE npub = ?'
@@ -239,6 +256,9 @@ export function roundStatus(npub) {
 
   return {
     boost_sats: boostSatsSince(npub, round.started_at),
+    // What unlocks a lottery ticket: any sats into the pot this round, from a
+    // manager or a boost. See ticketGate in shared/economy.js.
+    sats_into_pot: potSatsSince(npub, round.started_at),
     club_rank: clubRank,
     club_size: clubSize,
     round_no: round.round_no,

@@ -115,7 +115,7 @@ export default function MobileInfo() {
             <Ticket size={22} className="mi-feat-icon gold" />
             <div>
               <h3 className="mi-feat-title">Lottery</h3>
-              <p className="mi-feat-desc">Joints buy tickets, up to four per draw. Two things unlock them: the chain automated on all three stations, and at least one manager bought with sats in the round you are playing — those sats are what fills the pot you are drawing from. A ticket costs a share of a day of your own production, so it is the same bite for everyone. Draws Tue, Thu &amp; Sat at 21:00. 80% of the pot is paid out and split by rank — 70/30 with two winners, 60/25/15 with three. Your share of the tickets is your chance at first place. A draw needs two players; with one, the pot carries over.</p>
+              <p className="mi-feat-desc">Joints buy tickets, up to four per draw. Two things unlock them: the chain automated on all three stations, and some sats spent this round — a boost from 10 sats or a manager, either one. Those sats are the pot you are drawing from. A ticket costs a share of a day of your own production, so it is the same bite for everyone. Draws Tue, Thu &amp; Sat at 21:00. 80% of the pot is paid out and split by rank — 70/30 with two winners, 60/25/15 with three. Your share of the tickets is your chance at first place. A draw needs two players; with one, the pot carries over.</p>
             </div>
           </div>
 

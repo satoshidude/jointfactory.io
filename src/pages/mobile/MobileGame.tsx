@@ -32,8 +32,8 @@ export default function MobileGame() {
   // Ticket eligibility: the chain automated, and one manager paid for in sats.
   // Same function the server checks against, so the two cannot drift apart.
   const gate = useMemo(
-    () => ticketGate(state, state.roundsCompleted),
-    [state.plantagen, state.courier?.mgrLevel, state.fabrik?.mgrLevel, state.roundsCompleted] // eslint-disable-line react-hooks/exhaustive-deps
+    () => ticketGate(state, state.roundsCompleted, state.satsIntoPot),
+    [state.plantagen, state.courier?.mgrLevel, state.fabrik?.mgrLevel, state.roundsCompleted, state.satsIntoPot] // eslint-disable-line react-hooks/exhaustive-deps
   )
   const eligible = gate.eligible
   const managersNeeded = gate.missing

@@ -20,7 +20,7 @@ Stand: 2026-08-02 | Version: v0.3 | Branch: main
 | **Manager** | Auto-Betrieb je Station, **erste 3 gratis** (auch fuer Gaeste), danach 90/60/30/21 Sats je nach abgeschlossenen Runden; gelten nur fuer die laufende Runde |
 | **Speed** | +5 % auf die ganze Kette je Stufe, bis zum Rundenende, bezahlt in **Joints**, Preis in Sekunden der eigenen Produktion (Deckel 3,26 Tage/Stufe) |
 | **Boosts** | Zeitlich begrenzte Multiplikatoren fuer **Sats**, je 30 min: 2x Grow / 3x Courier / 2x Factory je 10 Sats, Full Throttle 2x alles 21 Sats |
-| **Lightning Lottery** | Di/Do/Sa 21:00, max. 4 Lose je Ziehung, Preis als Anteil eines Tagesausstoßes, Gewinne nach Rang gestaffelt (80/20 Split). Voraussetzung: Kette automatisiert **und** ein Manager der laufenden Runde fuer Sats gekauft |
+| **Lightning Lottery** | Di/Do/Sa 21:00, max. 4 Lose je Ziehung, Preis als Anteil eines Tagesausstoßes, Gewinne nach Rang gestaffelt (80/20 Split). Voraussetzung: Kette automatisiert **und** Sats dieser Runde im Pot (Boost oder Manager) |
 | **Lightning Wallet** | Deposit (LNbits Invoice) + Withdraw (LNURL), jede Gutschrift gegen LNbits verifiziert |
 | **Runden** | Eine Runde endet bei 1 Q Joints. Reset bringt einen Stern, loescht Joints, Kette und Speed, laesst Sats unberuehrt. Sterne geben keinen Spielvorteil |
 | **Standings** | Eine Tabelle mit Podest: Sterne, beste Zeit zur Quadrillion, Joints der laufenden Runde (danach sortiert) |
@@ -118,11 +118,12 @@ fuer Invites und keine Bot-Gewinne auf echten Konten.
   Rundenfortschritt und traf jeden nach jedem Reset erneut.
 - **Voraussetzung**: zwei Bedingungen, serverseitig geprueft (`ticketGate` in
   `shared/economy.js`). Erstens die automatisierte Kette — ohne sie faellt der
-  Preis auf den Boden von einem Joint. Zweitens **mindestens ein Manager, der in
-  dieser Runde Sats gekostet hat**: die Gratis-Quote deckt drei Manager und drei
-  sind genau das, was die Kette braucht, also stand das Tor offen — eine komplett
-  kostenlos automatisierte Kette konnte aus einem Pot ziehen, in den sie nie
-  eingezahlt hatte.
+  Preis auf den Boden von einem Joint. Zweitens **Sats in den Pot dieser Runde** —
+  ein Boost ab 10 Sats oder ein Manager, eines von beiden genuegt, denn das sind
+  die einzigen zwei Dinge, die Sats kaufen, und beide fliessen brutto in den Pot.
+  Die Gratis-Quote deckt drei Manager und drei sind genau das, was die Kette
+  braucht, also stand das Tor offen — eine komplett kostenlos automatisierte
+  Kette konnte aus einem Pot ziehen, in den sie nie eingezahlt hatte.
 - **Gewinnerzahl**: ein aufgerundetes Drittel der Teilnehmer, **mindestens zwei**,
   hoechstens 21 und nie mehr als Teilnehmer
 - **Verteilung nach Rang**: 70/30, 60/25/15, 50/25/15/10 … Die Ziehung ist nach

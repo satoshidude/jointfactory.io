@@ -92,6 +92,8 @@ export interface DisplayState {
   managerCosts: Record<string, number>
   /** Rounds the player has finished — what the manager price is derived from. */
   roundsCompleted: number
+  /** Sats spent on managers and boosts this round — unlocks lottery tickets. */
+  satsIntoPot: number
   boosts: ActiveBoost[]
   speedLevel: number
 }
@@ -175,7 +177,7 @@ function saveLocal(gs: GameState) {
 }
 
 type LoadResult =
-  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number; boosts: ActiveBoost[]; grants: BoostGrant[]; speedLevel: number; jointsRev: number; roundsCompleted: number }
+  | { status: 'ok'; gs: GameState | null; joints: number; sats: number; totalJointsEarned: number; boosts: ActiveBoost[]; grants: BoostGrant[]; speedLevel: number; jointsRev: number; roundsCompleted: number; satsIntoPot: number }
   | { status: 'no-auth' }
   | { status: 'error' }
 
@@ -200,6 +202,7 @@ async function loadFromServer(): Promise<LoadResult> {
       speedLevel: data.speed_level ?? 0,
       jointsRev: data.joints_rev ?? 0,
       roundsCompleted: data.round?.rounds_completed ?? 0,
+      satsIntoPot: data.round?.sats_into_pot ?? 0,
     }
   } catch { return { status: 'error' } }
 }
@@ -332,6 +335,10 @@ export function useGameLoop(
   // Rounds finished. Drives what a manager costs, so it has to reach the loop
   // and the cards, not just the round card.
   const roundsCompletedRef = useRef(0)
+  // Mirrors the server's tally for the round. Bumped locally the moment a boost
+  // is paid for, so the lottery button unlocks on the click and not on the next
+  // state fetch — the same reason the manager count is read from the save.
+  const satsIntoPotRef = useRef(0)
   const jointsRevRef = useRef(0)
   const readyRef = useRef(false)
   const canSaveRef = useRef(false)
@@ -416,7 +423,7 @@ export function useGameLoop(
         inTransitionRef.current = false
         canSaveRef.current = true
         readyRef.current = true
-        setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
+        setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current, satsIntoPotRef.current))
       } else {
         // ── EXISTING ACCOUNT: always load from server, discard guest ──
         loadFromServer().then(result => {
@@ -440,6 +447,8 @@ export function useGameLoop(
             setBoostGrants(result.grants)
             speedLevelRef.current = result.speedLevel
             roundsCompletedRef.current = result.roundsCompleted
+        satsIntoPotRef.current = result.satsIntoPot
+            satsIntoPotRef.current = result.satsIntoPot
         jointsRevRef.current = result.jointsRev
             jointsRevRef.current = result.jointsRev
             onJointsChange(result.joints)
@@ -457,7 +466,7 @@ export function useGameLoop(
           }
           inTransitionRef.current = false
           readyRef.current = true
-          setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
+          setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current, satsIntoPotRef.current))
         })
       }
     }
@@ -492,6 +501,7 @@ export function useGameLoop(
         setBoostGrants(result.grants)
         speedLevelRef.current = result.speedLevel
         roundsCompletedRef.current = result.roundsCompleted
+        satsIntoPotRef.current = result.satsIntoPot
         jointsRevRef.current = result.jointsRev
         onJointsChange?.(result.joints)
         onSatsChange?.(result.sats)
@@ -553,7 +563,7 @@ export function useGameLoop(
         canSaveRef.current = true
       }
       readyRef.current = true
-      setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
+      setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current, satsIntoPotRef.current))
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -585,7 +595,7 @@ export function useGameLoop(
       // rings. Rendering, saving and everything bought with sats carry on.
       if (totalEarnedRef.current >= ROUND_TARGET) {
         if (now - lastRender > 33) {
-          setDisplay(makeDisplay(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
+          setDisplay(makeDisplay(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current, satsIntoPotRef.current))
           lastRender = now
         }
         if (canSaveRef.current && Date.now() - lastServerSave > 30000) {
@@ -690,7 +700,7 @@ export function useGameLoop(
 
       // ── Render at ~30fps ──
       if (now - lastRender > 33) {
-        setDisplay(makeDisplay(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
+        setDisplay(makeDisplay(g, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current, satsIntoPotRef.current))
         lastRender = now
       }
 
@@ -768,7 +778,7 @@ export function useGameLoop(
   // ── Actions ──
 
   const flush = useCallback(() => {
-    setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current))
+    setDisplay(makeDisplay(gsRef.current, jointsRef.current, satsRef.current, totalEarnedRef.current, boostsRef.current, speedLevelRef.current, roundsCompletedRef.current, satsIntoPotRef.current))
   }, [])
 
   // Redraw at once, save shortly after.
@@ -936,6 +946,8 @@ export function useGameLoop(
       if (!res.ok) return { ok: false, error: data?.error || 'Purchase failed' }
       boostsRef.current = (data.boosts ?? []) as ActiveBoost[]
       satsRef.current = data.sats ?? satsRef.current
+      // Sats just went into the pot, which is what a lottery ticket asks for.
+      satsIntoPotRef.current += Number(data.cost ?? 0) || 1
       onSatsChangeRef.current?.(Math.floor(satsRef.current))
       flush()
       return { ok: true }
@@ -1032,7 +1044,7 @@ export function useGameLoop(
 
 // ── Display state builder ────────────────────────────────────────────────────
 
-function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: number, boosts: ActiveBoost[] = [], speedLevel = 0, roundsCompleted = 0): DisplayState {
+function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: number, boosts: ActiveBoost[] = [], speedLevel = 0, roundsCompleted = 0, satsIntoPot = 0): DisplayState {
   let mgrs = 0
   for (const p of g.plantagen) { if (p.managerLevel > 0) mgrs++ }
   if (g.courier.mgrLevel > 0) mgrs++
@@ -1057,6 +1069,7 @@ function makeDisplay(g: GameState, joints: number, sats: number, totalEarned: nu
     managerCount: mgrs,
     managerCosts,
     roundsCompleted,
+    satsIntoPot,
     boosts,
     speedLevel,
   }

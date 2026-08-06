@@ -10,6 +10,7 @@ import { publishLotteryWinNote } from './zap.js';
 import { houseCredit, solvency } from './house.js';
 import { rollupDay, yesterday, pruneEvents } from './metrics.js';
 import { playerRate } from './speed.js';
+import { currentRound, potSatsSince } from './rounds.js';
 
 export { MAX_WINNERS };
 export const SAT_PER_TICKET = 100;
@@ -49,14 +50,17 @@ export function getTicketPrice(npub) {
  * Four joints bought four entries in a round paying real sats. The rule lives
  * here now, and the page reads it from here instead of guessing.
  *
- * The second condition — one manager bought with sats — is what closed the
- * other half of the same door. See ticketGate in shared/economy.js.
+ * The second condition — sats into the pot during this round, from a manager or
+ * a boost — is what closed the other half of the same door. See ticketGate in
+ * shared/economy.js.
  */
 export function ticketEligibility(npub) {
   const row = db.prepare(
     'SELECT game_state, COALESCE(rounds_completed, 0) AS rounds_completed FROM players WHERE npub = ?'
   ).get(npub);
-  return ticketGate(row?.game_state, row?.rounds_completed || 0);
+  if (!row) return ticketGate(null, 0, 0);
+  const round = currentRound(npub);
+  return ticketGate(row.game_state, row.rounds_completed, potSatsSince(npub, round.started_at));
 }
 export function getMyTicketCount(npub, roundId) {
   return db.prepare(`SELECT COUNT(*) as n FROM lottery_tickets WHERE round_id=? AND npub=?`).get(roundId, npub)?.n || 0;

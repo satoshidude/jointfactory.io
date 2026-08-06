@@ -213,7 +213,24 @@ console.log('\n── Ohne automatisierte Kette kein Los ──')
     check('Kauf wird abgewiesen', res.ok === false)
     console.log(`  Server: "${res.reason}"`)
     check('die Begründung nennt die Sats', /sats/i.test(res.reason))
+    check('die Begründung nennt beide Wege', /boost/i.test(res.reason) && /manager/i.test(res.reason))
     check('Preis stimmt mit der Runde überein', res.reason.includes(String(managerPrice(0))))
+  }
+
+  console.log('\n── Ein Boost öffnet das Tor genauso ──')
+  {
+    // Managers und Boosts sind die beiden Dinge, die Sats kaufen, und beide
+    // fließen brutto in den Pot. Wer 21 Sats für Full Throttle ausgibt, hat die
+    // Runde genauso finanziert wie wer 21 für einen Manager ausgibt.
+    const round = (await import('../server/rounds.js')).currentRound('freeloader')
+    db.prepare("INSERT INTO events (ts, npub, type, amount, meta) VALUES (unixepoch(), 'freeloader', 'boost', 21, '{}')").run()
+    const elig = ticketEligibility('freeloader')
+    check('Boost-Sats zählen in den Pot', elig.sats_into_pot === 21)
+    check('berechtigt, ohne einen einzigen bezahlten Manager', elig.eligible === true)
+    check('Kauf geht durch', buyTicket('freeloader').ok === true)
+    db.prepare("DELETE FROM events WHERE npub='freeloader' AND type='boost'").run()
+    check('ohne die Boost-Sats wieder gesperrt', ticketEligibility('freeloader').eligible === false)
+    void round
   }
 
   console.log('\n── Ein bezahlter Manager öffnet das Tor ──')

@@ -413,16 +413,27 @@ export function paidManagers(gameState, roundsCompleted) {
  *
  * Two conditions, and they ask different things. The chain must be automated,
  * because the ticket price is a share of production and an idle account would
- * pay the floor. And at least one manager must have been bought with sats,
- * because every one of those sats goes into the pot being drawn.
+ * pay the floor. And the account must have put sats into the pot during this
+ * round — a manager or a boost, either one. Those are the only two things sats
+ * buy, every sat spent on them goes into the pot gross, and a ticket is a claim
+ * on that pot.
  *
- * Managers do not survive a reset, so both are re-earned every round.
+ * It used to ask specifically for a paid manager, which was needlessly narrow:
+ * a player who spent 21 sats on Full Throttle has funded the round exactly as
+ * much as one who spent 21 on a manager.
  *
- * @param {any} gameState @param {number} roundsCompleted
+ * Managers do not survive a reset and boosts last half an hour, so both are
+ * re-earned every round.
+ *
+ * @param {any} gameState
+ * @param {number} roundsCompleted
+ * @param {number} satsIntoPot sats spent on managers and boosts this round
  */
-export function ticketGate(gameState, roundsCompleted = 0) {
+export function ticketGate(gameState, roundsCompleted = 0, satsIntoPot = 0) {
   const managers = countLotteryManagers(gameState)
-  const paid = paidManagers(gameState, roundsCompleted)
+  // The state-derived count is a fallback for the ledger: a hire is always
+  // visible in the save, even if its event were ever missing.
+  const paid = Math.max(satsIntoPot > 0 ? 1 : 0, paidManagers(gameState, roundsCompleted))
   const missing = Math.max(0, REQUIRED_MANAGERS - managers)
   const missingPaid = Math.max(0, REQUIRED_PAID_MANAGERS - paid)
   return {
@@ -431,9 +442,10 @@ export function ticketGate(gameState, roundsCompleted = 0) {
     required: REQUIRED_MANAGERS,
     missing,
     paid,
+    sats_into_pot: satsIntoPot,
     requiredPaid: REQUIRED_PAID_MANAGERS,
     missingPaid,
-    /** What the next paid manager costs, for the hint that asks for one. */
+    /** What the next manager costs, for the hint that asks for one. */
     price: managerPrice(roundsCompleted),
   }
 }
@@ -444,7 +456,7 @@ export function ticketGateReason(gate) {
     return `Automate the chain first — ${gate.missing} more manager${gate.missing === 1 ? '' : 's'} needed`
   }
   if (gate.missingPaid > 0) {
-    return `Buy a manager with sats first — ${gate.price} sats, and they go into the pot`
+    return `Spend sats this round first — a boost from 10, or a manager for ${gate.price}. They are the pot.`
   }
   return ''
 }
