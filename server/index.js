@@ -408,12 +408,17 @@ fastify.delete('/api/game/profile', { preHandler: requireAuth }, async (req) => 
   return result;
 });
 
-// Beacon endpoint for page unload saves (token in body since sendBeacon can't set headers)
+// Beacon endpoint for page unload saves (token and session in the body, since
+// sendBeacon cannot set headers). Under the same ownership rule as every other
+// save: a tab being closed is still a tab, and letting this one path through
+// unchecked is how an older client kept writing after it had been frozen —
+// the same upgrade charged over and over, one save apart.
 fastify.post('/api/game/beacon', async (req, reply) => {
-  const { token, ...payload } = req.body || {};
+  const { token, session, ...payload } = req.body || {};
   if (!token) return reply.code(401).send({ error: 'No token' });
   try {
     const decoded = fastify.jwt.verify(token);
+    if (!isMasterSession(decoded.npub, session)) return { ok: false, reason: 'not_master' };
     const result = saveState(decoded.npub, payload);
     if (!result.ok) return result;
     const { joints, total_joints_earned, joints_per_sec } = payload;

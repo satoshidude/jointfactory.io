@@ -770,6 +770,7 @@ export function useGameLoop(
           gsRef.current._ts = Date.now()
           const beacon = JSON.stringify({
             token: auth.token,
+            session: SESSION_ID,
             gameState: gsRef.current,
             joints: Math.floor(jointsRef.current),
             sats: Math.floor(satsRef.current),

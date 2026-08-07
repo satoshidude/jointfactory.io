@@ -61,6 +61,23 @@ console.log('\n── Der abgewiesene Client verändert nichts ──')
   check('Spielstand unverändert', before.game_state === after.game_state)
 }
 
+console.log('\n── Jeder Schreibpfad steht unter derselben Regel ──')
+{
+  // Der Beacon beim Schliessen der Seite trug den Token im Body, weil sendBeacon
+  // keine Header setzen kann — und lief deshalb an der Prüfung vorbei. Ein
+  // eingefrorener Client schrieb darüber weiter, und derselbe Ausbau wurde
+  // wieder und wieder berechnet, einen Save auseinander.
+  const src = (await import('fs')).readFileSync('server/index.js', 'utf8')
+  const routes = [...src.matchAll(/fastify\.post\('(\/api\/game\/(?:state|beacon))'/g)].map(m => m[1])
+  check('beide Speicher-Routen existieren', routes.length === 2)
+  for (const r of routes) {
+    const body = src.slice(src.indexOf(`fastify.post('${r}'`), src.indexOf(`fastify.post('${r}'`) + 900)
+    check(`${r} prüft die Sitzung`, /isMasterSession/.test(body))
+  }
+  const client = (await import('fs')).readFileSync('src/game/useGameLoop.ts', 'utf8')
+  check('der Beacon schickt die Kennung mit', /session: SESSION_ID/.test(client))
+}
+
 console.log('\n── Unbekanntes Konto blockiert nicht ──')
 check('kein Spieler, keine Sperre', isMasterSession('gibtsnicht', 'X') === true)
 
