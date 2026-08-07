@@ -221,6 +221,7 @@ let _grantsListener: ((grants: BoostGrant[]) => void) | null = null
 // failed against a number the player could see. Saves answer with the stored
 // figure now, and this adopts it.
 let _balanceListener: ((joints: number, rev: number) => void) | null = null
+let _stateRejectedListener: (() => void) | null = null
 
 async function saveToServer(gs: GameState, joints: number, sats: number, totalJointsEarned: number, _activeBoosts: ActiveBoost[] = [], _speedLevel = 0, _jointsRev = 0) {
   try {
@@ -248,6 +249,14 @@ async function saveToServer(gs: GameState, joints: number, sats: number, totalJo
       // Another client took the account. Stop writing at once — everything this
       // one has simulated since is the other client's business now.
       if (data?.ok === false && data.reason === 'not_master') { loseMaster(); return }
+      // The server kept its own state instead of ours — a chain it will not
+      // accept. Holding on to it means sending the same refusal every thirty
+      // seconds forever, so the only way out is to take the stored one back.
+      if (data?.state_rejected && _stateRejectedListener) {
+        console.warn('[JF] The server refused this chain and kept its own. Reloading it.')
+        _stateRejectedListener()
+        return
+      }
       if (data?.boost_grants && _grantsListener) _grantsListener(data.boost_grants as BoostGrant[])
       if (data?.corrected && typeof data.joints === 'number' && _balanceListener) {
         console.warn('[JF] Balance corrected by the server:', Math.floor(joints), '→', data.joints)
@@ -366,13 +375,21 @@ export function useGameLoop(
   const inTransitionRef = useRef(false)
   useEffect(() => {
     _grantsListener = setBoostGrants
+    // Once, and only once — a reload storm helps nobody if the server keeps
+    // refusing for a reason the reload does not cure.
+    let reloading = false
+    _stateRejectedListener = () => {
+      if (reloading) return
+      reloading = true
+      window.location.reload()
+    }
     _balanceListener = (serverJoints: number, rev: number) => {
       jointsRef.current = serverJoints
       jointsRevRef.current = rev
       onJointsChangeRef.current?.(serverJoints)
       flush()
     }
-    return () => { _grantsListener = null; _balanceListener = null }
+    return () => { _grantsListener = null; _balanceListener = null; _stateRejectedListener = null }
   }, [])
   useEffect(() => { onJointsChangeRef.current = onJointsChange }, [onJointsChange])
   useEffect(() => { onSatsChangeRef.current = onSatsChange }, [onSatsChange])

@@ -340,5 +340,39 @@ console.log('\n── Der Fabrikrückstau darf abgebaut werden ──')
         db.prepare("SELECT joints j FROM players WHERE npub='stau'").get().j >= legit)
 }
 
+// ── Ein abgelehnter Ausbau ist kein Kauf ────────────────────────────────────
+// Der Client behielt seine abgelehnte Kette und schickte sie alle 30 s erneut:
+// dieselbe Ablehnung, dieselbe Klemmung, und jedes Mal ein 'upgrade'-Eintrag
+// über einen Kauf, der nie stattgefunden hat. Live stand derselbe Ausbau
+// dreimal in zwei Minuten im Protokoll.
+console.log('\n── Abgelehnter Ausbau: kein Eintrag, und der Client erfährt es ──')
+{
+  const gs = initialState()
+  gs.plantagen[0].managerLevel = 1; gs.courier.mgrLevel = 1; gs.fabrik.mgrLevel = 1
+  db.prepare('INSERT INTO players (npub, display_name, joints, sats, game_state, state_saved_at) VALUES (?,?,?,?,?,unixepoch()-30)')
+    .run('pleite', 'Pleite', 100, 0, JSON.stringify(gs))
+
+  // Eine Kette, die weit über dem liegt, was das Konto je bezahlt haben kann.
+  const rich = JSON.parse(JSON.stringify(gs))
+  for (let i = 0; i < 12; i++) rich.plantagen[0].level++
+  rich.courier.capacity *= 64
+  rich.fabrik.capacity *= 64
+
+  const before = db.prepare("SELECT COUNT(*) c FROM events WHERE npub='pleite' AND type='upgrade'").get().c
+  const res = saveState('pleite', { gameState: rich, joints: 5_000_000, total_joints_earned: 5_000_000 })
+  const after = db.prepare("SELECT COUNT(*) c FROM events WHERE npub='pleite' AND type='upgrade'").get().c
+
+  check('der Server behält seinen Stand', res.state_rejected === true)
+  check('kein upgrade-Eintrag für einen abgelehnten Kauf', after === before)
+  check('die gespeicherte Kette ist unverändert',
+        db.prepare("SELECT game_state g FROM players WHERE npub='pleite'").get().g === JSON.stringify(gs))
+  check('die Joints bleiben, wo sie waren',
+        db.prepare("SELECT joints j FROM players WHERE npub='pleite'").get().j === 100)
+
+  const client = (await import('fs')).readFileSync('src/game/useGameLoop.ts', 'utf8')
+  check('der Client holt sich daraufhin den gespeicherten Stand',
+        /state_rejected/.test(client) && /_stateRejectedListener/.test(client))
+}
+
 console.log(fail ? `\n${fail} Fehler\n` : '\nAlle Speicher-Checks bestanden\n')
 process.exit(fail ? 1 : 0)

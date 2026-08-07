@@ -283,7 +283,11 @@ const _saveStateTx = db.transaction((npub, payload) => {
   // What the player bought since the last save. This is the biggest joints sink
   // in the game and it happens entirely in the client — without recording it
   // here, no later analysis can say what people actually spend on.
-  if (bought && bought.cost > 0) {
+  // Nur was auch bezahlt wurde. Ein abgelehnter Ausbau landete hier trotzdem,
+  // und weil der Client ihn jede halbe Minute erneut schickte, stand derselbe
+  // Kauf neunmal im Protokoll — was wie neunmal abgebucht aussah, ohne es zu
+  // sein. Die Analyse las daraus, wofür Spieler Joints ausgeben.
+  if (bought && bought.cost > 0 && !keepStoredState) {
     logEvent(npub, 'upgrade', bought.cost, {
       levels: bought.levels, level_cost: bought.level_cost,
       capacity: bought.capacity, capacity_cost: bought.capacity_cost,
@@ -335,7 +339,12 @@ const _saveStateTx = db.transaction((npub, payload) => {
   // manager_refused tells the client its optimistic hire did not go through, so
   // it can put the sats back on screen instead of showing a manager it has not
   // got.
-  return { ok: true, potUpdated, joints: plausible, joints_rev: rev, corrected, manager_refused: managerRefused };
+  // Der Client behielt seine abgelehnte Kette und schickte sie im nächsten Save
+  // wieder — dieselbe Ablehnung, dieselbe Klemmung, endlos. Er kann das nicht
+  // wissen, solange ihm niemand sagt, dass sein Stand nicht der gespeicherte
+  // ist; mit dem Flag holt er sich den echten.
+  return { ok: true, potUpdated, joints: plausible, joints_rev: rev, corrected,
+           state_rejected: keepStoredState, manager_refused: managerRefused };
 });
 
 export function saveState(npub, payload) {
