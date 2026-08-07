@@ -992,6 +992,39 @@ export function progressBreakdown(prev, next) {
   return out
 }
 
+/**
+ * Has this chain gone backwards?
+ *
+ * Nothing a player does shrinks a chain: levels, capacities and plots only ever
+ * grow within a round, and the two things that do reset it — the round reset and
+ * the switch — are written by the server, which bumps joints_rev so the client
+ * reloads instead of arguing.
+ *
+ * So an incoming state that is smaller than the stored one is an old client
+ * talking, and accepting it costs the player everything they bought since. It
+ * happened on a live account: three capacity steps charged, 3.65 million joints
+ * taken, and the stored chain back at the capacity it had before them.
+ *
+ * @param {any} prev stored state @param {any} next incoming state
+ * @returns {string|null} what shrank, or null
+ */
+export function chainRegressed(prev, next) {
+  if (!prev || !next) return null
+  const pp = prev.plantagen || [], np = next.plantagen || []
+  if (np.length < pp.length) return `plots ${pp.length} to ${np.length}`
+  for (const before of pp) {
+    const after = np.find(x => x?.id === before?.id)
+    if (!after) return `plot ${before?.id} gone`
+    if ((after.level || 0) < (before.level || 0)) return `plot ${before.id} level ${before.level} to ${after.level}`
+  }
+  for (const key of ['courier', 'fabrik']) {
+    const b = prev[key], a = next[key]
+    if (!b || !a) continue
+    if ((a.capacity || 0) < (b.capacity || 0)) return `${key} capacity ${b.capacity} to ${a.capacity}`
+  }
+  return null
+}
+
 export function rehydrate(gs) {
   if (!gs || !gs.plantagen) return gs
 

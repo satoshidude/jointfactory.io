@@ -374,5 +374,42 @@ console.log('\n── Abgelehnter Ausbau: kein Eintrag, und der Client erfährt 
         /state_rejected/.test(client) && /_stateRejectedListener/.test(client))
 }
 
+// ── Eine Kette läuft nicht rückwärts ────────────────────────────────────────
+// Ein alter Client schrieb seinen kleineren Stand über den neueren. Der Guard
+// prüfte nur Zuwächse, also fiel das nicht auf: drei Kapazitätsstufen wurden
+// live berechnet, 3,65 Mio. Joints abgebucht, und die gespeicherte Kette stand
+// danach wieder auf den Werten von davor.
+console.log('\n── Ein kleinerer Stand wird abgewiesen ──')
+{
+  const gs = initialState()
+  gs.plantagen[0].managerLevel = 1; gs.courier.mgrLevel = 1; gs.fabrik.mgrLevel = 1
+  gs.plantagen[0].level = 20
+  gs.courier.capacity *= 8
+  gs.fabrik.capacity *= 4
+  db.prepare('INSERT INTO players (npub, display_name, joints, sats, game_state, state_saved_at) VALUES (?,?,?,?,?,unixepoch()-30)')
+    .run('rueck', 'Rueck', 500000, 0, JSON.stringify(gs))
+  const stored = JSON.stringify(gs)
+
+  const older = JSON.parse(stored)
+  older.courier.capacity /= 8            // der Stand von vorher
+
+  const res = saveState('rueck', { gameState: older, joints: 500000, total_joints_earned: 500000 })
+  check('der Server behält seine Kette', res.state_rejected === true)
+  check('die Kapazität bleibt oben',
+        JSON.parse(db.prepare("SELECT game_state g FROM players WHERE npub='rueck'").get().g).courier.capacity === gs.courier.capacity)
+
+  const lessPlots = JSON.parse(stored); lessPlots.plantagen = []
+  check('auch eine verschwundene Plantage wird abgewiesen',
+        saveState('rueck', { gameState: lessPlots, joints: 500000 }).state_rejected === true)
+
+  const lowerLevel = JSON.parse(stored); lowerLevel.plantagen[0].level = 5
+  check('auch ein gesunkenes Level wird abgewiesen',
+        saveState('rueck', { gameState: lowerLevel, joints: 500000 }).state_rejected === true)
+
+  const forward = JSON.parse(stored); forward.fabrik.capacity *= 2
+  check('ein echter Ausbau geht weiterhin durch',
+        saveState('rueck', { gameState: forward, joints: 100 }).state_rejected !== true)
+}
+
 console.log(fail ? `\n${fail} Fehler\n` : '\nAlle Speicher-Checks bestanden\n')
 process.exit(fail ? 1 : 0)

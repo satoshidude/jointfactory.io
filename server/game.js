@@ -1,6 +1,6 @@
 import { db, logEvent } from './db.js';
 import { getActiveBoosts } from './boosts.js';
-import { rehydrate, throughput, countManagers, progressBreakdown, maxLevelJump,
+import { rehydrate, throughput, countManagers, progressBreakdown, maxLevelJump, chainRegressed,
          MAX_LEVEL_STEP, MAX_PLANT_LEVEL, initialState, managerSpend, ROUND_TARGET } from '../shared/economy.js';
 import { noteProgress } from './rounds.js';
 
@@ -250,9 +250,14 @@ const _saveStateTx = db.transaction((npub, payload) => {
     // an inherited level (see inheritedLevel), so the jump check alone would wave
     // one through at any height.
     const overCap = (gameState?.plantagen || []).some(p => (p?.level || 0) > MAX_PLANT_LEVEL);
-    const impossible = jump > MAX_LEVEL_STEP || overCap || spent > existing.joints + allowance;
+    // A chain that shrank is an old client talking, and storing it throws away
+    // everything bought since — which is not a theory: three capacity steps were
+    // charged on a live account, 3.65 million joints, and the stored chain went
+    // back to what it was before them.
+    const regressed = chainRegressed(stored, gameState);
+    const impossible = regressed || jump > MAX_LEVEL_STEP || overCap || spent > existing.joints + allowance;
     if (impossible) {
-      console.warn(`[Game] ${npub.slice(0, 12)}… claims ${overCap ? 'a level past the cap' : jump > MAX_LEVEL_STEP ? `+${jump} levels` : `${spent} joints of upgrades`} in one save — state and balance kept`);
+      console.warn(`[Game] ${npub.slice(0, 12)}… claims ${regressed ? `a smaller chain (${regressed})` : overCap ? 'a level past the cap' : jump > MAX_LEVEL_STEP ? `+${jump} levels` : `${spent} joints of upgrades`} in one save — state and balance kept`);
       plausible = Math.min(plausible, existing.joints);
       // The stored state stays as well. Keeping only the balance left the
       // rejected chain in the database, and every ceiling after that is built
