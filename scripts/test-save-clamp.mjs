@@ -312,5 +312,33 @@ console.log('\n── Lebenssumme ──')
 }
 
 rmSync(dir, { recursive: true, force: true })
+// ── Rückstau an der Fabrik ──────────────────────────────────────────────────
+// Feld-Ware muss noch am Kurier *und* an der Fabrik vorbei, gelieferte Ware nur
+// noch an der Fabrik. Beide mit min(Kurier, Fabrik) zu deckeln hat eine
+// kurierbegrenzte Kette, die ihren Fabrikrückstau abbaut, um genau die Differenz
+// zu niedrig angesetzt — 163 Clamps in einer Stunde bei einem Live-Konto.
+console.log('\n── Der Fabrikrückstau darf abgebaut werden ──')
+{
+  const gs = initialState()
+  gs.plantagen[0].managerLevel = 1; gs.courier.mgrLevel = 1; gs.fabrik.mgrLevel = 1
+  gs.plantagen[0].level = 40           // Felder weit voraus
+  gs.fabrik.capacity *= 4              // Fabrik schneller als der Kurier
+  gs.cannabisAtFactory = 5_000_000     // schon geliefert, wartet auf die Fabrik
+  const t = throughput(gs, { ignoreManagers: true })
+  check('der Kurier ist der Engpass', t.courier < t.fabrik && Math.abs(t.jointsPerSec - t.courier) < 1e-9)
+
+  db.prepare('INSERT INTO players (npub, display_name, joints, sats, game_state, state_saved_at) VALUES (?,?,?,?,?,unixepoch()-60)')
+    .run('stau', 'Stau', 0, 0, JSON.stringify(gs))
+
+  // Was die Fabrik in 60 s über die Kettenrate hinaus schafft, ist echte Arbeit.
+  const elapsed = 60
+  const legit = Math.floor((t.jointsPerSec + (t.fabrik - t.jointsPerSec)) * elapsed)
+  const res = saveState('stau', { gameState: gs, joints: legit, total_joints_earned: legit })
+  check('der Kauf wird angenommen', res.ok === true)
+  check('nichts wird weggeschnitten', res.corrected !== true)
+  check('die Fabrikrate zählt, nicht die Kurierrate',
+        db.prepare("SELECT joints j FROM players WHERE npub='stau'").get().j >= legit)
+}
+
 console.log(fail ? `\n${fail} Fehler\n` : '\nAlle Speicher-Checks bestanden\n')
 process.exit(fail ? 1 : 0)

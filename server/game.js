@@ -143,6 +143,8 @@ const _saveStateTx = db.transaction((npub, payload) => {
   // far too generous to catch it, by design.
   const reported = plausible;
   let bought = null;
+  // What the ceiling was built from, for the clamp event.
+  let guard = null;
   const staleBalance = existing && joints_rev !== undefined && joints_rev !== existing.joints_rev;
   if (staleBalance) {
     console.warn(`[Game] Stale balance from ${npub.slice(0, 12)}… (rev ${joints_rev} vs ${existing.joints_rev}) — keeping server figure`);
@@ -194,21 +196,32 @@ const _saveStateTx = db.transaction((npub, payload) => {
       ignoreManagers: true,
     };
 
-    let rate = 0, downstream = 0;
+    let rate = 0, courierRate = 0, fabrikRate = 0;
     try {
       const t = throughput(stored, opts);
       rate = t.jointsPerSec;
-      // Stock already harvested is converted at whatever the courier and factory
-      // manage, which is above the chain rate whenever the plantations are the
-      // slow stage. Akki had 3.4 trillion cannabis sitting in the fields and was
-      // clamped 34 times in an hour for turning it into joints — the guard was
-      // pricing steady-state output while the player was legitimately draining a
-      // backlog.
-      downstream = Math.min(t.courier || 0, t.fabrik || 0);
+      courierRate = t.courier || 0;
+      fabrikRate = t.fabrik || 0;
     } catch { /* no output */ }
 
-    const stock = Math.max(0, (stored.cannabis || 0) + (stored.cannabisAtFactory || 0));
-    const fromStock = Math.min(stock, Math.max(0, downstream - rate) * elapsed);
+    // Harvested stock is converted faster than the chain's steady rate whenever
+    // an upstream stage is the slow one — a player draining a backlog is
+    // producing legitimately, and the guard used to price steady state only.
+    // Akki had 3.4 trillion cannabis in the fields and was clamped 34 times in
+    // an hour for turning it into joints.
+    //
+    // The two piles do not travel the same road. Weed in the fields still has to
+    // pass the courier *and* the factory; weed already delivered only has to
+    // pass the factory. Bounding both by min(courier, factory) understated a
+    // courier-limited chain draining its factory backlog by exactly the
+    // difference between the two stages.
+    //
+    // Whatever the source, everything above the steady rate has to fit through
+    // the factory's spare capacity, so that is the ceiling on the whole term.
+    const field = Math.max(0, stored.cannabis || 0);
+    const delivered = Math.max(0, stored.cannabisAtFactory || 0) + Math.max(0, stored.fabrik?._currentCharge || 0);
+    const reachable = delivered + Math.min(field, Math.max(0, Math.min(courierRate, fabrikRate) - rate) * elapsed);
+    const fromStock = Math.min(reachable, Math.max(0, fabrikRate - rate) * elapsed);
 
     // Anything the incoming state claims to have bought has to have been paid
     // for. Priced from the stored state, so the cost is what the player would
@@ -217,6 +230,13 @@ const _saveStateTx = db.transaction((npub, payload) => {
     try { bought = progressBreakdown(stored, gameState); spent = bought.cost; } catch { /* unreadable */ }
 
     const allowance = (rate * elapsed + fromStock) * 1.5 + 1000;
+    guard = {
+      elapsed: Math.round(elapsed),
+      rate: Math.round(rate),
+      stock: Math.round(fromStock),
+      spent: Math.round(spent),
+      allowance: Math.round(allowance),
+    };
     // Never past the round target: counting stops there, so a client reporting
     // more has either lost track or is trying it on.
     totalCeiling = Math.min(ROUND_TARGET, (existing.total_joints_earned || 0) + allowance);
@@ -272,7 +292,12 @@ const _saveStateTx = db.transaction((npub, payload) => {
   }
 
   const corrected = plausible !== reported;
-  if (corrected) logEvent(npub, 'clamp', reported - plausible, { reported, kept: plausible, stale: !!staleBalance });
+  if (corrected) logEvent(npub, 'clamp', reported - plausible, {
+    reported, kept: plausible, stale: !!staleBalance,
+    // What the ceiling was built from. A clamp without these is a number nobody
+    // can check afterwards — which is how this one went unexplained for a day.
+    ...(guard || {}),
+  });
 
   const savedState = keepStoredState ? existing.game_state : JSON.stringify(gameState || {});
   // Never below what is stored: the counter only ever grows, and the wipe guard
