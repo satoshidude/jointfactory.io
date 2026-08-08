@@ -84,3 +84,25 @@ export function fmtDateTime(unixSeconds: number): string {
   return d.toLocaleDateString(LOCALE, { day: '2-digit', month: 'short' })
     + ' ' + d.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false })
 }
+
+/**
+ * How full the round is, for a bar or a lane.
+ *
+ * Linear against a quadrillion draws nothing: a player six billion joints in —
+ * days of play, a third of the way through the week — sits at 0.0007 %, and the
+ * bar is a flat line for almost the whole round. Production grows by orders of
+ * magnitude, so the honest picture of *how far through* somebody is is
+ * logarithmic, which is what the race lanes already use.
+ *
+ * Both read from here so the round bar and the lane below it cannot disagree
+ * about the same player in the same card. The figures printed beside them stay
+ * absolute, so nobody is misled about the actual count.
+ */
+export const ROUND_DECADES = 6
+
+export function roundProgressPct(earned: number, target: number): number {
+  const p = target > 0 ? Math.min(1, earned / target) : 0
+  if (p >= 1) return 100
+  if (p <= 0) return 0
+  return Math.max(0, Math.min(100, ((Math.log10(p) + ROUND_DECADES) / ROUND_DECADES) * 100))
+}

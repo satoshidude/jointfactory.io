@@ -4,7 +4,7 @@ import { Trophy, RotateCcw, Cannabis, Star } from 'lucide-react'
 import { ROUND_TARGET } from '../../../shared/economy.js'
 import RoundComplete from './RoundComplete'
 import { apiFetch } from '../../lib/api'
-import { fmtNum } from '../../lib/format'
+import { fmtNum, roundProgressPct } from '../../lib/format'
 import './RoundCard.css'
 
 interface RoundInfo {
@@ -88,7 +88,11 @@ export default function RoundCard({ totalEarned, isLoggedIn, onReset, embedded =
   if (!isLoggedIn || !info) return null
 
   const target = info?.target ?? ROUND_TARGET
-  const pct = Math.min(100, (totalEarned / target) * 100)
+  // Logarithmic, like the lanes below it — see roundProgressPct. The counter is
+  // the round's *earned* total, not the balance: spending joints on the chain is
+  // how a round is played, and a bar that fell back every time you bought
+  // something would be measuring your wallet, not your progress.
+  const pct = roundProgressPct(totalEarned, target)
   const done = !!info?.reached_target_at
   const celebrate = done && info!.round_no !== seen
 

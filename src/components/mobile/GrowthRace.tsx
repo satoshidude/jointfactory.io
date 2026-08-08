@@ -5,7 +5,7 @@ import { nip19 } from 'nostr-tools'
 import { apiFetch } from '../../lib/api'
 import { useAuth } from '../../stores/authStore'
 import './GrowthRace.css'
-import { fmtNum } from '../../lib/format'
+import { fmtNum, roundProgressPct } from '../../lib/format'
 import { speedMultiplier, ROUND_TARGET } from '../../../shared/economy.js'
 
 interface PlayerInfo {
@@ -44,15 +44,6 @@ const LANE_COLORS = [
 
 /** How far back the trend arrow looks. */
 const TREND_WINDOW = 90 * 60
-
-/**
- * Decades of the round mapped onto a lane.
- *
- * Progress inside one round spans fifteen orders of magnitude, so a linear lane
- * would park the whole field on the start line and show nothing. Six decades
- * give a tenth of a percent a real place on the track.
- */
-const LANE_DECADES = 6
 
 /** Unknown or unreachable finishes go last, never in the middle. */
 const rank = (secs: number) => Number.isFinite(secs) ? secs : Infinity
@@ -147,9 +138,7 @@ export default function GrowthRace({ header }: { header?: React.ReactNode } = {}
         : Number.isFinite(elapsed) ? elapsed + eta : NaN
 
       const progress = Math.min(1, total / ROUND_TARGET)
-      const pos = progress >= 1 ? 100
-        : progress <= 0 ? 0
-        : Math.max(0, Math.min(100, ((Math.log10(progress) + LANE_DECADES) / LANE_DECADES) * 100))
+      const pos = roundProgressPct(total, ROUND_TARGET)
 
       return {
         npub: p.npub,
