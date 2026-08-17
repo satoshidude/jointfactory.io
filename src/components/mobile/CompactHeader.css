@@ -1,0 +1,109 @@
+/* ── Compact Header (Mobile) ────────────────────────────────────────────────── */
+
+.compact-header {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  background: var(--bg-primary);
+  gap: 6px;
+}
+
+/* Title */
+.compact-header-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--neon-green);
+  text-shadow: 0 0 12px rgba(57, 255, 20, .5), 0 0 24px rgba(57, 255, 20, .3);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  letter-spacing: 2px;
+}
+
+.compact-header-version {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+  align-self: flex-end;
+  line-height: 2;
+  margin-left: -10px;
+}
+
+.compact-header-logo-icon {
+  color: var(--neon-green);
+  filter: drop-shadow(0 0 8px rgba(57, 255, 20, .5)) drop-shadow(0 0 16px rgba(57, 255, 20, .3));
+  flex-shrink: 0;
+}
+
+/* Stats row */
+.compact-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Stats */
+.compact-header-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Pipe separators between stat items (single-col only) */
+.compact-header-stats > *:not(:last-child)::after {
+  content: '|';
+  margin-left: 12px;
+  color: var(--text-secondary);
+  opacity: 0.4;
+  font-weight: 400;
+}
+
+.compact-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.compact-stat.joints {
+  color: var(--neon-green);
+}
+
+.compact-stat.joints svg {
+  color: var(--neon-green);
+  filter: drop-shadow(0 0 4px rgba(57, 255, 20, .4));
+}
+
+.compact-stat.sats {
+  color: var(--neon-gold);
+}
+
+.compact-stat.sats svg {
+  color: var(--neon-gold);
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4));
+}
+
+/* User Badge (inline with stats) */
+.compact-user {
+  display: flex;
+  align-items: center;
+  color: var(--neon-purple);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  gap: 4px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

@@ -1,0 +1,207 @@
+.sats-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--neon-gold);
+  border-radius: 12px;
+  width: 420px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 40px rgba(255, 215, 0, 0.15);
+}
+
+.sats-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sats-modal-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--neon-gold);
+  font-family: var(--font-heading);
+}
+
+.sats-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.sats-modal-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.sats-modal-body {
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sats-balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(255, 215, 0, 0.06);
+  border: 1px solid rgba(255, 215, 0, 0.15);
+  border-radius: 8px;
+}
+
+.sats-balance-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.sats-balance-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--neon-gold);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+/* Tabs */
+.sats-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.sats-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  transition: all 0.15s;
+}
+
+.sats-tab:hover {
+  background: var(--bg-hover);
+}
+
+.sats-tab.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+
+.sats-tab-total {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sats-tab:nth-child(1) .sats-tab-total { color: var(--neon-gold); }
+.sats-tab:nth-child(2) .sats-tab-total { color: var(--neon-gold); }
+.sats-tab:nth-child(3) .sats-tab-total { color: var(--neon-gold); }
+
+.sats-tab:nth-child(1).active { border-bottom: 2px solid var(--neon-gold); }
+.sats-tab:nth-child(2).active { border-bottom: 2px solid var(--neon-gold); }
+.sats-tab:nth-child(3).active { border-bottom: 2px solid var(--neon-gold); }
+
+/* History list */
+.sats-history {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.sats-tx {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.sats-tx:hover {
+  background: var(--bg-hover);
+}
+
+.sats-tx-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sats-tx-deposit .sats-tx-icon {
+  background: rgba(57, 255, 20, 0.1);
+  color: var(--neon-green);
+}
+.sats-tx-lottery_win .sats-tx-icon {
+  background: rgba(255, 215, 0, 0.1);
+  color: var(--neon-gold);
+}
+.sats-tx-withdraw .sats-tx-icon {
+  background: rgba(255, 105, 180, 0.1);
+  color: #ff69b4;
+}
+.sats-tx-referral_reward .sats-tx-icon {
+  background: rgba(57, 255, 20, 0.1);
+  color: var(--neon-green);
+}
+
+.sats-tx-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sats-tx-type {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sats-tx-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.sats-tx-amount {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sats-tx-amount.positive { color: var(--neon-gold); }
+.sats-tx-amount.negative { color: var(--neon-gold); }
+
+.sats-loading, .sats-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}

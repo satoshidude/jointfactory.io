@@ -1,0 +1,194 @@
+/* Round complete — the celebration. All CSS, no library. */
+
+.rc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: radial-gradient(circle at 50% 45%, rgba(40, 32, 8, .96), rgba(8, 8, 6, .985));
+  animation: rc-fade-in .35s ease-out;
+  overflow: hidden;
+}
+
+@keyframes rc-fade-in { from { opacity: 0 } to { opacity: 1 } }
+
+/* ── Fireworks ───────────────────────────────────────────────────────────── */
+
+.rc-fireworks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.rc-burst {
+  position: absolute;
+  width: 0;
+  height: 0;
+  animation: rc-burst 2.6s ease-out infinite;
+}
+
+/* The burst itself only gates visibility; the sparks carry the movement, so one
+   keyframe pair drives twelve elements. */
+@keyframes rc-burst {
+  0%, 6% { opacity: 0 }
+  8% { opacity: 1 }
+  60%, 100% { opacity: 0 }
+}
+
+.rc-spark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: hsl(var(--hue) 100% 62%);
+  box-shadow: 0 0 8px 1px hsl(var(--hue) 100% 62% / .8);
+  transform: rotate(var(--angle)) translateY(0);
+  animation: rc-spark 2.6s cubic-bezier(.15, .7, .3, 1) infinite;
+  animation-delay: inherit;
+}
+
+@keyframes rc-spark {
+  0%, 8%   { transform: rotate(var(--angle)) translateY(0) scale(1); opacity: 1 }
+  55%      { transform: rotate(var(--angle)) translateY(-92px) scale(.5); opacity: .9 }
+  100%     { transform: rotate(var(--angle)) translateY(-118px) scale(.15); opacity: 0 }
+}
+
+/* ── The star ────────────────────────────────────────────────────────────── */
+
+.rc-star-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.rc-star {
+  width: 116px;
+  height: 116px;
+  color: var(--neon-gold);
+  fill: var(--neon-gold);
+  animation: rc-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes rc-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 14px rgba(255, 215, 0, .55));
+  }
+  50% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 34px rgba(255, 215, 0, .95)) drop-shadow(0 0 60px rgba(255, 215, 0, .5));
+  }
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+
+.rc-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.rc-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 26px;
+  line-height: 1.15;
+  color: var(--neon-gold);
+  text-shadow: 0 0 18px rgba(255, 215, 0, .5);
+}
+
+.rc-sub {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.rc-sub strong { color: var(--neon-gold); }
+
+.rc-note {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  opacity: .85;
+}
+
+.rc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 15px 18px;
+  border: 2px solid rgba(255, 215, 0, .7);
+  border-radius: 12px;
+  background: rgba(255, 215, 0, .14);
+  color: var(--neon-gold);
+  font-family: var(--font-heading);
+  font-size: 17px;
+  cursor: pointer;
+  animation: rc-btn-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes rc-btn-glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(255, 215, 0, .25) }
+  50%      { box-shadow: 0 0 28px rgba(255, 215, 0, .6) }
+}
+
+.rc-btn:hover { background: rgba(255, 215, 0, .24) }
+.rc-btn:disabled { opacity: .6; cursor: default; animation: none }
+.rc-btn-star { fill: currentColor; color: var(--neon-purple) }
+
+.rc-later {
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  cursor: pointer;
+  opacity: .7;
+}
+
+.rc-later:hover { opacity: 1 }
+
+.rc-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  padding: 8px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: .6;
+}
+
+.rc-close:hover { opacity: 1 }
+
+/* Nothing here is information — it is applause. Someone who has asked for less
+   motion gets the same card, standing still. */
+@media (prefers-reduced-motion: reduce) {
+  .rc-overlay,
+  .rc-burst,
+  .rc-spark,
+  .rc-star,
+  .rc-btn { animation: none }
+  .rc-fireworks { display: none }
+  .rc-star { filter: drop-shadow(0 0 18px rgba(255, 215, 0, .6)) }
+}

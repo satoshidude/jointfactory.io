@@ -1,0 +1,458 @@
+/* ── Station Card ─────────────────────────────────────────────────────────── */
+
+.station-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-x: hidden;
+  min-width: 0;
+}
+
+/* ── Station Header (icon + title + level) ───────────────────────────────── */
+
+.station-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.station-header-icon {
+  flex-shrink: 0;
+}
+
+.station-plant .station-header-icon { color: var(--neon-green); filter: drop-shadow(0 0 6px rgba(57, 255, 20, .4)); }
+.station-courier .station-header-icon { color: #ff69b4; filter: drop-shadow(0 0 6px rgba(255, 105, 180, .4)); }
+.station-factory .station-header-icon { color: var(--neon-purple); filter: drop-shadow(0 0 6px rgba(204, 68, 255, .4)); }
+
+.station-name {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.station-plant .station-name { color: var(--neon-green); text-shadow: 0 0 8px rgba(57, 255, 20, .4); }
+.station-courier .station-name { color: #ff69b4; text-shadow: 0 0 8px rgba(255, 105, 180, .4); }
+.station-factory .station-name { color: var(--neon-purple); text-shadow: 0 0 8px rgba(204, 68, 255, .4); }
+
+.station-level {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+/* Top section: ring + info side-by-side */
+.station-card-top {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* ── Cycle Ring ────────────────────────────────────────────────────────────── */
+
+.station-ring-wrap {
+  position: relative;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  overflow: visible;
+}
+
+
+.ring-clickable {
+  cursor: pointer;
+}
+
+.ring-clickable:active {
+  transform: scale(0.95) !important;
+  animation: none !important;
+  transition: transform 0.1s;
+}
+
+/* Pulse when cycle is complete and ready to click */
+.ring-ready {
+  animation: ring-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.06); filter: brightness(1.3); }
+}
+
+.ring-disabled {
+  opacity: 0.5;
+  cursor: default;
+  animation: none;
+}
+
+.ring-disabled:active {
+  transform: none;
+}
+
+.cycle-ring {
+  display: block;
+  overflow: visible;
+}
+
+.station-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.station-ring-value {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.station-ring-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  opacity: 0.7;
+}
+
+/* Milestone blow effect */
+.station-ring-blow {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  animation: milestone-blow 1.5s ease-out forwards;
+}
+
+@keyframes milestone-blow {
+  0% { transform: scale(0.5); opacity: 0; }
+  15% { transform: scale(1.4); opacity: 1; }
+  30% { transform: scale(1); opacity: 1; }
+  80% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+
+/* Flash animation on cycle complete */
+@keyframes cycle-flash {
+  0% { opacity: 0.8; stroke-width: 8px; }
+  100% { opacity: 0; stroke-width: 14px; }
+}
+
+.cycle-ring-flash {
+  opacity: 0;
+  animation: cycle-flash 0.4s ease-out;
+}
+
+/* ── Pulse Ring ───────────────────────────────────────────────────────────── */
+
+.pulse-ring-stroke {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% { opacity: 0.6; stroke-width: 4; }
+  50% { opacity: 1; stroke-width: 5; }
+}
+
+/* ── Station Info ──────────────────────────────────────────────────────────── */
+
+.station-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.station-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.station-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.station-stat-label {
+  color: var(--text-secondary);
+}
+
+.station-stat-value {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.station-milestone .station-stat-value {
+  color: var(--neon-gold);
+}
+
+/* ── Action Buttons ────────────────────────────────────────────────────────── */
+
+.station-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.station-btn {
+  width: 100%;
+  padding: 10px 14px;
+  min-height: 44px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  background: rgba(255, 255, 255, .03);
+  color: var(--text-primary);
+  transition: transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.station-btn svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
+}
+
+.station-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.station-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Level upgrade */
+.station-btn-level {
+  background: rgba(57, 255, 20, .08);
+  border-color: rgba(57, 255, 20, .2);
+  color: var(--neon-green);
+}
+
+
+.station-btn-level.insufficient {
+  background: rgba(57, 255, 20, .05);
+  border-color: rgba(57, 255, 20, .15);
+  color: var(--neon-green);
+}
+
+/* Manager hire */
+.station-btn-manager {
+  background: rgba(255, 215, 0, .08);
+  border-color: rgba(255, 215, 0, .2);
+  color: var(--neon-gold);
+}
+
+/* Free manager */
+.station-btn-free {
+  background: rgba(57, 255, 20, .15);
+  border-color: rgba(57, 255, 20, .4);
+  color: var(--neon-green);
+  box-shadow: 0 0 8px rgba(57, 255, 20, .15);
+}
+
+/* Speed upgrade */
+.station-btn-speed {
+  background: rgba(0, 212, 255, .06);
+  border-color: rgba(0, 212, 255, .15);
+  color: var(--neon-gold);
+}
+
+/* ── Plant List (inside PlantationsCard) ──────────────────────────────────── */
+
+.plant-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 750px) {
+  .plant-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.plant-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 2px 20px;
+  padding: 10px;
+  background: rgba(255, 255, 255, .03);
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.plant-row > .station-ring-wrap {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  align-self: start;
+}
+
+
+.plant-row .station-ring-value {
+  font-size: 10px;
+}
+
+.plant-row-info {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.plant-row-name {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  color: var(--neon-green);
+  text-shadow: 0 0 6px rgba(57, 255, 20, .3);
+  line-height: 1.2;
+}
+
+.plant-row-name.locked {
+  color: var(--text-secondary);
+  text-shadow: none;
+}
+
+.plant-row-sub {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 6px 0;
+}
+
+.plant-row-milestone {
+  color: var(--neon-gold);
+}
+
+.plant-row-actions {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.plant-row-btn {
+  padding: 6px 10px !important;
+  min-height: 36px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  width: auto !important;
+  flex-direction: column !important;
+}
+
+.plant-row-btn svg {
+  stroke-width: 2 !important;
+}
+
+.plant-btn-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.plant-btn-line:first-child {
+  font-weight: 700;
+}
+
+.plant-row-locked .plant-locked-ring,
+.plant-row-locked .plant-row-info {
+  opacity: 0.5;
+}
+
+.plant-locked-ring {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.plant-locked-cost {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "12.4K / 1.8K" — stock against one batch, so an underfed factory is visible
+   without reading two cards. */
+.station-stat-of {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.station-stat-warn {
+  color: var(--neon-gold);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.station-stat-note {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+/* The capacity a charge is measured against — present, but not competing with
+   the number that changes. */
+.station-stat-of {
+  opacity: .55;
+  font-size: .85em;
+}
+
+/* Underfed: the station could roll more than arrives. A slow breath on the ring,
+   not an alarm — the number beside it already says by how much. */
+.station-ring-wrap.ring-underfed {
+  animation: ring-underfed 2.4s ease-in-out infinite;
+}
+
+@keyframes ring-underfed {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .station-ring-wrap.ring-underfed { animation: none; opacity: .7; }
+}
+
+/* ── Frozen: the round is over ────────────────────────────────────────────── */
+/* Nothing is produced or counted past the target, so the rings hold where they
+   stand. Without the muting they would simply stop, which reads as a stall
+   rather than an ending. No label here — the round card two inches above
+   already says it, and six of them would be noise. */
+
+.station-card.station-frozen {
+  opacity: .72;
+  filter: saturate(.55);
+}
+
+.station-card.station-frozen .cycle-ring circle,
+.station-card.station-frozen .pulse-ring-stroke,
+.station-card.station-frozen .station-ring-wrap {
+  animation: none !important;
+  transition: none !important;
+}
