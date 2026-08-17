@@ -2,12 +2,12 @@
 
 ![Joint Factory Grow screen](public/readme-grow.jpg)
 
-A Bitcoin-native idle game built around short, comparable rounds.
+An idle game on the Nostr network, built around short, comparable rounds.
 
 Grow a production chain from plantation through courier to factory. A round ends
 at one quadrillion joints; finishing banks one prestige star and resets the chain
 for the next race. Managers automate production, boosts accelerate it, and joints
-buy entries for the Lightning lottery.
+buy entries for the sats lottery.
 
 Login uses Nostr—no email or password. Play at
 [jointfactory.io](https://jointfactory.io).
@@ -38,7 +38,7 @@ free, while every production race still starts from the same basic chain. The
 leaderboards compare completed rounds, finish times and prestige.
 
 Lottery draws run Tuesday, Thursday and Saturday at 21:00 Berlin time. Deposits,
-winnings and withdrawals use Lightning; the game itself never creates sats.
+winnings and withdrawals are settled in sats; the game itself never creates them.
 
 ## Install
 
